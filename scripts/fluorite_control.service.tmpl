@@ -1,0 +1,10 @@
+[Unit]
+After=network.target
+ 
+[Service]
+Type=oneshot
+ExecStart={PROJECT_PATH}/scripts/up_headless.sh
+User=root
+
+[Install]
+WantedBy=multi-user.target

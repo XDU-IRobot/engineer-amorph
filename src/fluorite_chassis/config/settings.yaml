@@ -16,7 +16,7 @@ fluorite_chassis:
 
     # pid param
     pid_l_front_speed: [5.0, 0.0, 0.0]
-    pid_l_mid_speed: [7.0, 0.0, 0.0]
+    pid_l_mid_speed: [9.2, 0.0, 0.0]
     pid_l_rear_speed: [5.0, 0.0, 0.0]
     pid_l_lift_speed: [8.5, 0.0, 0.0]
     pid_r_front_speed: [5.0, 0.0, 0.0]
