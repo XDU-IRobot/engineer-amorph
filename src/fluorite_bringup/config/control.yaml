@@ -5,14 +5,14 @@ fluorite_chassis:
     can_port: "can0"
 
     # dji motor ids
-    l_front_wheel_id: 6
-    l_mid_wheel_id: 7
-    l_rear_wheel_id: 5
-    l_lift_wheel_id: 8
-    r_front_wheel_id: 2
-    r_mid_wheel_id: 3
-    r_rear_wheel_id: 1
-    r_lift_wheel_id: 4
+    l_front_wheel_id: 1
+    l_mid_wheel_id: 3
+    l_rear_wheel_id: 2
+    l_lift_wheel_id: 4
+    r_front_wheel_id: 5
+    r_mid_wheel_id: 7
+    r_rear_wheel_id: 6
+    r_lift_wheel_id: 8
 
     # pid param
     pid_l_front_speed: [5.0, 0.0, 0.0]
