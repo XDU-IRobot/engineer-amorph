@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: sbarm_description
+    relative_path: urdf/sbarm_description.urdf
+  srdf:
+    relative_path: config/sbarm.srdf
+  package_settings:
+    author_name: lunarifish
+    author_email: messenger@lunariio.work
+    generated_timestamp: 1731934528
+  control_xacro:
+    command:
+      - effort
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - effort
+    state:
+      - position
+      - velocity
