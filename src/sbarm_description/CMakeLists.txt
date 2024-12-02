@@ -7,7 +7,7 @@ find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 
 install(
-  DIRECTORY config launch meshes rviz urdf
+  DIRECTORY config launch meshes urdf
   DESTINATION share/${PROJECT_NAME}
 )
 

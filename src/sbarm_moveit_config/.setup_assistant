@@ -7,7 +7,7 @@ moveit_setup_assistant_config:
   package_settings:
     author_name: lunarifish
     author_email: messenger@lunariio.work
-    generated_timestamp: 1731934528
+    generated_timestamp: 1731948580
   control_xacro:
     command:
       - effort

@@ -10,7 +10,7 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "world_frame": "world",
-                "d435_frame": "camera_depth_optical_frame",
+                "d435_frame": "camera_link",
                 "arm_frame": "base_link",
             }]
         )
