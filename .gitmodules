@@ -1,3 +1,21 @@
 [submodule "src/robomaster2"]
 	path = src/robomaster2
 	url = https://github.com/XDU-IRobot/robomaster2.git
+[submodule "src/fluorite_chassis/libs/pfr"]
+	path = src/fluorite_chassis/libs/pfr
+	url = https://github.com/boostorg/pfr.git
+[submodule "src/fluorite_chassis/libs/tweeny"]
+	path = src/fluorite_chassis/libs/tweeny
+	url = https://github.com/mobius3/tweeny.git
+[submodule "src/fluorite_chassis/libs/edge-trigger"]
+	path = src/fluorite_chassis/libs/edge-trigger
+	url = https://github.com/lunarifish/edge-trigger.git
+[submodule "src/fluorite_chassis/libs/DSP-Cpp-filters"]
+	path = src/fluorite_chassis/libs/DSP-Cpp-filters
+	url = https://github.com/lunarifish/DSP-Cpp-filters.git
+[submodule "src/fluorite_chassis/libs/librm"]
+	path = src/fluorite_chassis/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
+[submodule "src/fluorite_chassis/libs/tinyfsm"]
+	path = src/fluorite_chassis/libs/tinyfsm
+	url = https://github.com/digint/tinyfsm.git

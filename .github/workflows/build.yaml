@@ -28,8 +28,12 @@ jobs:
         with:
           submodules: "recursive"
           ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt update && apt install -y ros-${{ matrix.ros_distro }}-moveit*
       - name: Build
         shell: bash
         run: |
-            source /opt/ros/${{ matrix.ros_distro }}/setup.sh
-            colcon build
+          source /opt/ros/${{ matrix.ros_distro }}/setup.sh
+          colcon build
