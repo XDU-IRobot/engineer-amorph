@@ -34,25 +34,14 @@ class RosParamsManager {
   RosParamsManager() = delete;
   ~RosParamsManager() = default;
 
-  RosParamsManager(rclcpp::Node::SharedPtr &node) : node_(node) {}
-  RosParamsManager(rclcpp::Node::SharedPtr &&node) : node_(std::move(node)) {}
-  RosParamsManager(rclcpp::Node *node) : node_(node->shared_from_this()) {}
+  RosParamsManager(rclcpp::Node *node) : node_(node) {}
 
   const ParamsStructType &data() const { return ros_params_; }
 
   void Init() {
-    // 尝试拿到节点的shared_ptr
-    rclcpp::Node::SharedPtr node{nullptr};
-    try {
-      node = node_.lock();
-    } catch (const std::bad_weak_ptr &e) {  // this should never happen though...
-      throw std::runtime_error("ROSParamsManager: node is expired, return");
-      return;
-    }
-
     // 遍历ros_params_结构体的每个字段，从传入的节点参数中读入对应的参数
     boost::pfr::for_each_field_with_name(
-        ros_params_, [node](std::string_view name, auto &field) { node->get_parameter(std::string(name), field); });
+        ros_params_, [&](std::string_view name, auto &field) { node_->get_parameter(std::string(name), field); });
 
     // 把所有参数打印出来
     int max_name_length = 0, max_value_length = 0;
@@ -62,19 +51,21 @@ class RosParamsManager {
       max_name_length = std::max(max_name_length, static_cast<int>(name.size()));
       max_value_length = std::max(max_value_length, static_cast<int>(oss.str().size()));
     });
-    RCLCPP_INFO(node->get_logger(), "ROSParamsManager: params ok");
-    RCLCPP_INFO(node->get_logger(), "================================================================================");
+    RCLCPP_INFO(node_->get_logger(), "ROSParamsManager: params ok");
+    RCLCPP_INFO(node_->get_logger(),
+                "================================================================================");
     boost::pfr::for_each_field_with_name(ros_params_, [&](std::string_view name, auto &field) {
       std::ostringstream oss;
       oss << field;
       std::string fmt = "%-" + std::to_string(max_name_length) + "s     %-" + std::to_string(max_value_length) + "s";
-      RCLCPP_INFO(node->get_logger(), fmt.c_str(), name.data(), oss.str().c_str());
+      RCLCPP_INFO(node_->get_logger(), fmt.c_str(), name.data(), oss.str().c_str());
     });
-    RCLCPP_INFO(node->get_logger(), "================================================================================");
+    RCLCPP_INFO(node_->get_logger(),
+                "================================================================================");
 
     /** 启动参数服务器 **/
-    param_cb_handle_ = node->add_on_set_parameters_callback(
-        std::bind(&RosParamsManager::ParameterCallback, node.get(), std::placeholders::_1));
+    // param_cb_handle_ = node_->add_on_set_parameters_callback(
+    //     std::bind(&RosParamsManager::ParameterCallback, this, std::placeholders::_1));
   }
 
  private:
@@ -83,15 +74,11 @@ class RosParamsManager {
    */
   auto ParameterCallback(const std::vector<rclcpp::Parameter> &parameters) -> rcl_interfaces::msg::SetParametersResult {
     for (const auto &parameter : parameters) {
-      // 尝试拿到节点的shared_ptr
-      // 还能进这个callback说明节点肯定还没释放，可以放心拿shared_ptr，所以没有像上面一样try-catch
-      rclcpp::Node::SharedPtr node = node_.lock();
-
-      boost::pfr::for_each_field_with_name(ros_params_, [&parameter, node](std::string_view name, auto &field) {
+      boost::pfr::for_each_field_with_name(ros_params_, [&](std::string_view name, auto &field) {
         if (name == parameter.get_name()) {
-          RCLCPP_INFO(node->get_logger(), "ROSParamsManager: parameter %s has been updated to %s", name.data(),
+          RCLCPP_INFO(node_->get_logger(), "ROSParamsManager: parameter %s has been updated to %s", name.data(),
                       parameter.value_to_string().c_str());
-          node->get_parameter(std::string(name), field);
+          node_->get_parameter(std::string(name), field);
         }
       });
     }
@@ -99,7 +86,7 @@ class RosParamsManager {
   }
 
  private:
-  rclcpp::Node::WeakPtr node_;
+  rclcpp::Node::SharedPtr node_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
   ParamsStructType ros_params_{};
 };

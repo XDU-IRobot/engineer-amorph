@@ -1,0 +1,14 @@
+
+std_msgs/Header header
+
+int32 target_lift_encoder
+float32 l_front_speed
+float32 l_mid_speed
+float32 l_rear_speed
+float32 l_lift_speed
+float32 r_front_speed
+float32 r_mid_speed
+float32 r_rear_speed
+float32 r_lift_speed
+float32 l_lift_position
+float32 r_lift_position
