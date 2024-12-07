@@ -7,8 +7,6 @@
 #include <iostream>
 #include <unordered_map>
 
-#include <Eigen/Dense>
-
 #include "fluorite_chassis/logger.hpp"
 
 using namespace rm::modules::algorithm::utils;

@@ -15,7 +15,6 @@
 
 #include "fluorite_chassis/fsm.hpp"
 #include "fluorite_chassis/logger.hpp"
-#include "librm/modules/algorithm/pid.h"
 
 using namespace std::chrono_literals;
 using namespace rm;
@@ -25,12 +24,10 @@ FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options) : rclcpp::N
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
   this->InitFsm();             // 初始化状态机
   this->DeviceMonitor();       // 设备在线状态监控
-  auto ins_init_time_point = std::chrono::steady_clock::now();
   this->Remote();                                             // 启动遥控器接收
   this->Referee();                                            // 启动裁判系统接收
   this->Navigation();                                         // 启动和导航节点的通信
   this->Blackbox();                                           // 启动黑匣子（广播state和control）
-  std::this_thread::sleep_until(ins_init_time_point + 1.5s);  // 等待姿态解算收敛
 
   // 启动控制循环
   info("control node initialize ok");
