@@ -71,7 +71,7 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
     std::unique_ptr<rm::modules::algorithm::PID> l_front_speed{nullptr}, l_mid_speed{nullptr}, l_rear_speed{nullptr},
         l_lift_speed{nullptr}, r_front_speed{nullptr}, r_mid_speed{nullptr}, r_rear_speed{nullptr},
         r_lift_speed{nullptr}, l_lift_position{nullptr}, r_lift_position{nullptr};
-    std::unique_ptr<ChassisFk> chassis_solver{nullptr};
+    ChassisFk chassis_solver{0.54, 0.44};
     EncoderCounter<int> l_lift_encoder{8191}, r_lift_encoder{8191};
   } controller;
 };
@@ -87,6 +87,13 @@ void DispatchEvent(Event const &event) {
 
 namespace state {
 namespace chassis {
+
+class Neutral : public fsm::Chassis {
+ public:
+  constexpr static char const *name = "Neutral";
+  void entry() override;
+};
+
 class Lift : public fsm::Chassis {
  public:
   constexpr static char const *name = "Lift";

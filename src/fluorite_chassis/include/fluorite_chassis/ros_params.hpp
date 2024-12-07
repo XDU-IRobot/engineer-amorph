@@ -39,6 +39,10 @@ struct RosParams {
   bool r_rear_wheel_reverse;
   bool r_lift_wheel_reverse;
 
+  // configurations
+  double lift_encoder_delta;
+  double lower_encoder_delta;
+
   // input settings
   bool control_use_fpv_channel;
   bool control_invert_vertical;

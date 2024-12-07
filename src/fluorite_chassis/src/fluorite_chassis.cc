@@ -87,61 +87,61 @@ void FluoriteChassis::InitFsm() {
       ros_params_manager_.data().pid_l_front_speed[0], 
       ros_params_manager_.data().pid_l_front_speed[1],
       ros_params_manager_.data().pid_l_front_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.l_mid_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_l_mid_speed[0], 
       ros_params_manager_.data().pid_l_mid_speed[1],
       ros_params_manager_.data().pid_l_mid_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.l_rear_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_l_rear_speed[0], 
       ros_params_manager_.data().pid_l_rear_speed[1],
       ros_params_manager_.data().pid_l_rear_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.l_lift_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_l_lift_speed[0], 
       ros_params_manager_.data().pid_l_lift_speed[1],
       ros_params_manager_.data().pid_l_lift_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.r_front_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_r_front_speed[0], 
       ros_params_manager_.data().pid_r_front_speed[1],
       ros_params_manager_.data().pid_r_front_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.r_mid_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_r_mid_speed[0], 
       ros_params_manager_.data().pid_r_mid_speed[1],
       ros_params_manager_.data().pid_r_mid_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.r_rear_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_r_rear_speed[0], 
       ros_params_manager_.data().pid_r_rear_speed[1],
       ros_params_manager_.data().pid_r_rear_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.r_lift_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_r_lift_speed[0], 
       ros_params_manager_.data().pid_r_lift_speed[1],
       ros_params_manager_.data().pid_r_lift_speed[2],
-      0, 0);
+      12000, 0);
   fsm::Chassis::controller.l_lift_position = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_l_lift_position[0], 
       ros_params_manager_.data().pid_l_lift_position[1],
       ros_params_manager_.data().pid_l_lift_position[2],
-      0, 0);
+      1000, 0);
   fsm::Chassis::controller.r_lift_position = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
       ros_params_manager_.data().pid_r_lift_position[0], 
       ros_params_manager_.data().pid_r_lift_position[1],
       ros_params_manager_.data().pid_r_lift_position[2],
-      0, 0);
+      1000, 0);
   // clang-format on
 
   chassis_can->SetFilter(0, 0);  // 设置can过滤器
@@ -154,18 +154,26 @@ void FluoriteChassis::Navigation() { info("navigation ok"); }
 
 void FluoriteChassis::Remote() {
   static int last_left_switch = 0;
+  static int last_right_switch = 0;
   remote_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
       "/rm2_remote/joy", rclcpp::SensorDataQoS(), [&](const sensor_msgs::msg::Joy::SharedPtr msg) {
         remote_device_.IAmAlive();
-        if ((last_left_switch != 3) && (msg->buttons[1] == 3)) {
+        if (msg->buttons[0] == 3) {  // right at the middle
+          if ((last_left_switch != 3) && (msg->buttons[1] == 3)) {
+            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::Neutral>{});
+          } else if ((last_left_switch != 2) && (msg->buttons[1] == 2)) {
+            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::Lower>{});
+          } else if ((last_left_switch != 1) && (msg->buttons[1] == 1)) {
+            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::Lift>{});
+          }
+        } else {
           fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
-        } else if ((last_left_switch != 2) && (msg->buttons[1] == 2)) {
-          fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::Lift>{});
         }
         last_left_switch = msg->buttons[1];
+        last_right_switch = msg->buttons[0];
 
-        control_msg_.vx = msg->axes[1] * ros_params_manager_.data().control_sensitivity_vertical;
-        control_msg_.vy = msg->axes[0] * ros_params_manager_.data().control_sensitivity_horizontal;
+        control_msg_.vx = msg->axes[0] * ros_params_manager_.data().control_sensitivity_vertical;
+        control_msg_.vy = msg->axes[1] * ros_params_manager_.data().control_sensitivity_horizontal;
         control_msg_.vw = -msg->axes[4] * ros_params_manager_.data().control_sensitivity_horizontal;
         if (ros_params_manager_.data().control_invert_vertical) {
           control_msg_.vx = -control_msg_.vx;
@@ -183,7 +191,12 @@ void FluoriteChassis::Referee() { info("referee ok"); }
 /**
  * @brief 字面意思
  */
-void FluoriteChassis::Blackbox() { info("blackbox ok"); }
+void FluoriteChassis::Blackbox() {
+  blackbox_state_pub_ =
+      this->create_publisher<fluorite_msgs::msg::ChassisState>("blackbox/state", rclcpp::SystemDefaultsQoS());
+  blackbox_timer_ = this->create_wall_timer(10ms, [this] { blackbox_state_pub_->publish(fsm::Chassis::state); });
+  info("blackbox ok");
+}
 
 /**
  * @brief 设备在线状态监控
