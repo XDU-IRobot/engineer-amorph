@@ -27,23 +27,21 @@ void Chassis::react(event::chassis::Control const &event) {
   controller.r_mid_speed->Update(controller.chassis_solver.wheel_speeds_.r_mid, state.r_mid_speed);
   controller.l_rear_speed->Update(controller.chassis_solver.wheel_speeds_.l_rear, state.l_rear_speed);
   controller.r_rear_speed->Update(controller.chassis_solver.wheel_speeds_.r_rear, state.r_rear_speed);
-  controller.l_lift_position->Update(state.target_lift_encoder, state.l_lift_position);
-  controller.l_lift_speed->Update(controller.l_lift_position->value(), state.l_lift_speed);
-  controller.r_lift_position->Update(state.target_lift_encoder, state.r_lift_position);
-  controller.r_lift_speed->Update(controller.r_lift_position->value(), state.r_lift_speed);
-  // info("%f %f %f %f", controller.l_lift_position->value(), controller.r_lift_position->value(),
-  //      controller.l_lift_speed->value(), controller.r_lift_speed->value());
-  // info("%f %f %f | %f %f %f %f %f %f", event.vx, event.vy, event.vw, controller.l_front_speed->value(),
-  //      controller.r_front_speed->value(), controller.l_mid_speed->value(), controller.r_mid_speed->value(),
-  //      controller.l_rear_speed->value(), controller.r_rear_speed->value());
   actuator.l_front_wheel->SetCurrent(controller.l_front_speed->value());
   actuator.r_front_wheel->SetCurrent(controller.r_front_speed->value());
   actuator.l_mid_wheel->SetCurrent(controller.l_mid_speed->value());
   actuator.r_mid_wheel->SetCurrent(controller.r_mid_speed->value());
   actuator.l_rear_wheel->SetCurrent(controller.l_rear_speed->value());
   actuator.r_rear_wheel->SetCurrent(controller.r_rear_speed->value());
-  actuator.l_lift->SetCurrent(controller.l_lift_speed->value());
-  actuator.r_lift->SetCurrent(controller.r_lift_speed->value());
+
+  if (!this->is_in_state<state::chassis::Adaptive>()) {
+    controller.l_lift_position->Update(state.target_lift_encoder, state.l_lift_position);
+    controller.l_lift_speed->Update(controller.l_lift_position->value(), state.l_lift_speed);
+    controller.r_lift_position->Update(state.target_lift_encoder, state.r_lift_position);
+    controller.r_lift_speed->Update(controller.r_lift_position->value(), state.r_lift_speed);
+    actuator.l_lift->SetCurrent(controller.l_lift_speed->value());
+    actuator.r_lift->SetCurrent(controller.r_lift_speed->value());
+  }
 }
 
 }  // namespace fsm
@@ -53,6 +51,7 @@ namespace chassis {
 void Lift::entry() { state.target_lift_encoder = -105000; }
 void Lower::entry() { state.target_lift_encoder = 90000; }
 void Neutral::entry() { state.target_lift_encoder = 0; }
+void Adaptive::entry() { state.target_lift_encoder = 0; }
 void NoForce::entry() { state.target_lift_encoder = 0; }
 void NoForce::react(const event::chassis::Control &control) {
   actuator.l_front_wheel->SetCurrent(0);

@@ -106,6 +106,12 @@ class Lower : public fsm::Chassis {
   void entry() override;
 };
 
+class Adaptive : public fsm::Chassis {
+ public:
+  constexpr static char const *name = "Adaptive";
+  void entry() override;
+};
+
 class NoForce : public fsm::Chassis {
  public:
   constexpr static char const *name = "NoForce";
