@@ -13,7 +13,7 @@
 #include "chassis/fsm.hpp"
 #include "chassis/ros_params.hpp"
 #include "common/device_monitor.hpp"
-#include "common/ros_params_manager.hpp"
+// #include "common/ros_params_manager.hpp"
 
 /**
  * @brief    控制节点
@@ -42,7 +42,8 @@ class FluoriteChassis final : public rclcpp::Node {
 
  private:
   /** <parameters> **/
-  RosParamsManager<RosParams> ros_params_manager_{this};
+  RosParams params_{};
+  // RosParamsManager<RosParams> ros_params_manager_{this};
   /** </parameters> **/
 
   /** <remote> **/
