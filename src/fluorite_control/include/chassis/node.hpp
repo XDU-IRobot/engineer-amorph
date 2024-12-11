@@ -1,6 +1,6 @@
 
-#ifndef CONTROL_NODE_HPP
-#define CONTROL_NODE_HPP
+#ifndef CHASSIS_NODE_HPP
+#define CHASSIS_NODE_HPP
 
 #include <memory>
 
@@ -10,10 +10,10 @@
 #include <rm2_referee_msgs/srv/tx.hpp>
 #include <librm.hpp>
 
-#include "fluorite_chassis/fsm.hpp"
-#include "fluorite_chassis/ros_params.hpp"
-#include "fluorite_chassis/device_monitor.hpp"
-#include "fluorite_chassis/ros_params_manager.hpp"
+#include "chassis/fsm.hpp"
+#include "chassis/ros_params.hpp"
+#include "common/device_monitor.hpp"
+#include "common/ros_params_manager.hpp"
 
 /**
  * @brief    控制节点

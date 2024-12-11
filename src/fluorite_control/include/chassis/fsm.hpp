@@ -9,8 +9,8 @@
  * @brief 接收到SwitchMode事件后，对应的状态机会切换到指定的状态
  */
 
-#ifndef FSM_HPP
-#define FSM_HPP
+#ifndef CHASSIS_FSM_HPP
+#define CHASSIS_FSM_HPP
 
 #include <memory>
 #include <random>
@@ -19,9 +19,9 @@
 #include <librm.hpp>
 
 #include "fluorite_msgs/msg/chassis_state.hpp"
-#include "fluorite_chassis/logger.hpp"
-#include "fluorite_chassis/chassis_fk.hpp"
-#include "fluorite_chassis/encoder_counter.hpp"
+#include "common/logger.hpp"
+#include "chassis/kinematics.hpp"
+#include "chassis/encoder_counter.hpp"
 
 namespace event {
 namespace chassis {

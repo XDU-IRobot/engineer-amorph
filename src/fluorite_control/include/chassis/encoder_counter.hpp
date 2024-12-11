@@ -1,4 +1,7 @@
 
+#ifndef CHASSIS_ENCODER_COUNTER_HPP
+#define CHASSIS_ENCODER_COUNTER_HPP
+
 /**
  * @file    encoder_counter.hpp
  * @brief   用软件方式实现单圈编码器的绝对值计数
@@ -32,3 +35,5 @@ class EncoderCounter {
   int cycles_{};
   const T cycle_{};
 };
+
+#endif  // CHASSIS_ENCODER_COUNTER_HPP

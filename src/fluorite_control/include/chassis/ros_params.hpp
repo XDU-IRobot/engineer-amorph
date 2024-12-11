@@ -1,4 +1,7 @@
 
+#ifndef CHASSIS_ROS_PARAMS_HPP
+#define CHASSIS_ROS_PARAMS_HPP
+
 #include <vector>
 #include <array>
 #include <string>
@@ -50,3 +53,5 @@ struct RosParams {
   double control_sensitivity_vertical;
   double control_sensitivity_horizontal;
 };
+
+#endif  // CHASSIS_ROS_PARAMS_HPP

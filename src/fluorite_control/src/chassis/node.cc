@@ -3,7 +3,7 @@
  * @brief 控制节点
  */
 
-#include "fluorite_chassis/fluorite_chassis.hpp"
+#include "chassis/node.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -13,8 +13,8 @@
 #include <librm.hpp>
 #include <tinyfsm.hpp>
 
-#include "fluorite_chassis/fsm.hpp"
-#include "fluorite_chassis/logger.hpp"
+#include "chassis/fsm.hpp"
+#include "common/logger.hpp"
 
 using namespace std::chrono_literals;
 using namespace rm;

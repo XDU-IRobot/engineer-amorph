@@ -1,6 +1,6 @@
 
-#ifndef CHASSIS_FK_HPP
-#define CHASSIS_FK_HPP
+#ifndef CHASSIS_KINEMATICS_HPP
+#define CHASSIS_KINEMATICS_HPP
 
 #include <cmath>
 
@@ -31,4 +31,4 @@ class ChassisFk {
   const float kWRatio = std::cos(std::atan2(wheel_base_, track_));
 };
 
-#endif  // CHASSIS_FK_HPP
+#endif  // CHASSIS_KINEMATICS_HPP

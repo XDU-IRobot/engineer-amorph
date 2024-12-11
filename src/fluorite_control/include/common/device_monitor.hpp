@@ -1,6 +1,6 @@
 
-#ifndef DEVICE_MONITOR_HPP
-#define DEVICE_MONITOR_HPP
+#ifndef COMMON_DEVICE_MONITOR_HPP
+#define COMMON_DEVICE_MONITOR_HPP
 
 #include <vector>
 #include <chrono>

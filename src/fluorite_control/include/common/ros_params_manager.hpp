@@ -1,7 +1,10 @@
 /**
- * @file    ros_params_handler.hpp
+ * @file    ros_params_manager.hpp
  * @brief   用boost::pfr反射处理ros参数，防止写一大堆boilerplate code
  */
+
+#ifndef COMMON_ROS_PARAMS_MANAGER_HPP
+#define COMMON_ROS_PARAMS_MANAGER_HPP
 
 #include <functional>
 #include <memory>
@@ -90,3 +93,5 @@ class RosParamsManager {
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
   ParamsStructType ros_params_{};
 };
+
+#endif  // COMMON_ROS_PARAMS_MANAGER_HPP

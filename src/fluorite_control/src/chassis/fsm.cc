@@ -2,12 +2,12 @@
  * @file  fsm.cc
  */
 
-#include "fluorite_chassis/fsm.hpp"
+#include "chassis/fsm.hpp"
 
 #include <iostream>
 #include <unordered_map>
 
-#include "fluorite_chassis/logger.hpp"
+#include "common/logger.hpp"
 
 using namespace rm::modules::algorithm::utils;
 

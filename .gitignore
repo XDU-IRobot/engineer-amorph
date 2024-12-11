@@ -6,3 +6,5 @@ install
 log
 
 *.ikcache
+
+.auto_source

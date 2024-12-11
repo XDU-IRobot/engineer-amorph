@@ -1,9 +1,9 @@
 
-#include "fluorite_chassis/device_monitor.hpp"
+#include "common/device_monitor.hpp"
 
 #include <chrono>
 
-#include "fluorite_chassis/logger.hpp"
+#include "common/logger.hpp"
 
 Device::Device(std::string name) : name_{name} {}
 

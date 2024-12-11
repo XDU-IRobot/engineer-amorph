@@ -1,6 +1,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit_visual_tools/moveit_visual_tools.h>
 
 #include <chrono>
 
@@ -28,6 +29,24 @@ class FluoriteArm : public rclcpp::Node {
       return target_pose;
     }();
 
+    auto moveit_visual_tools = moveit_visual_tools::MoveItVisualTools{
+        rclcpp::Node::SharedPtr{this}, "base_link", rviz_visual_tools::RVIZ_MARKER_TOPIC, move_group_->getRobotModel()};
+    moveit_visual_tools.deleteAllMarkers();
+    moveit_visual_tools.loadRemoteControl();
+    auto const draw_title = [&moveit_visual_tools](auto text) {
+      auto const text_pose = [] {
+        auto msg = Eigen::Isometry3d::Identity();
+        msg.translation().z() = 1.0;  // Place text 1m above the base link
+        return msg;
+      }();
+      moveit_visual_tools.publishText(text_pose, text, rviz_visual_tools::WHITE, rviz_visual_tools::XLARGE);
+    };
+    auto const prompt = [&moveit_visual_tools](auto text) { moveit_visual_tools.prompt(text); };
+    auto const draw_trajectory_tool_path =
+        [&moveit_visual_tools, jmg = move_group_->getRobotModel()->getJointModelGroup("arm")](auto const trajectory) {
+          moveit_visual_tools.publishTrajectoryLine(trajectory, jmg);
+        };
+
     auto start_time = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 1000; i++) {
       target_pose.orientation.x += 0.001;
@@ -40,22 +59,23 @@ class FluoriteArm : public rclcpp::Node {
         auto const ok = move_group_->plan(plan);
         return std::make_pair(ok, plan);
       }();
+
+      if (success) {
+        draw_trajectory_tool_path(plan.trajectory_);
+        moveit_visual_tools.trigger();
+        prompt("Press 'Next' in the RvizVisualToolsGui window to execute");
+        draw_title("Executing");
+        moveit_visual_tools.trigger();
+        // move_group_->execute(plan);
+      } else {
+        draw_title("Planning Failed!");
+        moveit_visual_tools.trigger();
+        RCLCPP_ERROR(get_logger(), "Planning failed!");
+      }
     }
     auto end_time = std::chrono::high_resolution_clock::now();
     RCLCPP_INFO(get_logger(), "Time elapsed: %f ms",
                 std::chrono::duration<double, std::milli>(end_time - start_time).count());
-
-    // if (success) {
-    //   RCLCPP_INFO(get_logger(), "Plan succeeded");
-    //   // print plan
-    //   for (auto const &waypoint : plan.trajectory_.joint_trajectory.points) {
-    //     for (auto const &position : waypoint.positions) {
-    //       RCLCPP_INFO(get_logger(), "%f", position);
-    //     }
-    //   }
-    // } else {
-    //   RCLCPP_ERROR(get_logger(), "Plan failed");
-    // }
   }
 
  private:
