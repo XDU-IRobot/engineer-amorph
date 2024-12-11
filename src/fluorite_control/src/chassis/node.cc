@@ -22,14 +22,13 @@ using namespace rm::modules::algorithm::utils;
 
 FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options)
     : rclcpp::Node("fluorite_control_chassis", options) {
-  this->InitParameters();
-  // ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
-  this->InitFsm();        // 初始化状态机
-  this->DeviceMonitor();  // 设备在线状态监控
-  this->Remote();         // 启动遥控器接收
-  this->Referee();        // 启动裁判系统接收
-  this->Navigation();     // 启动和导航节点的通信
-  this->Blackbox();       // 启动黑匣子（广播state和control）
+  ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
+  this->InitFsm();             // 初始化状态机
+  this->DeviceMonitor();       // 设备在线状态监控
+  this->Remote();              // 启动遥控器接收
+  this->Referee();             // 启动裁判系统接收
+  this->Navigation();          // 启动和导航节点的通信
+  this->Blackbox();            // 启动黑匣子（广播state和control）
 
   // 启动控制循环
   info("control node initialize ok");
@@ -45,101 +44,101 @@ FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options)
 FluoriteChassis::~FluoriteChassis() { fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{}); }
 
 void FluoriteChassis::InitFsm() {
-  auto chassis_can = new hal::Can(params_.can_port.c_str());
+  auto chassis_can = new hal::Can(ros_params_manager_.data().can_port.c_str());
 
   // clang-format off
   fsm::Chassis::actuator.l_front_wheel = std::make_unique<device::M3508>(
       *chassis_can, 
-      params_.l_front_wheel_id, 
-      params_.l_front_wheel_reverse);
+      ros_params_manager_.data().l_front_wheel_id, 
+      ros_params_manager_.data().l_front_wheel_reverse);
   fsm::Chassis::actuator.l_mid_wheel = std::make_unique<device::M3508>(
       *chassis_can,
-      params_.l_mid_wheel_id,
-      params_.l_mid_wheel_reverse);
+      ros_params_manager_.data().l_mid_wheel_id,
+      ros_params_manager_.data().l_mid_wheel_reverse);
   fsm::Chassis::actuator.l_rear_wheel = std::make_unique<device::M3508>(
       *chassis_can,
-      params_.l_rear_wheel_id,
-      params_.l_rear_wheel_reverse);
+      ros_params_manager_.data().l_rear_wheel_id,
+      ros_params_manager_.data().l_rear_wheel_reverse);
   fsm::Chassis::actuator.l_lift = std::make_unique<device::M3508>(
       *chassis_can,
-      params_.l_lift_wheel_id,
-      params_.l_lift_wheel_reverse);
+      ros_params_manager_.data().l_lift_wheel_id,
+      ros_params_manager_.data().l_lift_wheel_reverse);
   fsm::Chassis::actuator.r_front_wheel = std::make_unique<device::M3508>(
       *chassis_can,
-      params_.r_front_wheel_id,
-      params_.r_front_wheel_reverse);
+      ros_params_manager_.data().r_front_wheel_id,
+      ros_params_manager_.data().r_front_wheel_reverse);
   fsm::Chassis::actuator.r_mid_wheel = std::make_unique<device::M3508>(
       *chassis_can,
-      params_.r_mid_wheel_id,
-      params_.r_mid_wheel_reverse);
+      ros_params_manager_.data().r_mid_wheel_id,
+      ros_params_manager_.data().r_mid_wheel_reverse);
   fsm::Chassis::actuator.r_rear_wheel = std::make_unique<device::M3508>(
       *chassis_can,
-      params_.r_rear_wheel_id,
-      params_.r_rear_wheel_reverse);
+      ros_params_manager_.data().r_rear_wheel_id,
+      ros_params_manager_.data().r_rear_wheel_reverse);
   fsm::Chassis::actuator.r_lift = std::make_unique<device::M3508>(
       *chassis_can,
-      params_.r_lift_wheel_id,
-      params_.r_lift_wheel_reverse);
+      ros_params_manager_.data().r_lift_wheel_id,
+      ros_params_manager_.data().r_lift_wheel_reverse);
   
   fsm::Chassis::controller.l_front_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_l_front_speed[0], 
-      params_.pid_l_front_speed[1],
-      params_.pid_l_front_speed[2],
+      ros_params_manager_.data().pid_l_front_speed[0], 
+      ros_params_manager_.data().pid_l_front_speed[1],
+      ros_params_manager_.data().pid_l_front_speed[2],
       12000, 0);
   fsm::Chassis::controller.l_mid_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_l_mid_speed[0], 
-      params_.pid_l_mid_speed[1],
-      params_.pid_l_mid_speed[2],
+      ros_params_manager_.data().pid_l_mid_speed[0], 
+      ros_params_manager_.data().pid_l_mid_speed[1],
+      ros_params_manager_.data().pid_l_mid_speed[2],
       12000, 0);
   fsm::Chassis::controller.l_rear_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_l_rear_speed[0], 
-      params_.pid_l_rear_speed[1],
-      params_.pid_l_rear_speed[2],
+      ros_params_manager_.data().pid_l_rear_speed[0], 
+      ros_params_manager_.data().pid_l_rear_speed[1],
+      ros_params_manager_.data().pid_l_rear_speed[2],
       12000, 0);
   fsm::Chassis::controller.l_lift_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_l_lift_speed[0], 
-      params_.pid_l_lift_speed[1],
-      params_.pid_l_lift_speed[2],
+      ros_params_manager_.data().pid_l_lift_speed[0], 
+      ros_params_manager_.data().pid_l_lift_speed[1],
+      ros_params_manager_.data().pid_l_lift_speed[2],
       12000, 0);
   fsm::Chassis::controller.r_front_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_r_front_speed[0], 
-      params_.pid_r_front_speed[1],
-      params_.pid_r_front_speed[2],
+      ros_params_manager_.data().pid_r_front_speed[0], 
+      ros_params_manager_.data().pid_r_front_speed[1],
+      ros_params_manager_.data().pid_r_front_speed[2],
       12000, 0);
   fsm::Chassis::controller.r_mid_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_r_mid_speed[0], 
-      params_.pid_r_mid_speed[1],
-      params_.pid_r_mid_speed[2],
+      ros_params_manager_.data().pid_r_mid_speed[0], 
+      ros_params_manager_.data().pid_r_mid_speed[1],
+      ros_params_manager_.data().pid_r_mid_speed[2],
       12000, 0);
   fsm::Chassis::controller.r_rear_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_r_rear_speed[0], 
-      params_.pid_r_rear_speed[1],
-      params_.pid_r_rear_speed[2],
+      ros_params_manager_.data().pid_r_rear_speed[0], 
+      ros_params_manager_.data().pid_r_rear_speed[1],
+      ros_params_manager_.data().pid_r_rear_speed[2],
       12000, 0);
   fsm::Chassis::controller.r_lift_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_r_lift_speed[0], 
-      params_.pid_r_lift_speed[1],
-      params_.pid_r_lift_speed[2],
+      ros_params_manager_.data().pid_r_lift_speed[0], 
+      ros_params_manager_.data().pid_r_lift_speed[1],
+      ros_params_manager_.data().pid_r_lift_speed[2],
       12000, 0);
   fsm::Chassis::controller.l_lift_position = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_l_lift_position[0], 
-      params_.pid_l_lift_position[1],
-      params_.pid_l_lift_position[2],
+      ros_params_manager_.data().pid_l_lift_position[0], 
+      ros_params_manager_.data().pid_l_lift_position[1],
+      ros_params_manager_.data().pid_l_lift_position[2],
       1000, 0);
   fsm::Chassis::controller.r_lift_position = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      params_.pid_r_lift_position[0], 
-      params_.pid_r_lift_position[1],
-      params_.pid_r_lift_position[2],
+      ros_params_manager_.data().pid_r_lift_position[0], 
+      ros_params_manager_.data().pid_r_lift_position[1],
+      ros_params_manager_.data().pid_r_lift_position[2],
       1000, 0);
   // clang-format on
 
@@ -171,13 +170,13 @@ void FluoriteChassis::Remote() {
         last_left_switch = msg->buttons[1];
         last_right_switch = msg->buttons[0];
 
-        control_msg_.vx = msg->axes[0] * params_.control_sensitivity_vertical;
-        control_msg_.vy = msg->axes[1] * params_.control_sensitivity_horizontal;
-        control_msg_.vw = -msg->axes[4] * params_.control_sensitivity_horizontal;
-        if (params_.control_invert_vertical) {
+        control_msg_.vx = msg->axes[0] * ros_params_manager_.data().control_sensitivity_vertical;
+        control_msg_.vy = msg->axes[1] * ros_params_manager_.data().control_sensitivity_horizontal;
+        control_msg_.vw = -msg->axes[4] * ros_params_manager_.data().control_sensitivity_horizontal;
+        if (ros_params_manager_.data().control_invert_vertical) {
           control_msg_.vx = -control_msg_.vx;
         }
-        if (params_.control_invert_horizontal) {
+        if (ros_params_manager_.data().control_invert_horizontal) {
           control_msg_.vy = -control_msg_.vy;
           control_msg_.vw = -control_msg_.vw;
         }
