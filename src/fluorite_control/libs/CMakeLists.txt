@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 find_package(Eigen3 REQUIRED)
 
+find_package(qpOASES REQUIRED)
+
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/librm)
 
 add_library(tinyfsm INTERFACE)
@@ -24,4 +26,5 @@ target_link_libraries(${PROJECT_NAME}_libs INTERFACE
         filters 
         edge_trigger
         tweeny
-        Boost::pfr)
+        Boost::pfr
+        qpOASES)

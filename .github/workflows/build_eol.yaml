@@ -28,6 +28,9 @@ jobs:
         shell: bash
         run: |
           apt update && apt install -y ros-${{ matrix.ros_distro }}-moveit*
+          git clone https://github.com/coin-or/qpOASES.git
+          cd qpOASES && mkdir build && cd build
+          cmake .. && make -j && make install
       - name: Build
         shell: bash
         run: |
