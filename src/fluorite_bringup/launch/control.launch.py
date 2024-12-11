@@ -16,9 +16,9 @@ def generate_launch_description():
                 parameters=[{"tty_device": "/dev/rm_remote"}],
                 output="screen"),
             Node(
-                package="fluorite_chassis",
-                executable="fluorite_chassis",
-                name="fluorite_chassis",
+                package="fluorite_control",
+                executable="fluorite_control_chassis",
+                name="fluorite_control_chassis",
                 parameters=config_file_full_path,
                 output="screen"),
         ],
