@@ -20,7 +20,8 @@ using namespace std::chrono_literals;
 using namespace rm;
 using namespace rm::modules::algorithm::utils;
 
-FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options) : rclcpp::Node("fluorite_control_chassis", options) {
+FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options)
+    : rclcpp::Node("fluorite_control_chassis", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
   this->InitFsm();             // 初始化状态机
   this->DeviceMonitor();       // 设备在线状态监控
