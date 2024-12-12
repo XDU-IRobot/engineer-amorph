@@ -41,9 +41,13 @@
 
 ## 硬件
 
-- 主控 `Jetson orin nx 8gb`
+- 主控
 
-- 相机 `大恒水星 MER2-230`。
+  - 视觉/导航 `Jetson xavier nx 8gb` `ip = 10.0.3.101`
+
+  - 控制/机械臂规划 `orangepi 5 8gb` `ip = 10.0.3.102`
+
+- 相机 `大恒水星 MER2-230` `->` `Jetson`。
 
 ### CAN 总线 设备列表
 
@@ -64,6 +68,8 @@
 
 ## dependencies
 
+### orange pi
+
 - ROS2 `>= humble`
 
 - moveit `apt install ros-humble-moveit*`
@@ -71,5 +77,9 @@
 - ros2_control `apt install ros-humble-ros2-control*`
 
 - [qpOASES](https://github.com/coin-or/qpOASES)
+
+### jetson
+
+- ROS2 `>= galactic`
 
 - [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)

@@ -4,6 +4,8 @@ find_package(Eigen3 REQUIRED)
 
 find_package(qpOASES REQUIRED)
 
+find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
+
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/librm)
 
 add_library(tinyfsm INTERFACE)
@@ -27,4 +29,7 @@ target_link_libraries(${PROJECT_NAME}_libs INTERFACE
         edge_trigger
         tweeny
         Boost::pfr
-        qpOASES)
+        qpOASES
+        ${WIRINGPI_LIBRARIES}
+        )
+

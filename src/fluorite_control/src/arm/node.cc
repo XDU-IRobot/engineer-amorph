@@ -2,8 +2,11 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+#include <sensor_msgs/msg/joy.hpp>
+#include <wiringPi.h>
 
 #include <chrono>
+#include <thread>
 
 class FluoriteArm : public rclcpp::Node {
  public:
@@ -11,9 +14,27 @@ class FluoriteArm : public rclcpp::Node {
                                                        .allow_undeclared_parameters(true)
                                                        .automatically_declare_parameters_from_overrides(true))
       : Node("fluorite_arm", options) {
-    move_group_ =
-        std::make_shared<moveit::planning_interface::MoveGroupInterface>(rclcpp::Node::SharedPtr(this), "arm");
-    TryPlan();
+    // move_group_ =
+    //     std::make_shared<moveit::planning_interface::MoveGroupInterface>(rclcpp::Node::SharedPtr(this), "arm");
+    // TryPlan();
+    this->InitGpio();
+    this->Remote();
+  }
+
+  void InitGpio() {
+    using namespace std::chrono_literals;
+    wiringPiSetup();
+    pinMode(2, PWM_OUTPUT);
+    pwmSetRange(2, 1024);
+    pwmWrite(2, 0);
+  }
+
+  void Remote() {
+    remote_sub_ = this->create_subscription<sensor_msgs::msg::Joy>("/rm2_remote/joy", rclcpp::SensorDataQoS(),
+                                                                   [&](const sensor_msgs::msg::Joy::SharedPtr msg) {
+                                                                     RCLCPP_INFO(get_logger(), "%f", msg->axes[3]);
+                                                                     pwmWrite(2, std::abs(msg->axes[3]) * 1024.0);
+                                                                   });
   }
 
   void TryPlan() {
@@ -79,6 +100,7 @@ class FluoriteArm : public rclcpp::Node {
   }
 
  private:
+  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr remote_sub_{nullptr};
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
 };
 
