@@ -83,3 +83,9 @@
 - ROS2 `>= galactic`
 
 - [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
+
+## 上位机配置
+
+### 8009 #1
+
+![](assets/p2.jpg)
