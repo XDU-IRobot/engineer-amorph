@@ -1,4 +1,2 @@
-./src/robomaster2/*
-./src/fluorite_description/*
-./src/fluorite_moveit_config/*
-./src/chassis_controller/libs/*
+./src/common/robomaster2/*
+./src/opi/fluorite_control/libs/*
