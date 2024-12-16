@@ -53,7 +53,7 @@
 
 ### 安装依赖
 
-#### 在香橙派上安装以下软件
+#### 在香橙派(`ubuntu 22.04`)上安装以下软件
 
 - ROS2 `>= humble`
 
@@ -63,7 +63,9 @@
 
 - [qpOASES](https://github.com/coin-or/qpOASES)
 
-#### 在 Jetson 上安装以下软件
+#### 在 Jetson(`ubuntu 20.04`) 上安装以下软件
+
+- Jetpack `apt install nvidia-jetpack`
 
 - ROS2 `>= galactic`
 
