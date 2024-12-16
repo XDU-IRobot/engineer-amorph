@@ -51,25 +51,41 @@
 
 ## 程序使用方法
 
-### 安装依赖
+### 环境配置
 
-#### 在香橙派(`ubuntu 22.04`)上安装以下软件
+#### 在香橙派(`ubuntu 22.04, RT Kernel`)上：
 
-- ROS2 `>= humble`
+1. 安装以下软件
 
-- moveit `apt install ros-humble-moveit*`
+   - ROS2 `>= humble`
 
-- ros2_control `apt install ros-humble-ros2-control*`
+   - moveit `apt install ros-humble-moveit*`
 
-- [qpOASES](https://github.com/coin-or/qpOASES)
+   - ros2_control `apt install ros-humble-ros2-control*`
 
-#### 在 Jetson(`ubuntu 20.04`) 上安装以下软件
+   - [qpOASES](https://github.com/coin-or/qpOASES)
 
-- Jetpack `apt install nvidia-jetpack`
+2. 执行初始化脚本：
 
-- ROS2 `>= galactic`
+   ```bash
+   sudo python3 ./scripts/setup_env.py -o
+   ```
 
-- [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
+#### 在 Jetson(`ubuntu 20.04`) 上：
+
+1. 安装以下软件
+
+   - Jetpack `apt install nvidia-jetpack`
+
+   - ROS2 `>= galactic`
+
+   - [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
+
+2. 执行初始化脚本：
+
+   ```bash
+   sudo python3 ./scripts/setup_env.py -j
+   ```
 
 ### 编译
 
@@ -84,7 +100,7 @@ python3 scripts/build.py -o     # 编译香橙派上运行的包
 ```bash
 source install/setup.bash
 # 同上
-ros2 launch fluorite_bringup opi.launch.py
+chrt -f 99 ros2 launch fluorite_bringup opi.launch.py
 ros2 launch fluorite_bringup jetson.launch.py
 ```
 
