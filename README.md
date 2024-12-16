@@ -61,9 +61,11 @@
 
    - moveit `apt install ros-humble-moveit*`
 
-   - ros2_control `apt install ros-humble-ros2-control*`
+   - Eigen `apt install libeigen3-dev`
 
    - [qpOASES](https://github.com/coin-or/qpOASES)
+
+   - [wiringOP](https://github.com/orangepi-xunlong/wiringOP)
 
 2. 执行初始化脚本：
 
