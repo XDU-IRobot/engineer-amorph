@@ -1,21 +1,21 @@
 [submodule "src/robomaster2"]
-	path = src/robomaster2
+	path = src/common/robomaster2
 	url = https://github.com/XDU-IRobot/robomaster2.git
 [submodule "src/fluorite_control/libs/pfr"]
-	path = src/fluorite_control/libs/pfr
+	path = src/opi/fluorite_control/libs/pfr
 	url = https://github.com/boostorg/pfr.git
 [submodule "src/fluorite_control/libs/tweeny"]
-	path = src/fluorite_control/libs/tweeny
+	path = src/opi/fluorite_control/libs/tweeny
 	url = https://github.com/mobius3/tweeny.git
 [submodule "src/fluorite_control/libs/edge-trigger"]
-	path = src/fluorite_control/libs/edge-trigger
+	path = src/opi/fluorite_control/libs/edge-trigger
 	url = https://github.com/lunarifish/edge-trigger.git
 [submodule "src/fluorite_control/libs/DSP-Cpp-filters"]
-	path = src/fluorite_control/libs/DSP-Cpp-filters
+	path = src/opi/fluorite_control/libs/DSP-Cpp-filters
 	url = https://github.com/lunarifish/DSP-Cpp-filters.git
 [submodule "src/fluorite_control/libs/librm"]
-	path = src/fluorite_control/libs/librm
+	path = src/opi/fluorite_control/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 [submodule "src/fluorite_control/libs/tinyfsm"]
-	path = src/fluorite_control/libs/tinyfsm
+	path = src/opi/fluorite_control/libs/tinyfsm
 	url = https://github.com/digint/tinyfsm.git

@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<!-- Basic differential drive mobile base -->
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sbarm">
-  <xacro:arg name="use_mock_hardware" default="false" />
-
-  <!-- base urdf -->
-  <xacro:include filename="$(find sbarm_description)/urdf/sbarm_description.urdf.xacro" />
-
-</robot>
