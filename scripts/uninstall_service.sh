@@ -1,9 +1,16 @@
 #!/usr/bin/bash
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PASSWORD=$1
+if [ "$EUID" -ne 0 ] then 
+    echo "execute me as root!"
+    exit
+fi
 
-echo $PASSWORD | sudo -S systemctl stop fluorite_control.service
-echo $PASSWORD | sudo -S systemctl disable fluorite_control.service
-echo $PASSWORD | sudo -S rm /usr/lib/systemd/system/fluorite_control.service 
-echo $PASSWORD | sudo -S systemctl daemon-reload
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+systemctl stop fluorite_opi.service
+systemctl stop fluorite_jetson.service
+systemctl disable fluorite_opi.service
+systemctl disable fluorite_jetson.service
+rm /usr/lib/systemd/system/fluorite_opi.service
+rm /usr/lib/systemd/system/fluorite_jetson.service
+systemctl daemon-reload

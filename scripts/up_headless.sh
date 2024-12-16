@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# execute me as root
+if [ "$EUID" -ne 0 ] then 
+    echo "execute me as root!"
+    exit
+fi
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

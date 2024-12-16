@@ -37,7 +37,7 @@
 </tr>
 </table>
 
-除导航外，这辆车所有功能的开发工作在本仓库进行，包括控制、机械臂运动规划和自动兑换视觉。
+工程车所有功能的开发工作在本仓库进行，包括控制、机械臂运动规划、导航和自动兑换视觉。
 
 ## 硬件
 
@@ -48,6 +48,60 @@
   - 控制/机械臂规划 `orangepi 5 8gb` `ip = 10.0.3.102`
 
 - 相机 `大恒水星 MER2-230` `->` `Jetson`。
+
+## 程序使用方法
+
+### 安装依赖
+
+#### 在香橙派上安装以下软件
+
+- ROS2 `>= humble`
+
+- moveit `apt install ros-humble-moveit*`
+
+- ros2_control `apt install ros-humble-ros2-control*`
+
+- [qpOASES](https://github.com/coin-or/qpOASES)
+
+#### 在 Jetson 上安装以下软件
+
+- ROS2 `>= galactic`
+
+- [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
+
+### 编译
+
+```bash
+# 按情况，在哪台电脑上编译就选哪个
+python3 scripts/build.py -j     # 编译jetson上运行的包
+python3 scripts/build.py -o     # 编译香橙派上运行的包
+```
+
+### 运行
+
+```bash
+source install/setup.bash
+# 同上
+ros2 launch fluorite_bringup opi.launch.py
+ros2 launch fluorite_bringup jetson.launch.py
+```
+
+### [可选] 注册 systemd 服务（开机自启）
+
+车目前的状态应该已经注册过，如果板子重新装过系统需要重新配置，执行：
+
+```bash
+./scripts/install_service.sh
+```
+
+如果不想开机自启，取消注册服务或者暂时 disable 服务均可：
+
+```bash
+./scripts/uninstall_service.sh
+# or
+sudo systemctl disable fluorite_opi.service
+sudo systemctl disable fluorite_jetson.service
+```
 
 ### CAN 总线 设备列表
 
@@ -65,24 +119,6 @@
 | 右中轮     | can0     | 0x207     | 0x1ff    | 7 号 3508 |
 | 左抬升机构 | can0     | 0x204     | 0x200    | 4 号 3508 |
 | 右抬升机构 | can0     | 0x208     | 0x1ff    | 8 号 3508 |
-
-## dependencies
-
-### orange pi
-
-- ROS2 `>= humble`
-
-- moveit `apt install ros-humble-moveit*`
-
-- ros2_control `apt install ros-humble-ros2-control*`
-
-- [qpOASES](https://github.com/coin-or/qpOASES)
-
-### jetson
-
-- ROS2 `>= galactic`
-
-- [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
 
 ## 上位机配置
 
