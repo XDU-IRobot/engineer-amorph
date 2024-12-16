@@ -1,110 +1,95 @@
+/**
+ * @file  fluorite_chassis.cc
+ * @brief 控制节点
+ */
 
-#include <rclcpp/rclcpp.hpp>
-#include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit_visual_tools/moveit_visual_tools.h>
-#include <sensor_msgs/msg/joy.hpp>
-#include <wiringPi.h>
+#include "arm/node.hpp"
 
 #include <chrono>
-#include <thread>
+#include <cmath>
+#include <memory>
 
-class FluoriteArm : public rclcpp::Node {
- public:
-  FluoriteArm(const rclcpp::NodeOptions &options = rclcpp::NodeOptions()
-                                                       .allow_undeclared_parameters(true)
-                                                       .automatically_declare_parameters_from_overrides(true))
-      : Node("fluorite_arm", options) {
-    // move_group_ =
-    //     std::make_shared<moveit::planning_interface::MoveGroupInterface>(rclcpp::Node::SharedPtr(this), "arm");
-    // TryPlan();
-    this->InitGpio();
-    this->Remote();
-  }
+#include <fo_lpf.h>
+#include <librm.hpp>
+#include <tinyfsm.hpp>
 
-  void InitGpio() {
-    using namespace std::chrono_literals;
-    wiringPiSetup();
-    pinMode(2, PWM_OUTPUT);
-    pwmSetRange(2, 1024);
-    pwmWrite(2, 0);
-  }
+#include "arm/fsm.hpp"
+#include "common/logger.hpp"
 
-  void Remote() {
-    remote_sub_ = this->create_subscription<sensor_msgs::msg::Joy>("/rm2_remote/joy", rclcpp::SensorDataQoS(),
-                                                                   [&](const sensor_msgs::msg::Joy::SharedPtr msg) {
-                                                                     RCLCPP_INFO(get_logger(), "%f", msg->axes[3]);
-                                                                     pwmWrite(2, std::abs(msg->axes[3]) * 1024.0);
-                                                                   });
-  }
+using namespace std::chrono_literals;
+using namespace rm;
+using namespace rm::modules::algorithm::utils;
 
-  void TryPlan() {
-    auto target_pose = [&]() {
-      geometry_msgs::msg::Pose target_pose;
-      target_pose.position.x = 0.5;
-      target_pose.position.y = 0.0;
-      target_pose.position.z = 0.5;
-      target_pose.orientation.x = 0.0;
-      target_pose.orientation.y = 0.0;
-      target_pose.orientation.z = 0.0;
-      target_pose.orientation.w = 1.0;
-      return target_pose;
-    }();
+FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("fluorite_control_arm", options) {
+  ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
+  this->InitFsm();             // 初始化状态机
+  this->DeviceMonitor();       // 设备在线状态监控
+  this->Remote();              // 启动遥控器接收
+  this->Referee();             // 启动裁判系统接收
+  this->Navigation();          // 启动和导航节点的通信
+  this->Blackbox();            // 启动黑匣子（广播state和control）
 
-    auto moveit_visual_tools = moveit_visual_tools::MoveItVisualTools{
-        rclcpp::Node::SharedPtr{this}, "base_link", rviz_visual_tools::RVIZ_MARKER_TOPIC, move_group_->getRobotModel()};
-    moveit_visual_tools.deleteAllMarkers();
-    moveit_visual_tools.loadRemoteControl();
-    auto const draw_title = [&moveit_visual_tools](auto text) {
-      auto const text_pose = [] {
-        auto msg = Eigen::Isometry3d::Identity();
-        msg.translation().z() = 1.0;  // Place text 1m above the base link
-        return msg;
-      }();
-      moveit_visual_tools.publishText(text_pose, text, rviz_visual_tools::WHITE, rviz_visual_tools::XLARGE);
-    };
-    auto const prompt = [&moveit_visual_tools](auto text) { moveit_visual_tools.prompt(text); };
-    auto const draw_trajectory_tool_path =
-        [&moveit_visual_tools, jmg = move_group_->getRobotModel()->getJointModelGroup("arm")](auto const trajectory) {
-          moveit_visual_tools.publishTrajectoryLine(trajectory, jmg);
-        };
+  // 启动控制循环
+  info("control node initialize ok");
+  control_loop_timer_ = this->create_wall_timer(2.5ms, [this] {
+    this->UpdateFsmState();
+    this->ParamHotUpdate();
+    fsm::DispatchEvent(control_msg_);
+    device::DjiMotor<>::SendCommand();
+  });
+  info("CONTROL UP");
+}
 
-    auto start_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < 1000; i++) {
-      target_pose.orientation.x += 0.001;
-      move_group_->setPoseTarget(target_pose);
-      move_group_->setPlanningTime(0.1);
-      move_group_->setNumPlanningAttempts(10);
-      move_group_->setGoalTolerance(0.01);
-      auto const [success, plan] = [&]() {
-        moveit::planning_interface::MoveGroupInterface::Plan plan;
-        auto const ok = move_group_->plan(plan);
-        return std::make_pair(ok, plan);
-      }();
+FluoriteArm::~FluoriteArm() { fsm::DispatchEvent(event::arm::SwitchMode<state::arm::NoForce>{}); }
 
-      if (success) {
-        draw_trajectory_tool_path(plan.trajectory_);
-        moveit_visual_tools.trigger();
-        prompt("Press 'Next' in the RvizVisualToolsGui window to execute");
-        draw_title("Executing");
-        moveit_visual_tools.trigger();
-        // move_group_->execute(plan);
-      } else {
-        draw_title("Planning Failed!");
-        moveit_visual_tools.trigger();
-        RCLCPP_ERROR(get_logger(), "Planning failed!");
-      }
+void FluoriteArm::InitFsm() {
+  auto arm_can = new hal::Can(ros_params_manager_.data().arm_can_port.c_str());
+
+  arm_can->SetFilter(0, 0);  // 设置can过滤器
+  arm_can->Begin();          // 开启can总线
+  fsm::fsm_list::start();    // 状态机开始监听事件
+  info("fsm init ok");
+}
+
+void FluoriteArm::Navigation() { info("navigation ok"); }
+
+void FluoriteArm::Remote() { info("remote ok"); }
+
+void FluoriteArm::Referee() { info("referee ok"); }
+
+/**
+ * @brief 字面意思
+ */
+void FluoriteArm::Blackbox() {
+  blackbox_state_pub_ =
+      this->create_publisher<fluorite_msgs::msg::ArmState>("blackbox/arm_state", rclcpp::SystemDefaultsQoS());
+  blackbox_timer_ = this->create_wall_timer(10ms, [this] { blackbox_state_pub_->publish(fsm::Arm::state); });
+  info("blackbox ok");
+}
+
+/**
+ * @brief 设备在线状态监控
+ * @note  因为irobotec还没有推进到这里所以暂时弄了一种很蹩脚的方法，只监控遥控器和imu
+ */
+void FluoriteArm::DeviceMonitor() {
+  device_monitor_ << remote_device_;
+  device_monitor_timer_ = this->create_wall_timer(300ms, [this] {
+    device_monitor_.Update();
+    if (!device_monitor_.all_device_ok()) {
+      fsm::DispatchEvent(event::arm::SwitchMode<state::arm::NoForce>{});
     }
-    auto end_time = std::chrono::high_resolution_clock::now();
-    RCLCPP_INFO(get_logger(), "Time elapsed: %f ms",
-                std::chrono::duration<double, std::milli>(end_time - start_time).count());
-  }
+  });
+  info("device monitor ok");
+}
 
- private:
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr remote_sub_{nullptr};
-  std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
-};
+/**
+ * @brief 把电机对象里的保存的电机状态复制到控制事件里
+ */
+void FluoriteArm::UpdateFsmState() {}
 
-int main(int argc, char **argv) {
+void FluoriteArm::ParamHotUpdate() {}
+
+int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<FluoriteArm>());
   rclcpp::shutdown();

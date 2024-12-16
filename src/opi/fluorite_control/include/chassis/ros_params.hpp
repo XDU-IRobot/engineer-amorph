@@ -8,7 +8,7 @@
 
 struct RosParams {
   // can net interface names
-  std::string can_port;
+  std::string chassis_can_port;
 
   // dji motor ids
   int l_front_wheel_id;

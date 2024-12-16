@@ -4,7 +4,7 @@ find_package(Eigen3 REQUIRED)
 
 find_package(qpOASES REQUIRED)
 
-find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
+# find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/librm)
 
@@ -30,6 +30,6 @@ target_link_libraries(${PROJECT_NAME}_libs INTERFACE
         tweeny
         Boost::pfr
         qpOASES
-        ${WIRINGPI_LIBRARIES}
+        # ${WIRINGPI_LIBRARIES}
         )
 

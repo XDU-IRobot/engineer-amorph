@@ -1,9 +1,12 @@
+/**:
+  ros__parameters:
+    # can net interface names
+    chassis_can_port: "can0"
+    arm_can_port: "can1"
+
 # launch.py->node->name
 fluorite_chassis:
   ros__parameters:
-    # can net interface names
-    can_port: "can0"
-
     # dji motor ids
     l_front_wheel_id: 1
     l_mid_wheel_id: 3

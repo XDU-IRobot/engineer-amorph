@@ -44,7 +44,7 @@ FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options)
 FluoriteChassis::~FluoriteChassis() { fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{}); }
 
 void FluoriteChassis::InitFsm() {
-  auto chassis_can = new hal::Can(ros_params_manager_.data().can_port.c_str());
+  auto chassis_can = new hal::Can(ros_params_manager_.data().chassis_can_port.c_str());
 
   // clang-format off
   fsm::Chassis::actuator.l_front_wheel = std::make_unique<device::M3508>(
