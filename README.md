@@ -43,9 +43,9 @@
 
 - 主控
 
-  - 视觉/导航 `Jetson xavier nx 8gb` `ip = 10.0.3.101`
+  - 视觉 `Jetson xavier nx 8gb` `ip = 10.0.3.101`
 
-  - 控制/机械臂规划 `orangepi 5 8gb` `ip = 10.0.3.102`
+  - 控制/机械臂规划/导航 `orangepi 5 8gb` `ip = 10.0.3.102`
 
 - 相机 `大恒水星 MER2-230` `->` `Jetson`。
 
