@@ -10,7 +10,7 @@ class Device {
   friend class DeviceMonitor;
 
  public:
-  explicit Device(std::string name);
+  explicit Device(std::string name, std::chrono::duration<double> offline_timeout = std::chrono::milliseconds(600));
   Device() = default;
   ~Device() = default;
 
@@ -20,9 +20,8 @@ class Device {
   void IAmAlive();
 
  private:
-  static constexpr std::chrono::duration<double> kOfflineTimeout = std::chrono::milliseconds(600);
-
   std::chrono::time_point<std::chrono::steady_clock> last_seen_{};
+  const std::chrono::duration<double> offline_timeout_{};
   std::string name_{};
   bool is_alive_{false};
 };
@@ -31,7 +30,11 @@ class DeviceMonitor {
  public:
   DeviceMonitor() = default;
   ~DeviceMonitor() = default;
-  void Register(Device &device);
+
+  template <typename... Devices>
+  void Register(Devices... device) {
+    (devices_.push_back(device), ...);
+  }
   void Update();
 
   DeviceMonitor &operator<<(Device &device);
