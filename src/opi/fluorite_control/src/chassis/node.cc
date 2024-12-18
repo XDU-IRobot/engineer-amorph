@@ -47,99 +47,127 @@ void FluoriteChassis::InitFsm() {
   auto chassis_can = new hal::Can(ros_params_manager_.data().chassis_can_port.c_str());
 
   // clang-format off
-  fsm::Chassis::actuator.l_front_wheel = std::make_unique<device::M3508>(
+  fsm::Chassis::actuator.lf_wheel = std::make_unique<device::M3508>(
       *chassis_can, 
-      ros_params_manager_.data().l_front_wheel_id, 
-      ros_params_manager_.data().l_front_wheel_reverse);
-  fsm::Chassis::actuator.l_mid_wheel = std::make_unique<device::M3508>(
-      *chassis_can,
-      ros_params_manager_.data().l_mid_wheel_id,
-      ros_params_manager_.data().l_mid_wheel_reverse);
-  fsm::Chassis::actuator.l_rear_wheel = std::make_unique<device::M3508>(
-      *chassis_can,
-      ros_params_manager_.data().l_rear_wheel_id,
-      ros_params_manager_.data().l_rear_wheel_reverse);
-  fsm::Chassis::actuator.l_lift = std::make_unique<device::M3508>(
-      *chassis_can,
-      ros_params_manager_.data().l_lift_wheel_id,
-      ros_params_manager_.data().l_lift_wheel_reverse);
-  fsm::Chassis::actuator.r_front_wheel = std::make_unique<device::M3508>(
-      *chassis_can,
-      ros_params_manager_.data().r_front_wheel_id,
-      ros_params_manager_.data().r_front_wheel_reverse);
-  fsm::Chassis::actuator.r_mid_wheel = std::make_unique<device::M3508>(
-      *chassis_can,
-      ros_params_manager_.data().r_mid_wheel_id,
-      ros_params_manager_.data().r_mid_wheel_reverse);
-  fsm::Chassis::actuator.r_rear_wheel = std::make_unique<device::M3508>(
-      *chassis_can,
-      ros_params_manager_.data().r_rear_wheel_id,
-      ros_params_manager_.data().r_rear_wheel_reverse);
-  fsm::Chassis::actuator.r_lift = std::make_unique<device::M3508>(
-      *chassis_can,
-      ros_params_manager_.data().r_lift_wheel_id,
-      ros_params_manager_.data().r_lift_wheel_reverse);
-  
-  fsm::Chassis::controller.l_front_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().lf_wheel_id, 
+      ros_params_manager_.data().lf_wheel_reverse);
+  fsm::Chassis::actuator.rf_wheel = std::make_unique<device::M3508>(
+      *chassis_can, 
+      ros_params_manager_.data().rf_wheel_id, 
+      ros_params_manager_.data().rf_wheel_reverse);
+  fsm::Chassis::actuator.lr_wheel = std::make_unique<device::M3508>(
+      *chassis_can, 
+      ros_params_manager_.data().lr_wheel_id, 
+      ros_params_manager_.data().lr_wheel_reverse);
+  fsm::Chassis::actuator.rr_wheel = std::make_unique<device::M3508>(
+      *chassis_can, 
+      ros_params_manager_.data().rr_wheel_id, 
+      ros_params_manager_.data().rr_wheel_reverse);
+  fsm::Chassis::actuator.lf_steer = std::make_unique<device::GM6020>(
+      *chassis_can, 
+      ros_params_manager_.data().lf_steer_id, 
+      ros_params_manager_.data().lf_steer_reverse);
+  fsm::Chassis::actuator.rf_steer = std::make_unique<device::GM6020>(
+      *chassis_can, 
+      ros_params_manager_.data().rf_steer_id, 
+      ros_params_manager_.data().rf_steer_reverse);
+  fsm::Chassis::actuator.lr_steer = std::make_unique<device::GM6020>(
+      *chassis_can, 
+      ros_params_manager_.data().lr_steer_id, 
+      ros_params_manager_.data().lr_steer_reverse);
+  fsm::Chassis::actuator.rr_steer = std::make_unique<device::GM6020>(
+      *chassis_can, 
+      ros_params_manager_.data().rr_steer_id, 
+      ros_params_manager_.data().rr_steer_reverse);
+ 
+  fsm::Chassis::controller.lf_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_l_front_speed[0], 
-      ros_params_manager_.data().pid_l_front_speed[1],
-      ros_params_manager_.data().pid_l_front_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.l_mid_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_lf_wheel_speed[0], 
+      ros_params_manager_.data().pid_lf_wheel_speed[1],
+      ros_params_manager_.data().pid_lf_wheel_speed[2],
+      ros_params_manager_.data().pid_lf_wheel_speed[3],
+      ros_params_manager_.data().pid_lf_wheel_speed[4]);
+  fsm::Chassis::controller.rf_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_l_mid_speed[0], 
-      ros_params_manager_.data().pid_l_mid_speed[1],
-      ros_params_manager_.data().pid_l_mid_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.l_rear_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_rf_wheel_speed[0], 
+      ros_params_manager_.data().pid_rf_wheel_speed[1],
+      ros_params_manager_.data().pid_rf_wheel_speed[2],
+      ros_params_manager_.data().pid_rf_wheel_speed[3],
+      ros_params_manager_.data().pid_rf_wheel_speed[4]);
+  fsm::Chassis::controller.lr_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_l_rear_speed[0], 
-      ros_params_manager_.data().pid_l_rear_speed[1],
-      ros_params_manager_.data().pid_l_rear_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.l_lift_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_lr_wheel_speed[0], 
+      ros_params_manager_.data().pid_lr_wheel_speed[1],
+      ros_params_manager_.data().pid_lr_wheel_speed[2],
+      ros_params_manager_.data().pid_lr_wheel_speed[3],
+      ros_params_manager_.data().pid_lr_wheel_speed[4]);
+  fsm::Chassis::controller.rr_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_l_lift_speed[0], 
-      ros_params_manager_.data().pid_l_lift_speed[1],
-      ros_params_manager_.data().pid_l_lift_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.r_front_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_rr_wheel_speed[0], 
+      ros_params_manager_.data().pid_rr_wheel_speed[1],
+      ros_params_manager_.data().pid_rr_wheel_speed[2],
+      ros_params_manager_.data().pid_rr_wheel_speed[3],
+      ros_params_manager_.data().pid_rr_wheel_speed[4]);
+  fsm::Chassis::controller.lf_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_r_front_speed[0], 
-      ros_params_manager_.data().pid_r_front_speed[1],
-      ros_params_manager_.data().pid_r_front_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.r_mid_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_lf_steer_speed[0], 
+      ros_params_manager_.data().pid_lf_steer_speed[1],
+      ros_params_manager_.data().pid_lf_steer_speed[2],
+      ros_params_manager_.data().pid_lf_steer_speed[3],
+      ros_params_manager_.data().pid_lf_steer_speed[4]);
+  fsm::Chassis::controller.rf_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_r_mid_speed[0], 
-      ros_params_manager_.data().pid_r_mid_speed[1],
-      ros_params_manager_.data().pid_r_mid_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.r_rear_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_rf_steer_speed[0], 
+      ros_params_manager_.data().pid_rf_steer_speed[1],
+      ros_params_manager_.data().pid_rf_steer_speed[2],
+      ros_params_manager_.data().pid_rf_steer_speed[3],
+      ros_params_manager_.data().pid_rf_steer_speed[4]);
+  fsm::Chassis::controller.lr_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_r_rear_speed[0], 
-      ros_params_manager_.data().pid_r_rear_speed[1],
-      ros_params_manager_.data().pid_r_rear_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.r_lift_speed = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_lr_steer_speed[0], 
+      ros_params_manager_.data().pid_lr_steer_speed[1],
+      ros_params_manager_.data().pid_lr_steer_speed[2],
+      ros_params_manager_.data().pid_lr_steer_speed[3],
+      ros_params_manager_.data().pid_lr_steer_speed[4]);
+  fsm::Chassis::controller.rr_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_r_lift_speed[0], 
-      ros_params_manager_.data().pid_r_lift_speed[1],
-      ros_params_manager_.data().pid_r_lift_speed[2],
-      12000, 0);
-  fsm::Chassis::controller.l_lift_position = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_rr_steer_speed[0], 
+      ros_params_manager_.data().pid_rr_steer_speed[1],
+      ros_params_manager_.data().pid_rr_steer_speed[2],
+      ros_params_manager_.data().pid_rr_steer_speed[3],
+      ros_params_manager_.data().pid_rr_steer_speed[4]);
+  fsm::Chassis::controller.lf_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_l_lift_position[0], 
-      ros_params_manager_.data().pid_l_lift_position[1],
-      ros_params_manager_.data().pid_l_lift_position[2],
-      1000, 0);
-  fsm::Chassis::controller.r_lift_position = std::make_unique<rm::modules::algorithm::PID>(
+      ros_params_manager_.data().pid_lf_steer_position[0], 
+      ros_params_manager_.data().pid_lf_steer_position[1],
+      ros_params_manager_.data().pid_lf_steer_position[2],
+      ros_params_manager_.data().pid_lf_steer_position[3],
+      ros_params_manager_.data().pid_lf_steer_position[4],
+      2 * M_PI);
+  fsm::Chassis::controller.rf_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
       rm::modules::algorithm::PIDType::kPosition,
-      ros_params_manager_.data().pid_r_lift_position[0], 
-      ros_params_manager_.data().pid_r_lift_position[1],
-      ros_params_manager_.data().pid_r_lift_position[2],
-      1000, 0);
+      ros_params_manager_.data().pid_rf_steer_position[0], 
+      ros_params_manager_.data().pid_rf_steer_position[1],
+      ros_params_manager_.data().pid_rf_steer_position[2],
+      ros_params_manager_.data().pid_rf_steer_position[3],
+      ros_params_manager_.data().pid_rf_steer_position[4],
+      2 * M_PI);
+  fsm::Chassis::controller.lr_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
+      rm::modules::algorithm::PIDType::kPosition,
+      ros_params_manager_.data().pid_lr_steer_position[0], 
+      ros_params_manager_.data().pid_lr_steer_position[1],
+      ros_params_manager_.data().pid_lr_steer_position[2],
+      ros_params_manager_.data().pid_lr_steer_position[3],
+      ros_params_manager_.data().pid_lr_steer_position[4],
+      2 * M_PI);
+  fsm::Chassis::controller.rr_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
+      rm::modules::algorithm::PIDType::kPosition,
+      ros_params_manager_.data().pid_rr_steer_position[0], 
+      ros_params_manager_.data().pid_rr_steer_position[1],
+      ros_params_manager_.data().pid_rr_steer_position[2],
+      ros_params_manager_.data().pid_rr_steer_position[3],
+      ros_params_manager_.data().pid_rr_steer_position[4],
+      2 * M_PI);
   // clang-format on
 
   chassis_can->SetFilter(0, 0);  // 设置can过滤器
@@ -158,11 +186,7 @@ void FluoriteChassis::Remote() {
         remote_device_.IAmAlive();
         if (msg->buttons[0] == 3) {  // right at the middle
           if ((last_left_switch != 3) && (msg->buttons[1] == 3)) {
-            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::Neutral>{});
-          } else if ((last_left_switch != 2) && (msg->buttons[1] == 2)) {
-            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::Lower>{});
-          } else if ((last_left_switch != 1) && (msg->buttons[1] == 1)) {
-            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::Lift>{});
+            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::FollowGimbal>{});
           }
         } else {
           fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
@@ -191,7 +215,7 @@ void FluoriteChassis::Referee() { info("referee ok"); }
  */
 void FluoriteChassis::Blackbox() {
   blackbox_state_pub_ =
-      this->create_publisher<fluorite_msgs::msg::ChassisState>("blackbox/state", rclcpp::SystemDefaultsQoS());
+      this->create_publisher<fluorite_msgs::msg::ChassisState>("blackbox/chassis", rclcpp::SystemDefaultsQoS());
   blackbox_timer_ = this->create_wall_timer(10ms, [this] { blackbox_state_pub_->publish(fsm::Chassis::state); });
   info("blackbox ok");
 }
@@ -215,18 +239,18 @@ void FluoriteChassis::DeviceMonitor() {
  * @brief 把电机对象里的保存的电机状态复制到控制事件里
  */
 void FluoriteChassis::UpdateFsmState() {
-  fsm::Chassis::state.l_front_speed = fsm::Chassis::actuator.l_front_wheel->rpm();
-  fsm::Chassis::state.l_mid_speed = fsm::Chassis::actuator.l_mid_wheel->rpm();
-  fsm::Chassis::state.l_rear_speed = fsm::Chassis::actuator.l_rear_wheel->rpm();
-  fsm::Chassis::state.l_lift_speed = fsm::Chassis::actuator.l_lift->rpm();
-  fsm::Chassis::state.r_front_speed = fsm::Chassis::actuator.r_front_wheel->rpm();
-  fsm::Chassis::state.r_mid_speed = fsm::Chassis::actuator.r_mid_wheel->rpm();
-  fsm::Chassis::state.r_rear_speed = fsm::Chassis::actuator.r_rear_wheel->rpm();
-  fsm::Chassis::state.r_lift_speed = fsm::Chassis::actuator.r_lift->rpm();
-  fsm::Chassis::controller.l_lift_encoder.Update(fsm::Chassis::actuator.l_lift->encoder());
-  fsm::Chassis::state.l_lift_position = fsm::Chassis::controller.l_lift_encoder.value();
-  fsm::Chassis::controller.r_lift_encoder.Update(fsm::Chassis::actuator.r_lift->encoder());
-  fsm::Chassis::state.r_lift_position = fsm::Chassis::controller.r_lift_encoder.value();
+  fsm::Chassis::state.lf_wheel_speed = fsm::Chassis::actuator.lf_wheel->rpm();
+  fsm::Chassis::state.rf_wheel_speed = fsm::Chassis::actuator.rf_wheel->rpm();
+  fsm::Chassis::state.lr_wheel_speed = fsm::Chassis::actuator.lr_wheel->rpm();
+  fsm::Chassis::state.rr_wheel_speed = fsm::Chassis::actuator.rr_wheel->rpm();
+  fsm::Chassis::state.lf_steer_position = fsm::Chassis::actuator.lf_steer->pos_rad();
+  fsm::Chassis::state.rf_steer_position = fsm::Chassis::actuator.rf_steer->pos_rad();
+  fsm::Chassis::state.lr_steer_position = fsm::Chassis::actuator.lr_steer->pos_rad();
+  fsm::Chassis::state.rr_steer_position = fsm::Chassis::actuator.rr_steer->pos_rad();
+  fsm::Chassis::state.lf_steer_speed = fsm::Chassis::actuator.lf_steer->rpm();
+  fsm::Chassis::state.rf_steer_speed = fsm::Chassis::actuator.rf_steer->rpm();
+  fsm::Chassis::state.lr_steer_speed = fsm::Chassis::actuator.lr_steer->rpm();
+  fsm::Chassis::state.rr_steer_speed = fsm::Chassis::actuator.rr_steer->rpm();
 }
 
 void FluoriteChassis::ParamHotUpdate() {}

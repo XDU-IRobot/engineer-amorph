@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <random>
+#include <cxxabi.h>
 
 #include <tinyfsm.hpp>
 #include <librm.hpp>
@@ -21,7 +22,6 @@
 #include "fluorite_msgs/msg/chassis_state.hpp"
 #include "common/logger.hpp"
 #include "chassis/kinematics.hpp"
-#include "chassis/encoder_counter.hpp"
 
 namespace event {
 namespace chassis {
@@ -45,7 +45,7 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
   template <typename Mode>
   void react(event::chassis::SwitchMode<Mode> const &) {
     transit<Mode>();
-    info(("MODE SWITCH: " + std::string(Mode::name)).c_str());
+    info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
   }
 
  public:
@@ -60,19 +60,20 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
    * @brief   执行器（电机）
    */
   static struct Actuator {
-    std::unique_ptr<rm::device::M3508> l_front_wheel{nullptr}, l_mid_wheel{nullptr}, l_rear_wheel{nullptr},
-        l_lift{nullptr}, r_front_wheel{nullptr}, r_mid_wheel{nullptr}, r_rear_wheel{nullptr}, r_lift{nullptr};
+    std::unique_ptr<rm::device::M3508> lf_wheel{nullptr}, rf_wheel{nullptr}, lr_wheel{nullptr}, rr_wheel{nullptr};
+    std::unique_ptr<rm::device::GM6020> lf_steer{nullptr}, rf_steer{nullptr}, lr_steer{nullptr}, rr_steer{nullptr};
   } actuator;
 
   /**
    * @brief   控制器（算法对象）
    */
   static struct Controller {
-    std::unique_ptr<rm::modules::algorithm::PID> l_front_speed{nullptr}, l_mid_speed{nullptr}, l_rear_speed{nullptr},
-        l_lift_speed{nullptr}, r_front_speed{nullptr}, r_mid_speed{nullptr}, r_rear_speed{nullptr},
-        r_lift_speed{nullptr}, l_lift_position{nullptr}, r_lift_position{nullptr};
-    ChassisFk chassis_solver{0.54, 0.44};
-    EncoderCounter<int> l_lift_encoder{8191}, r_lift_encoder{8191};
+    std::unique_ptr<rm::modules::algorithm::PID> lf_wheel_speed{nullptr}, rf_wheel_speed{nullptr},
+        lr_wheel_speed{nullptr}, rr_wheel_speed{nullptr}, lf_steer_speed{nullptr}, rf_steer_speed{nullptr},
+        lr_steer_speed{nullptr}, rr_steer_speed{nullptr};
+    std::unique_ptr<rm::modules::algorithm::RingPID> lf_steer_position{nullptr}, rf_steer_position{nullptr},
+        lr_steer_position{nullptr}, rr_steer_position{nullptr};
+    ChassisFk chassis_solver{0.5f};
   } controller;
 };
 
@@ -88,33 +89,13 @@ void DispatchEvent(Event const &event) {
 namespace state {
 namespace chassis {
 
-class Neutral : public fsm::Chassis {
+class FollowGimbal : public fsm::Chassis {
  public:
-  constexpr static char const *name = "Neutral";
-  void entry() override;
-};
-
-class Lift : public fsm::Chassis {
- public:
-  constexpr static char const *name = "Lift";
-  void entry() override;
-};
-
-class Lower : public fsm::Chassis {
- public:
-  constexpr static char const *name = "Lower";
-  void entry() override;
-};
-
-class Adaptive : public fsm::Chassis {
- public:
-  constexpr static char const *name = "Adaptive";
   void entry() override;
 };
 
 class NoForce : public fsm::Chassis {
  public:
-  constexpr static char const *name = "NoForce";
   void react(event::chassis::Control const &control) override;
   void entry() override;
 };

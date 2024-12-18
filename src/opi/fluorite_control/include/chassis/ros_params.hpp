@@ -8,50 +8,51 @@
 
 struct RosParams {
   // can net interface names
-  std::string chassis_can_port;
+  std::string chassis_can_port{};
+  std::string arm_can_port{};
 
   // dji motor ids
-  int l_front_wheel_id;
-  int l_mid_wheel_id;
-  int l_rear_wheel_id;
-  int l_lift_wheel_id;
-  int r_front_wheel_id;
-  int r_mid_wheel_id;
-  int r_rear_wheel_id;
-  int r_lift_wheel_id;
+  int lf_wheel_id{};
+  int rf_wheel_id{};
+  int lr_wheel_id{};
+  int rr_wheel_id{};
+  int lf_steer_id{};
+  int rf_steer_id{};
+  int lr_steer_id{};
+  int rr_steer_id{};
 
   // pid param
-  std::vector<double> pid_l_front_speed;
-  std::vector<double> pid_l_mid_speed;
-  std::vector<double> pid_l_rear_speed;
-  std::vector<double> pid_l_lift_speed;
-  std::vector<double> pid_r_front_speed;
-  std::vector<double> pid_r_mid_speed;
-  std::vector<double> pid_r_rear_speed;
-  std::vector<double> pid_r_lift_speed;
-  std::vector<double> pid_l_lift_position;
-  std::vector<double> pid_r_lift_position;
+  std::vector<double> pid_lf_wheel_speed{};
+  std::vector<double> pid_rf_wheel_speed{};
+  std::vector<double> pid_lr_wheel_speed{};
+  std::vector<double> pid_rr_wheel_speed{};
+  std::vector<double> pid_lf_steer_speed{};
+  std::vector<double> pid_rf_steer_speed{};
+  std::vector<double> pid_lr_steer_speed{};
+  std::vector<double> pid_rr_steer_speed{};
+  std::vector<double> pid_lf_steer_position{};
+  std::vector<double> pid_rf_steer_position{};
+  std::vector<double> pid_lr_steer_position{};
+  std::vector<double> pid_rr_steer_position{};
 
   // motor settings
-  bool l_front_wheel_reverse;
-  bool l_mid_wheel_reverse;
-  bool l_rear_wheel_reverse;
-  bool l_lift_wheel_reverse;
-  bool r_front_wheel_reverse;
-  bool r_mid_wheel_reverse;
-  bool r_rear_wheel_reverse;
-  bool r_lift_wheel_reverse;
+  bool lf_wheel_reverse{};
+  bool rf_wheel_reverse{};
+  bool lr_wheel_reverse{};
+  bool rr_wheel_reverse{};
+  bool lf_steer_reverse{};
+  bool rf_steer_reverse{};
+  bool lr_steer_reverse{};
+  bool rr_steer_reverse{};
 
   // configurations
-  double lift_encoder_delta;
-  double lower_encoder_delta;
 
   // input settings
-  bool control_use_fpv_channel;
-  bool control_invert_vertical;
-  bool control_invert_horizontal;
-  double control_sensitivity_vertical;
-  double control_sensitivity_horizontal;
+  bool control_use_fpv_channel{};
+  bool control_invert_vertical{};
+  bool control_invert_horizontal{};
+  double control_sensitivity_vertical{};
+  double control_sensitivity_horizontal{};
 };
 
 #endif  // CHASSIS_ROS_PARAMS_HPP

@@ -8,40 +8,40 @@
 fluorite_chassis:
   ros__parameters:
     # dji motor ids
-    l_front_wheel_id: 1
-    l_mid_wheel_id: 3
-    l_rear_wheel_id: 2
-    l_lift_wheel_id: 4
-    r_front_wheel_id: 5
-    r_mid_wheel_id: 7
-    r_rear_wheel_id: 6
-    r_lift_wheel_id: 8
+    lf_wheel_id: 1
+    rf_wheel_id: 2
+    lr_wheel_id: 3
+    rr_wheel_id: 4
+    lf_steer_id: 1
+    rf_steer_id: 2
+    lr_steer_id: 3
+    rr_steer_id: 4
 
     # pid param
-    pid_l_front_speed: [5.0, 0.0, 0.0]
-    pid_l_mid_speed: [9.2, 0.0, 0.0]
-    pid_l_rear_speed: [5.0, 0.0, 0.0]
-    pid_l_lift_speed: [8.5, 0.0, 0.0]
-    pid_r_front_speed: [5.0, 0.0, 0.0]
-    pid_r_mid_speed: [5.0, 0.0, 0.0]
-    pid_r_rear_speed: [5.0, 0.0, 0.0]
-    pid_r_lift_speed: [8.5, 0.0, 0.0]
-    pid_l_lift_position: [1.0, 0.0, 0.0]
-    pid_r_lift_position: [1.0, 0.0, 0.0]
+    pid_lf_wheel_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_rf_wheel_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_lr_wheel_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_rr_wheel_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_lf_steer_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_rf_steer_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_lr_steer_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_rr_steer_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_lf_steer_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_rf_steer_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_lr_steer_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_rr_steer_position: [0.0, 0.0, 0.0, 0.0, 0.0]
 
     # motor settings
-    l_front_wheel_reverse: false
-    l_mid_wheel_reverse: false
-    l_rear_wheel_reverse: false
-    l_lift_wheel_reverse: false
-    r_front_wheel_reverse: true
-    r_mid_wheel_reverse: true
-    r_rear_wheel_reverse: true
-    r_lift_wheel_reverse: true
+    lf_wheel_reverse: false
+    rf_wheel_reverse: false
+    lr_wheel_reverse: false
+    rr_wheel_reverse: false
+    lf_steer_reverse: false
+    rf_steer_reverse: false
+    lr_steer_reverse: false
+    rr_steer_reverse: false
 
     # configurations
-    lift_encoder_delta: -114785.0
-    lower_encoder_delta: 108734.0
 
     # input settings
     control_use_fpv_channel: false # 使用图传链路控制

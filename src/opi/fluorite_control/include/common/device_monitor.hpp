@@ -33,7 +33,7 @@ class DeviceMonitor {
 
   template <typename... Devices>
   void Register(Devices... device) {
-    (devices_.push_back(device), ...);
+    (devices_.push_back(&device), ...);
   }
   void Update();
 
