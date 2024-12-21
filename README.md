@@ -49,6 +49,16 @@
 
 - 相机 `大恒水星 MER2-230` `->` `Jetson`。
 
+### PCB
+
+整车用到了 3 块 自行设计的 PCB，PCB 文件使用 git lfs 管理，在仓库里执行`git lfs pull`即可下载：
+
+- orange pi 5 的扩展板 [`pcb/opi5.eprj`](pcb/opi5.eprj)
+
+- 位于底盘的电源继电器板 [`pcb/engineer_2025.eprj`](pcb/engineer_2025.eprj)
+
+- 位于机械臂的电磁阀驱动器/分电板 [`pcb/engineer_2025.eprj`](pcb/engineer_2025.eprj)
+
 ## 程序使用方法
 
 ### 环境配置
