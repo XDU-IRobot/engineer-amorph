@@ -15,6 +15,7 @@
 
 #include "chassis/fsm.hpp"
 #include "common/logger.hpp"
+#include "librm/modules/algorithm/utils.hpp"
 
 using namespace std::chrono_literals;
 using namespace rm;
@@ -179,24 +180,25 @@ void FluoriteChassis::InitFsm() {
 void FluoriteChassis::Navigation() { info("navigation ok"); }
 
 void FluoriteChassis::Remote() {
-  static int last_left_switch = 0;
-  static int last_right_switch = 0;
-  remote_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
-      "/rm2_remote/joy", rclcpp::SensorDataQoS(), [&](const sensor_msgs::msg::Joy::SharedPtr msg) {
-        remote_device_.IAmAlive();
-        if (msg->buttons[0] == 3) {  // right at the middle
-          if ((last_left_switch != 3) && (msg->buttons[1] == 3)) {
+  static std::vector<short> last_channels(16, 0);
+  remote_sub_ = this->create_subscription<sbus_interface::msg::Sbus>(
+      "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
+        // remote_device_.IAmAlive();
+        if (msg->failsafe) {
+          fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
+          return;
+        }
+        if (msg->mapped_channels[8] == -1000) {
+          if ((last_channels[8] != -1000)) {  // SA up
             fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::FollowGimbal>{});
           }
         } else {
           fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
         }
-        last_left_switch = msg->buttons[1];
-        last_right_switch = msg->buttons[0];
 
-        control_msg_.vx = msg->axes[0] * ros_params_manager_.data().control_sensitivity_vertical;
-        control_msg_.vy = msg->axes[1] * ros_params_manager_.data().control_sensitivity_horizontal;
-        control_msg_.vw = -msg->axes[4] * ros_params_manager_.data().control_sensitivity_horizontal;
+        control_msg_.vx = msg->mapped_channels[1] * ros_params_manager_.data().control_sensitivity_vertical;
+        control_msg_.vy = msg->mapped_channels[3] * ros_params_manager_.data().control_sensitivity_horizontal;
+        control_msg_.vw = -msg->mapped_channels[0] * ros_params_manager_.data().control_sensitivity_horizontal;
         if (ros_params_manager_.data().control_invert_vertical) {
           control_msg_.vx = -control_msg_.vx;
         }
@@ -225,12 +227,11 @@ void FluoriteChassis::Blackbox() {
  * @note  因为irobotec还没有推进到这里所以暂时弄了一种很蹩脚的方法，只监控遥控器和imu
  */
 void FluoriteChassis::DeviceMonitor() {
-  device_monitor_ << remote_device_;
   device_monitor_timer_ = this->create_wall_timer(300ms, [this] {
-    device_monitor_.Update();
-    if (!device_monitor_.all_device_ok()) {
-      fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
-    }
+    // device_monitor_.Update();
+    // if (!device_monitor_.all_device_ok()) {
+    //   fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
+    // }
   });
   info("device monitor ok");
 }
@@ -243,10 +244,14 @@ void FluoriteChassis::UpdateFsmState() {
   fsm::Chassis::state.rf_wheel_speed = fsm::Chassis::actuator.rf_wheel->rpm();
   fsm::Chassis::state.lr_wheel_speed = fsm::Chassis::actuator.lr_wheel->rpm();
   fsm::Chassis::state.rr_wheel_speed = fsm::Chassis::actuator.rr_wheel->rpm();
-  fsm::Chassis::state.lf_steer_position = fsm::Chassis::actuator.lf_steer->pos_rad();
-  fsm::Chassis::state.rf_steer_position = fsm::Chassis::actuator.rf_steer->pos_rad();
-  fsm::Chassis::state.lr_steer_position = fsm::Chassis::actuator.lr_steer->pos_rad();
-  fsm::Chassis::state.rr_steer_position = fsm::Chassis::actuator.rr_steer->pos_rad();
+  fsm::Chassis::state.lf_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+      fsm::Chassis::actuator.lf_steer->pos_rad() - ros_params_manager_.data().lf_steer_front_encoder, 0, 2 * M_PI);
+  fsm::Chassis::state.lr_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+      fsm::Chassis::actuator.lr_steer->pos_rad() - ros_params_manager_.data().lr_steer_front_encoder, 0, 2 * M_PI);
+  fsm::Chassis::state.rf_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+      fsm::Chassis::actuator.rf_steer->pos_rad() - ros_params_manager_.data().rf_steer_front_encoder, 0, 2 * M_PI);
+  fsm::Chassis::state.rr_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+      fsm::Chassis::actuator.rr_steer->pos_rad() - ros_params_manager_.data().rr_steer_front_encoder, 0, 2 * M_PI);
   fsm::Chassis::state.lf_steer_speed = fsm::Chassis::actuator.lf_steer->rpm();
   fsm::Chassis::state.rf_steer_speed = fsm::Chassis::actuator.rf_steer->rpm();
   fsm::Chassis::state.lr_steer_speed = fsm::Chassis::actuator.lr_steer->rpm();

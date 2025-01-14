@@ -44,6 +44,9 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
 
   template <typename Mode>
   void react(event::chassis::SwitchMode<Mode> const &) {
+    if (this->is_in_state<Mode>()) {
+      return;
+    }
     transit<Mode>();
     info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
   }

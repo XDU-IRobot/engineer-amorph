@@ -19,10 +19,10 @@ void DeviceMonitor::Update() {
       device->is_alive_ = true;
     }
     if (previous_state == false && device->is_alive_ == true) {
-      info("device \"%s\" is now online", device->name_.c_str());
+      info("device is now online");
     }
     if (previous_state == true && device->is_alive_ == false) {
-      warn("device \"%s\" is now offline", device->name_.c_str());
+      warn("device is now offline");
     }
   }
 }

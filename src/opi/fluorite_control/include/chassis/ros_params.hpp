@@ -46,6 +46,10 @@ struct RosParams {
   bool rr_steer_reverse{};
 
   // configurations
+  double lf_steer_front_encoder{};
+  double rf_steer_front_encoder{};
+  double lr_steer_front_encoder{};
+  double rr_steer_front_encoder{};
 
   // input settings
   bool control_use_fpv_channel{};

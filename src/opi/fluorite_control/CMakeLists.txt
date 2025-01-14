@@ -26,8 +26,6 @@ add_subdirectory(src)
 
 install(TARGETS ${PROJECT_NAME}_arm ${PROJECT_NAME}_chassis
         DESTINATION lib/${PROJECT_NAME})
-install(DIRECTORY launch
-        DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY config
         DESTINATION share/${PROJECT_NAME})
 
