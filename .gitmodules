@@ -22,3 +22,6 @@
 [submodule "src/common/sbus_ros2"]
 	path = src/common/sbus_ros2
 	url = https://github.com/eryeden/sbus_ros2.git
+[submodule "src/opi/witmotion_ros2_driver"]
+	path = src/opi/witmotion_ros2_driver
+	url = https://github.com/lunarifish/witmotion_ros2_driver.git
