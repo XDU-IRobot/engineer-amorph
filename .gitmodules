@@ -19,3 +19,6 @@
 [submodule "src/fluorite_control/libs/tinyfsm"]
 	path = src/opi/fluorite_control/libs/tinyfsm
 	url = https://github.com/digint/tinyfsm.git
+[submodule "src/common/sbus_ros2"]
+	path = src/common/sbus_ros2
+	url = https://github.com/eryeden/sbus_ros2.git

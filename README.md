@@ -153,7 +153,14 @@ sudo systemctl disable fluorite_jetson.service
 | 末端 pitch  | can1     | 0xc9                                     | 0xca      | DM-J4310-2EC          |
 | 末端 yaw #2 | can1     | 0x205                                    | 0x1ff     | 1 号 6020，反馈 500hz |
 
-## 上位机配置
+## 上位机/硬件配置
+
+### 遥控器通道设置
+
+![](assets/p3.jpg)
+![](assets/p4.jpg)
+![](assets/p5.jpg)
+![](assets/p6.jpg)
 
 ### 8009 #1
 
