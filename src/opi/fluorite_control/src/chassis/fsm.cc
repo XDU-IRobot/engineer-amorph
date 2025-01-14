@@ -34,10 +34,6 @@ void Chassis::react(event::chassis::Control const &event) {
   controller.rf_steer_speed->Update(controller.rf_steer_position->value(), state.rf_steer_speed);
   controller.lr_steer_speed->Update(controller.lr_steer_position->value(), state.lr_steer_speed);
   controller.rr_steer_speed->Update(controller.rr_steer_position->value(), state.rr_steer_speed);
-  info("%f %f %f %f | %f %f %f %f", controller.chassis_solver.lf_wheel_speed, controller.chassis_solver.rf_wheel_speed,
-       controller.chassis_solver.lr_wheel_speed, controller.chassis_solver.rr_wheel_speed,
-       controller.lf_steer_speed->value(), controller.rf_steer_speed->value(), controller.lr_steer_speed->value(),
-       controller.rr_steer_speed->value());
 
   actuator.lf_wheel->SetCurrent(controller.lf_wheel_speed->value());
   actuator.rf_wheel->SetCurrent(controller.rf_wheel_speed->value());
