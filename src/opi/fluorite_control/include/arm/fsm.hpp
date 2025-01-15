@@ -65,7 +65,9 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
   /**
    * @brief   控制器（算法对象）
    */
-  static struct Controller { ; } controller;
+  static struct Controller {
+    ;
+  } controller;
 };
 
 using fsm_list = tinyfsm::FsmList<Arm>;
