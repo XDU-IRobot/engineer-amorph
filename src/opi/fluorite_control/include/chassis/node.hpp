@@ -5,7 +5,6 @@
 #include <memory>
 
 #include <rclcpp/rclcpp.hpp>
-#include <sbus_interface/msg/detail/sbus__struct.hpp>
 #include <sbus_interface/msg/sbus.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>

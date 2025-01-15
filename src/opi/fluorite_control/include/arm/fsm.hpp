@@ -13,6 +13,7 @@
 #include <librm.hpp>
 
 #include "fluorite_msgs/msg/arm_state.hpp"
+#include "arm/pneumatic.hpp"
 #include "common/logger.hpp"
 
 namespace event {
@@ -34,8 +35,11 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
 
   template <typename Mode>
   void react(event::arm::SwitchMode<Mode> const &) {
+    if (this->is_in_state<Mode>()) {
+      return;
+    }
     transit<Mode>();
-    info(("MODE SWITCH: " + std::string(Mode::name)).c_str());
+    info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
   }
 
  public:
@@ -47,19 +51,21 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
   static fluorite_msgs::msg::ArmState state;
 
   /**
-   * @brief   执行器（电机）
+   * @brief   执行器（电机、气泵、电磁阀）
    */
   static struct Actuator {
-    std::unique_ptr<rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>> end_yaw_1{nullptr}, end_pitch{nullptr},
-        end_yaw_2{nullptr};
+    std::unique_ptr<rm::device::DirectDriveMotor> base_yaw{nullptr};
+    std::unique_ptr<rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>> yaw{nullptr}, pitch_1{nullptr},
+        pitch_2{nullptr}, end_yaw_1{nullptr}, end_pitch{nullptr};
+    std::unique_ptr<rm::device::GM6020> end_yaw_2{nullptr};
+    std::unique_ptr<SuckerSystem> sucker_system{nullptr};
+    std::unique_ptr<StorageSystem> storage_system{nullptr};
   } actuator;
 
   /**
    * @brief   控制器（算法对象）
    */
-  static struct Controller {
-    ;
-  } controller;
+  static struct Controller { ; } controller;
 };
 
 using fsm_list = tinyfsm::FsmList<Arm>;
@@ -76,13 +82,11 @@ namespace arm {
 
 class Debug : public fsm::Arm {
  public:
-  constexpr static char const *name = "Debug";
   void entry() override;
 };
 
 class NoForce : public fsm::Arm {
  public:
-  constexpr static char const *name = "NoForce";
   void react(event::arm::Control const &control) override;
   void entry() override;
 };

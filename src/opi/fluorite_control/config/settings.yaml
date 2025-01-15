@@ -4,10 +4,9 @@
     chassis_can_port: "can0"
     arm_can_port: "can1"
 
-# launch.py->node->name
 fluorite_control_chassis:
   ros__parameters:
-    # dji motor ids
+    # dji motor id
     lf_wheel_id: 2
     rf_wheel_id: 1
     lr_wheel_id: 3
@@ -18,14 +17,14 @@ fluorite_control_chassis:
     rr_steer_id: 4
 
     # pid param
-    pid_lf_wheel_speed: [8.5, 0.0, 0.0, 10000.0, 0.0]
-    pid_rf_wheel_speed: [8.5, 0.0, 0.0, 10000.0, 0.0]
-    pid_lr_wheel_speed: [8.5, 0.0, 0.0, 10000.0, 0.0]
-    pid_rr_wheel_speed: [8.5, 0.0, 0.0, 10000.0, 0.0]
-    pid_lf_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
-    pid_rf_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
-    pid_lr_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
-    pid_rr_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
+    pid_lf_wheel_speed: [9.5, 0.0, 0.0, 10000.0, 0.0]
+    pid_rf_wheel_speed: [9.5, 0.0, 0.0, 10000.0, 0.0]
+    pid_lr_wheel_speed: [9.5, 0.0, 0.0, 10000.0, 0.0]
+    pid_rr_wheel_speed: [9.5, 0.0, 0.0, 10000.0, 0.0]
+    pid_lf_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
+    pid_rf_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
+    pid_lr_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
+    pid_rr_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
     pid_lf_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
     pid_rf_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
     pid_lr_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
@@ -53,3 +52,36 @@ fluorite_control_chassis:
     control_invert_horizontal: true
     control_sensitivity_vertical: 4.3
     control_sensitivity_horizontal: 4.3
+
+fluorite_control_arm:
+  ros__parameters:
+    # motor id
+    base_yaw_id: 1
+    yaw_master_id: 0xc9
+    yaw_slave_id: 0xca
+    pitch_1_master_id: 0xc1
+    pitch_1_slave_id: 0xc2
+    pitch_2_master_id: 0xc3
+    pitch_2_slave_id: 0xc4
+    end_yaw_1_master_id: 0xc5
+    end_yaw_1_slave_id: 0xc6
+    end_pitch_master_id: 0xc7
+    end_pitch_slave_id: 0xc8
+    end_yaw_2_id: 1
+
+    # motor settings
+    base_yaw_reverse: false
+    yaw_reverse: false
+    pitch_1_reverse: false
+    pitch_2_reverse: false
+    end_yaw_1_reverse: false
+    end_pitch_reverse: false
+    end_yaw_2_reverse: false
+
+    # gpio settings
+    sucker_out_valve_pin: 13
+    sucker_in_valve_pin: 14
+    sucker_vaccum_pump_pin: 2 # pwm15_m2
+    storage_left_valve_pin: 11
+    storage_right_valve_pin: 12
+    storage_vaccum_pump_pin: 16 # pwm1_m2

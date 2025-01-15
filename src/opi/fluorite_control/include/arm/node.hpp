@@ -5,7 +5,7 @@
 #include <memory>
 
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/joy.hpp>
+#include <sbus_interface/msg/sbus.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>
 #include <librm.hpp>
@@ -46,7 +46,7 @@ class FluoriteArm final : public rclcpp::Node {
   /** </parameters> **/
 
   /** <remote> **/
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr remote_sub_{nullptr};
+  rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr remote_sub_{nullptr};
   /** </remote> **/
 
   /** <referee> **/
