@@ -21,14 +21,14 @@ fluorite_control_chassis:
     pid_rf_wheel_speed: [9.5, 0.0, 0.0, 10000.0, 0.0]
     pid_lr_wheel_speed: [9.5, 0.0, 0.0, 10000.0, 0.0]
     pid_rr_wheel_speed: [9.5, 0.0, 0.0, 10000.0, 0.0]
-    pid_lf_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
-    pid_rf_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
-    pid_lr_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
-    pid_rr_steer_speed: [165.0, 0.0, 0.0, 20000.0, 0.0]
-    pid_lf_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
-    pid_rf_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
-    pid_lr_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
-    pid_rr_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
+    pid_lf_steer_speed: [110.0, 0.0, 0.0, 20000.0, 0.0]
+    pid_rf_steer_speed: [110.0, 0.0, 0.0, 20000.0, 0.0]
+    pid_lr_steer_speed: [110.0, 0.0, 0.0, 20000.0, 0.0]
+    pid_rr_steer_speed: [110.0, 0.0, 0.0, 20000.0, 0.0]
+    pid_lf_steer_position: [196.0, 0.0, 0.0, 145.0, 0.0]
+    pid_rf_steer_position: [196.0, 0.0, 0.0, 145.0, 0.0]
+    pid_lr_steer_position: [196.0, 0.0, 0.0, 145.0, 0.0]
+    pid_rr_steer_position: [196.0, 0.0, 0.0, 145.0, 0.0]
 
     # motor settings
     lf_wheel_reverse: true
