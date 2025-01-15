@@ -162,18 +162,18 @@ sudo systemctl disable fluorite_jetson.service
 ### 遥控器通道设置
 
 <center>
-<img src="./assets/rc1.jpg" width=450/>
-<img src="./assets/rc2.jpg" width=450/>
+<img src="./assets/rc1.jpg" width=400/>
+<img src="./assets/rc2.jpg" width=400/>
 </center>
 
 <center>
-<img src="./assets/rc3.jpg" width=450/>
-<img src="./assets/rc4.jpg" width=450/>
+<img src="./assets/rc3.jpg" width=400/>
+<img src="./assets/rc4.jpg" width=400/>
 </center>
 
 <center>
-<img src="./assets/rc5.jpg" width=450/>
-<img src="./assets/rc6.jpg" width=450/>
+<img src="./assets/rc5.jpg" width=400/>
+<img src="./assets/rc6.jpg" width=400/>
 </center>
 
 ### 小 yaw 轴 达妙 8009
