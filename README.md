@@ -41,6 +41,10 @@
 
 ## 硬件
 
+- IMU `维特智能 HWT606` `->` `uart4@orange pi`。
+
+- 遥控器/接收机 `天地飞ET16S/RF209S` `->` `uart0@orange pi`。
+
 - 主控
 
   - 视觉 `Jetson xavier nx 8gb` `ip = 10.0.3.101`
@@ -57,7 +61,7 @@
 
 - 位于底盘的电源继电器板 [`pcb/engineer_2025.eprj`](pcb/engineer_2025.eprj)
 
-- 位于机械臂的电磁阀驱动器/分电板 [`pcb/engineer_2025.eprj`](pcb/engineer_2025.eprj)
+- 位于云台设备舱的电磁阀驱动器/分电板 [`pcb/engineer_2025.eprj`](pcb/engineer_2025.eprj)
 
 ## 程序使用方法
 
@@ -137,15 +141,16 @@ sudo systemctl disable fluorite_jetson.service
 
 | 设备        | CAN 总线 | master id                                | slave id  | 备注                  |
 | ----------- | -------- | ---------------------------------------- | --------- | --------------------- |
-| 左前轮      | can0     | 0x201                                    | 0x200     | 1 号 3508，反馈 500hz |
-| 左后轮      | can0     | 0x204                                    | 0x200     | 4 号 3508，反馈 500hz |
-| 右前轮      | can0     | 0x202                                    | 0x200     | 2 号 3508，反馈 500hz |
-| 右后轮      | can0     | 0x203                                    | 0x200     | 3 号 3508，反馈 500hz |
-| 左前舵      | can0     | 0x205                                    | 0x1ff     | 1 号 6020，反馈 500hz |
-| 左后舵      | can0     | 0x208                                    | 0x1ff     | 4 号 6020，反馈 500hz |
-| 右前舵      | can0     | 0x206                                    | 0x1ff     | 2 号 6020，反馈 500hz |
-| 右后舵      | can0     | 0x207                                    | 0x1ff     | 3 号 6020，反馈 500hz |
+| 左前轮      | can0     | 0x202                                    | 0x200     | 2 号 3508，反馈 500hz |
+| 左后轮      | can0     | 0x203                                    | 0x200     | 3 号 3508，反馈 500hz |
+| 右前轮      | can0     | 0x201                                    | 0x200     | 1 号 3508，反馈 500hz |
+| 右后轮      | can0     | 0x204                                    | 0x200     | 4 号 3508，反馈 500hz |
+| 左前舵      | can0     | 0x206                                    | 0x1ff     | 2 号 6020，反馈 500hz |
+| 左后舵      | can0     | 0x207                                    | 0x1ff     | 3 号 6020，反馈 500hz |
+| 右前舵      | can0     | 0x205                                    | 0x1ff     | 1 号 6020，反馈 500hz |
+| 右后舵      | can0     | 0x208                                    | 0x1ff     | 4 号 6020，反馈 500hz |
 | 大 yaw 轴   | can1     | 0x51, 0x61, 0x71, 0x81, 0x91, 0xa1, 0xb1 | 0x32~0x3a | 1 号 本末 p1010a_111  |
+| 小 yaw 轴   | can1     | 0xc9                                     | 0xca      | DM-J8009-2EC          |
 | pitch #1    | can1     | 0xc1                                     | 0xc2      | DM-J8009-2EC          |
 | pitch #2    | can1     | 0xc3                                     | 0xc4      | DM-J8009-2EC          |
 | 末端 yaw #1 | can1     | 0xc5                                     | 0xc6      | DM-J4310-2EC          |
@@ -156,11 +161,37 @@ sudo systemctl disable fluorite_jetson.service
 
 ### 遥控器通道设置
 
-![](assets/p3.jpg)
-![](assets/p4.jpg)
-![](assets/p5.jpg)
-![](assets/p6.jpg)
+<center>
+<img src="./assets/rc1.jpg" width=450/>
+<img src="./assets/rc2.jpg" width=450/>
+</center>
 
-### 8009 #1
+<center>
+<img src="./assets/rc3.jpg" width=450/>
+<img src="./assets/rc4.jpg" width=450/>
+</center>
 
-![](assets/p2.jpg)
+<center>
+<img src="./assets/rc5.jpg" width=450/>
+<img src="./assets/rc6.jpg" width=450/>
+</center>
+
+### 小 yaw 轴 达妙 8009
+
+![](assets/yaw.jpg)
+
+### pitch #1 达妙 8009
+
+![](assets/pitch1.jpg)
+
+### pitch #2 达妙 8009
+
+![](assets/pitch2.jpg)
+
+### 末端yaw #1 达妙 4310
+
+![](assets/endyaw1.jpg)
+
+### 末端pitch 达妙 4310
+
+![](assets/pitch3.jpg)
