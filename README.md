@@ -148,9 +148,8 @@ sudo systemctl disable fluorite_jetson.service
 | 大 yaw 轴   | can1     | 0x51, 0x61, 0x71, 0x81, 0x91, 0xa1, 0xb1 | 0x32~0x3a | 1 号 本末 p1010a_111  |
 | pitch #1    | can1     | 0xc1                                     | 0xc2      | DM-J8009-2EC          |
 | pitch #2    | can1     | 0xc3                                     | 0xc4      | DM-J8009-2EC          |
-| pitch #3    | can1     | 0xc5                                     | 0xc6      | DM-J8009-2EC          |
-| 末端 yaw #1 | can1     | 0xc7                                     | 0xc8      | DM-J4310-2EC          |
-| 末端 pitch  | can1     | 0xc9                                     | 0xca      | DM-J4310-2EC          |
+| 末端 yaw #1 | can1     | 0xc5                                     | 0xc6      | DM-J4310-2EC          |
+| 末端 pitch  | can1     | 0xc7                                     | 0xc8      | DM-J4310-2EC          |
 | 末端 yaw #2 | can1     | 0x205                                    | 0x1ff     | 1 号 6020，反馈 500hz |
 
 ## 上位机/硬件配置
