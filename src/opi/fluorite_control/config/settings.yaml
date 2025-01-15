@@ -22,14 +22,14 @@ fluorite_control_chassis:
     pid_rf_wheel_speed: [8.5, 0.0, 0.0, 10000.0, 0.0]
     pid_lr_wheel_speed: [8.5, 0.0, 0.0, 10000.0, 0.0]
     pid_rr_wheel_speed: [8.5, 0.0, 0.0, 10000.0, 0.0]
-    pid_lf_steer_speed: [205.0, 0.0, 0.0, 16384.0, 0.0]
-    pid_rf_steer_speed: [205.0, 0.0, 0.0, 16384.0, 0.0]
-    pid_lr_steer_speed: [205.0, 0.0, 0.0, 16384.0, 0.0]
-    pid_rr_steer_speed: [205.0, 0.0, 0.0, 16384.0, 0.0]
-    pid_lf_steer_position: [124.0, 0.0, 0.0, 145.0, 0.0]
-    pid_rf_steer_position: [124.0, 0.0, 0.0, 145.0, 0.0]
-    pid_lr_steer_position: [124.0, 0.0, 0.0, 145.0, 0.0]
-    pid_rr_steer_position: [124.0, 0.0, 0.0, 145.0, 0.0]
+    pid_lf_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
+    pid_rf_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
+    pid_lr_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
+    pid_rr_steer_speed: [165.0, 0.0, 0.0, 16384.0, 0.0]
+    pid_lf_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
+    pid_rf_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
+    pid_lr_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
+    pid_rr_steer_position: [195.0, 0.0, 0.0, 145.0, 0.0]
 
     # motor settings
     lf_wheel_reverse: true
@@ -51,5 +51,5 @@ fluorite_control_chassis:
     control_use_fpv_channel: false # 使用图传链路控制
     control_invert_vertical: true
     control_invert_horizontal: true
-    control_sensitivity_vertical: 3.0
-    control_sensitivity_horizontal: 3.0
+    control_sensitivity_vertical: 4.3
+    control_sensitivity_horizontal: 4.3
