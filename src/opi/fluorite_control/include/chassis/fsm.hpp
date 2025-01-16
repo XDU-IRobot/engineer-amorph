@@ -21,7 +21,6 @@
 
 #include "fluorite_msgs/msg/chassis_state.hpp"
 #include "common/logger.hpp"
-#include "chassis/kinematics.hpp"
 
 namespace event {
 namespace chassis {
@@ -76,7 +75,7 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
         lr_steer_speed{nullptr}, rr_steer_speed{nullptr};
     std::unique_ptr<rm::modules::algorithm::RingPID> lf_steer_position{nullptr}, rf_steer_position{nullptr},
         lr_steer_position{nullptr}, rr_steer_position{nullptr};
-    ChassisFk chassis_solver{0.5f};
+    rm::modules::algorithm::SteeringChassis chassis_solver{0.5f};
   } controller;
 };
 
