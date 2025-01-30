@@ -1,0 +1,1 @@
+controller_joint_names: ['', 'yaw_joint', 'pitch1_joint', 'pitch2_joint', 'endyaw1_joint', 'endpitch_joint', 'endyaw2_joint', ]

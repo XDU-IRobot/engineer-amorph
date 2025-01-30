@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fluorite">
+    <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
+
+    <!-- Import fluorite urdf file -->
+    <xacro:include filename="$(find fluorite_arm_description)/urdf/fluorite.urdf.xacro" />
+
+    <!-- Import control_xacro -->
+    <xacro:include filename="fluorite.ros2_control.xacro" />
+
+
+    <xacro:fluorite_ros2_control name="FakeSystem" initial_positions_file="$(arg initial_positions_file)"/>
+
+</robot>
