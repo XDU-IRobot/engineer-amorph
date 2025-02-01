@@ -16,6 +16,7 @@
 [submodule "src/fluorite_control/libs/librm"]
 	path = src/opi/fluorite_control/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
+	branch = develop
 [submodule "src/fluorite_control/libs/tinyfsm"]
 	path = src/opi/fluorite_control/libs/tinyfsm
 	url = https://github.com/digint/tinyfsm.git
