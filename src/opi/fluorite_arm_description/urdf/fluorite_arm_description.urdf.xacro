@@ -7,7 +7,7 @@
   name="fluorite_arm_description">
   <link
     name="base_link">
-    <inertial>
+    <!-- <inertial>
       <origin
         xyz="1.5226605516255E-15 0.005 -0.105814679822469"
         rpy="0 0 0" />
@@ -20,7 +20,7 @@
         iyy="0.0494983366171737"
         iyz="8.99786776050746E-21"
         izz="0.0233889777454853" />
-    </inertial>
+    </inertial> -->
     <visual>
       <origin
         xyz="0 0 0"
