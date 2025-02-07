@@ -13,7 +13,7 @@
 #include <librm.hpp>
 #include <tinyfsm.hpp>
 #if __has_include("wiringPi.h")
-# include <wiringPi.h>
+#include <wiringPi.h>
 #endif
 
 #include "arm/fsm.hpp"
@@ -26,14 +26,14 @@ using namespace rm::modules::algorithm::utils;
 FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("fluorite_control_arm", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
 #if __has_include("wiringPi.h")
-  wiringPiSetup();             // 初始化wiringPi
+  wiringPiSetup();  // 初始化wiringPi
 #endif
-  this->InitFsm();             // 初始化状态机
-  this->DeviceMonitor();       // 设备在线状态监控
-  this->Remote();              // 启动遥控器接收
-  this->Referee();             // 启动裁判系统接收
-  this->Navigation();          // 启动和导航节点的通信
-  this->Blackbox();            // 启动黑匣子（广播state和control）
+  this->InitFsm();        // 初始化状态机
+  this->DeviceMonitor();  // 设备在线状态监控
+  this->Remote();         // 启动遥控器接收
+  this->Referee();        // 启动裁判系统接收
+  this->Navigation();     // 启动和导航节点的通信
+  this->Blackbox();       // 启动黑匣子（广播state和control）
 
   // 启动控制循环
   info("control node initialize ok");
