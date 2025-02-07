@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 find_package(Eigen3 REQUIRED)
 
-find_package(qpOASES REQUIRED)
+# find_package(qpOASES REQUIRED)
 
 find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
 
@@ -29,7 +29,12 @@ target_link_libraries(${PROJECT_NAME}_libs INTERFACE
         edge_trigger
         tweeny
         Boost::pfr
-        qpOASES
-        ${WIRINGPI_LIBRARIES}
+        # qpOASES
         )
+
+if (${WIRINGPI_LIBRARIES} STREQUAL "WIRINGPI_LIBRARIES-NOTFOUND")
+    message(WARNING "wiringPi library not found. Using mock implementation.")
+else()
+    target_link_libraries(${PROJECT_NAME}_libs INTERFACE ${WIRINGPI_LIBRARIES})
+endif()
 

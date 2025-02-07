@@ -1,5 +1,10 @@
 
+#ifndef ARM_GPIO_HPP
+#define ARM_GPIO_HPP
+
 #include <algorithm>
+
+#if __has_include("wiringPi.h")
 
 #include <wiringPi.h>
 
@@ -31,13 +36,13 @@ class PwmOutputPin {
     pwmWrite(pin_num_, duty * kResolution);
     duty_ = duty;
   }
-  bool duty() const { return duty_; }
+  double duty() const { return duty_; }
 
  private:
   constexpr static int kResolution = 1024;
 
   int pin_num_;
-  bool duty_;
+  double duty_;
 };
 
 template <int PinMode>
@@ -48,3 +53,11 @@ auto Pin(int pin_num) {
     return PwmOutputPin{pin_num};
   }
 }
+
+#else
+
+#include "gpio_mock.hpp"
+
+#endif
+
+#endif

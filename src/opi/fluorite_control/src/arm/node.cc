@@ -12,7 +12,9 @@
 #include <fo_lpf.h>
 #include <librm.hpp>
 #include <tinyfsm.hpp>
-#include <wiringPi.h>
+#if __has_include("wiringPi.h")
+# include <wiringPi.h>
+#endif
 
 #include "arm/fsm.hpp"
 #include "common/logger.hpp"
@@ -23,7 +25,9 @@ using namespace rm::modules::algorithm::utils;
 
 FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("fluorite_control_arm", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
+#if __has_include("wiringPi.h")
   wiringPiSetup();             // 初始化wiringPi
+#endif
   this->InitFsm();             // 初始化状态机
   this->DeviceMonitor();       // 设备在线状态监控
   this->Remote();              // 启动遥控器接收
@@ -161,7 +165,6 @@ void FluoriteArm::Blackbox() {
 
 /**
  * @brief 设备在线状态监控
- * @note  因为irobotec还没有推进到这里所以暂时弄了一种很蹩脚的方法，只监控遥控器和imu
  */
 void FluoriteArm::DeviceMonitor() {
   device_monitor_timer_ = this->create_wall_timer(300ms, [this] {
