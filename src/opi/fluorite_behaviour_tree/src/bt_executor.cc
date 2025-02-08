@@ -2,6 +2,8 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 #include "behaviortree_cpp_v3/bt_factory.h"
+#include "behaviortree_cpp_v3/loggers/bt_cout_logger.h"
+#include "behaviortree_cpp_v3/loggers/bt_zmq_publisher.h"
 
 #include "bt_node_register.hpp"
 
@@ -15,6 +17,8 @@ int main() {
   std::cout << "Loading tree from file: " << tree_path << std::endl;
 
   auto tree = factory.createTreeFromFile(tree_path);
+  BT::StdCoutLogger logger_cout(tree);
+  BT::PublisherZMQ publisher_zmq(tree);
   tree.tickRootWhileRunning();
   return 0;
 }

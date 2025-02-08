@@ -2,12 +2,14 @@
 <root main_tree_to_execute="BehaviorTree">
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
-        <Sequence>
-            <Action ID="ActionArmPumpOn"/>
-            <Delay delay_msec="1000">
-                <Action ID="ActionArmPumpOff"/>
-            </Delay>
-        </Sequence>
+        <KeepRunningUntilFailure>
+            <Sequence>
+                <Action ID="ActionArmPumpOn"/>
+                <Delay delay_msec="1000">
+                    <Action ID="ActionArmPumpOff"/>
+                </Delay>
+            </Sequence>
+        </KeepRunningUntilFailure>
     </BehaviorTree>
     <!-- ////////// -->
     <TreeNodesModel>

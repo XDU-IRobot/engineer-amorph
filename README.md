@@ -77,6 +77,8 @@
 
    - Eigen `apt install libeigen3-dev`
 
+   - behaviortree_cpp_v3 `apt install ros-humble-behaviortree-cpp-v3`
+
    - [qpOASES](https://github.com/coin-or/qpOASES)
 
    - [wiringOP](https://github.com/orangepi-xunlong/wiringOP)
