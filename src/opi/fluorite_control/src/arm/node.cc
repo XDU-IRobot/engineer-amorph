@@ -20,8 +20,6 @@
 #include "common/logger.hpp"
 
 using namespace std::chrono_literals;
-using namespace rm;
-using namespace rm::modules::algorithm::utils;
 
 FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("fluorite_control_arm", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
@@ -49,57 +47,58 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
 FluoriteArm::~FluoriteArm() { fsm::DispatchEvent(event::arm::SwitchMode<state::arm::NoForce>{}); }
 
 void FluoriteArm::InitFsm() {
-  auto arm_can = new hal::Can(ros_params_manager_.data().arm_can_port.c_str());
+  using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;
+  using DmSettingsMit = rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>;
+
+  auto arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
   fsm::Arm::actuator.base_yaw =
       std::make_unique<rm::device::DirectDriveMotor>(*arm_can, ros_params_manager_.data().base_yaw_id);
-  fsm::Arm::actuator.yaw.reset(
-      new device::DmMotor<device::DmMotorControlMode::kMit>(*arm_can,
-                                                            {.master_id = ros_params_manager_.data().yaw_master_id,
-                                                             .slave_id = ros_params_manager_.data().yaw_slave_id,
-                                                             .p_max = 12.5f,
-                                                             .v_max = 45.f,
-                                                             .t_max = 54.f,
-                                                             .kp_range = {0, 500},
-                                                             .kd_range = {0, 50}},
-                                                            ros_params_manager_.data().yaw_reverse));
-  fsm::Arm::actuator.pitch_1.reset(
-      new device::DmMotor<device::DmMotorControlMode::kMit>(*arm_can,
-                                                            {.master_id = ros_params_manager_.data().pitch_1_master_id,
-                                                             .slave_id = ros_params_manager_.data().pitch_1_slave_id,
-                                                             .p_max = 12.5f,
-                                                             .v_max = 45.f,
-                                                             .t_max = 54.f,
-                                                             .kp_range = {0, 500},
-                                                             .kd_range = {0, 50}},
-                                                            ros_params_manager_.data().pitch_1_reverse));
-  fsm::Arm::actuator.pitch_2.reset(
-      new device::DmMotor<device::DmMotorControlMode::kMit>(*arm_can,
-                                                            {.master_id = ros_params_manager_.data().pitch_2_master_id,
-                                                             .slave_id = ros_params_manager_.data().pitch_2_slave_id,
-                                                             .p_max = 12.5f,
-                                                             .v_max = 45.f,
-                                                             .t_max = 54.f,
-                                                             .kp_range = {0, 500},
-                                                             .kd_range = {0, 50}},
-                                                            ros_params_manager_.data().pitch_2_reverse));
-  fsm::Arm::actuator.end_yaw_1.reset(new device::DmMotor<device::DmMotorControlMode::kMit>(
-      *arm_can,
-      {.master_id = ros_params_manager_.data().end_yaw_1_master_id,
-       .slave_id = ros_params_manager_.data().end_yaw_1_slave_id,
-       .p_max = 12.5f,
-       .v_max = 30.f,
-       .t_max = 10.f,
-       .kp_range = {0, 500},
-       .kd_range = {0, 50}},
-      ros_params_manager_.data().end_yaw_1_reverse));
-  fsm::Arm::actuator.end_pitch.reset(
-      new device::DmMotor<device::DmMotorControlMode::kMit>(*arm_can, {.master_id = 0xc7,
-                                                                       .slave_id = 0xc8,
-                                                                       .p_max = 12.5f,
-                                                                       .v_max = 30.f,
-                                                                       .t_max = 10.f,
-                                                                       .kp_range = {0, 500},
-                                                                       .kd_range = {0, 50}}));
+  fsm::Arm::actuator.yaw = std::make_unique<DmMit>(*arm_can,
+                                                   DmSettingsMit{.master_id = ros_params_manager_.data().yaw_master_id,
+                                                                 .slave_id = ros_params_manager_.data().yaw_slave_id,
+                                                                 .p_max = 12.5f,
+                                                                 .v_max = 45.f,
+                                                                 .t_max = 54.f,
+                                                                 .kp_range = {0, 500},
+                                                                 .kd_range = {0, 50}},
+                                                   ros_params_manager_.data().yaw_reverse);
+  fsm::Arm::actuator.pitch_1 =
+      std::make_unique<DmMit>(*arm_can,
+                              DmSettingsMit{.master_id = ros_params_manager_.data().pitch_1_master_id,
+                                            .slave_id = ros_params_manager_.data().pitch_1_slave_id,
+                                            .p_max = 12.5f,
+                                            .v_max = 45.f,
+                                            .t_max = 54.f,
+                                            .kp_range = {0, 500},
+                                            .kd_range = {0, 50}},
+                              ros_params_manager_.data().pitch_1_reverse);
+  fsm::Arm::actuator.pitch_2 =
+      std::make_unique<DmMit>(*arm_can,
+                              DmSettingsMit{.master_id = ros_params_manager_.data().pitch_2_master_id,
+                                            .slave_id = ros_params_manager_.data().pitch_2_slave_id,
+                                            .p_max = 12.5f,
+                                            .v_max = 45.f,
+                                            .t_max = 54.f,
+                                            .kp_range = {0, 500},
+                                            .kd_range = {0, 50}},
+                              ros_params_manager_.data().pitch_2_reverse);
+  fsm::Arm::actuator.end_yaw_1 =
+      std::make_unique<DmMit>(*arm_can,
+                              DmSettingsMit{.master_id = ros_params_manager_.data().end_yaw_1_master_id,
+                                            .slave_id = ros_params_manager_.data().end_yaw_1_slave_id,
+                                            .p_max = 12.5f,
+                                            .v_max = 30.f,
+                                            .t_max = 10.f,
+                                            .kp_range = {0, 500},
+                                            .kd_range = {0, 50}},
+                              ros_params_manager_.data().end_yaw_1_reverse);
+  fsm::Arm::actuator.end_pitch = std::make_unique<DmMit>(*arm_can, DmSettingsMit{.master_id = 0xc7,
+                                                                                 .slave_id = 0xc8,
+                                                                                 .p_max = 12.5f,
+                                                                                 .v_max = 30.f,
+                                                                                 .t_max = 10.f,
+                                                                                 .kp_range = {0, 500},
+                                                                                 .kd_range = {0, 50}});
   fsm::Arm::actuator.end_yaw_2 = std::make_unique<rm::device::GM6020>(*arm_can, ros_params_manager_.data().end_yaw_2_id,
                                                                       ros_params_manager_.data().end_yaw_2_reverse);
   fsm::Arm::actuator.sucker_system =

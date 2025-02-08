@@ -14,15 +14,17 @@ constexpr int PWM_OUTPUT = 1;
 constexpr int LOW = 0;
 constexpr int HIGH = 1;
 
+inline void wiringPiSetup() { info("wiringPiSetup"); }
+
 class OutputPin {
  public:
-  explicit OutputPin(int pin_num) : pin_num_{pin_num} {}
+  inline explicit OutputPin(int pin_num) : pin_num_{pin_num} {}
 
-  void Write(int value) {
+  inline void Write(int value) {
     info("Write to pin %d: %d -> %d", pin_num_, state_, value);
     state_ = value;
   }
-  bool state() const { return state_; }
+  inline bool state() const { return state_; }
 
  private:
   int pin_num_;
@@ -31,14 +33,14 @@ class OutputPin {
 
 class PwmOutputPin {
  public:
-  explicit PwmOutputPin(int pin_num) : pin_num_{pin_num} {}
+  inline explicit PwmOutputPin(int pin_num) : pin_num_{pin_num} {}
 
-  void Write(double duty) {
+  inline void Write(double duty) {
     std::clamp(duty, 0.0, 1.0);
     info("Write duty to pwm pin %d: %f -> %f", pin_num_, duty_, duty);
     duty_ = duty;
   }
-  double duty() const { return duty_; }
+  inline double duty() const { return duty_; }
 
  private:
   int pin_num_;
