@@ -80,89 +80,80 @@ void FluoriteChassis::InitFsm() {
       *chassis_can, 
       ros_params_manager_.data().rr_steer_id, 
       ros_params_manager_.data().rr_steer_reverse);
+
+  using PosPid = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+  using PosRingPid = rm::modules::algorithm::RingPID<rm::modules::algorithm::PIDType::kPosition>;
  
-  fsm::Chassis::controller.lf_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.lf_wheel_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_lf_wheel_speed[0], 
       ros_params_manager_.data().pid_lf_wheel_speed[1],
       ros_params_manager_.data().pid_lf_wheel_speed[2],
       ros_params_manager_.data().pid_lf_wheel_speed[3],
       ros_params_manager_.data().pid_lf_wheel_speed[4]);
-  fsm::Chassis::controller.rf_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.rf_wheel_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_rf_wheel_speed[0], 
       ros_params_manager_.data().pid_rf_wheel_speed[1],
       ros_params_manager_.data().pid_rf_wheel_speed[2],
       ros_params_manager_.data().pid_rf_wheel_speed[3],
       ros_params_manager_.data().pid_rf_wheel_speed[4]);
-  fsm::Chassis::controller.lr_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.lr_wheel_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_lr_wheel_speed[0], 
       ros_params_manager_.data().pid_lr_wheel_speed[1],
       ros_params_manager_.data().pid_lr_wheel_speed[2],
       ros_params_manager_.data().pid_lr_wheel_speed[3],
       ros_params_manager_.data().pid_lr_wheel_speed[4]);
-  fsm::Chassis::controller.rr_wheel_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.rr_wheel_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_rr_wheel_speed[0], 
       ros_params_manager_.data().pid_rr_wheel_speed[1],
       ros_params_manager_.data().pid_rr_wheel_speed[2],
       ros_params_manager_.data().pid_rr_wheel_speed[3],
       ros_params_manager_.data().pid_rr_wheel_speed[4]);
-  fsm::Chassis::controller.lf_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.lf_steer_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_lf_steer_speed[0], 
       ros_params_manager_.data().pid_lf_steer_speed[1],
       ros_params_manager_.data().pid_lf_steer_speed[2],
       ros_params_manager_.data().pid_lf_steer_speed[3],
       ros_params_manager_.data().pid_lf_steer_speed[4]);
-  fsm::Chassis::controller.rf_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.rf_steer_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_rf_steer_speed[0], 
       ros_params_manager_.data().pid_rf_steer_speed[1],
       ros_params_manager_.data().pid_rf_steer_speed[2],
       ros_params_manager_.data().pid_rf_steer_speed[3],
       ros_params_manager_.data().pid_rf_steer_speed[4]);
-  fsm::Chassis::controller.lr_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.lr_steer_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_lr_steer_speed[0], 
       ros_params_manager_.data().pid_lr_steer_speed[1],
       ros_params_manager_.data().pid_lr_steer_speed[2],
       ros_params_manager_.data().pid_lr_steer_speed[3],
       ros_params_manager_.data().pid_lr_steer_speed[4]);
-  fsm::Chassis::controller.rr_steer_speed = std::make_unique<rm::modules::algorithm::PID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.rr_steer_speed = std::make_unique<PosPid>(
       ros_params_manager_.data().pid_rr_steer_speed[0], 
       ros_params_manager_.data().pid_rr_steer_speed[1],
       ros_params_manager_.data().pid_rr_steer_speed[2],
       ros_params_manager_.data().pid_rr_steer_speed[3],
       ros_params_manager_.data().pid_rr_steer_speed[4]);
-  fsm::Chassis::controller.lf_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.lf_steer_position = std::make_unique<PosRingPid>(
       ros_params_manager_.data().pid_lf_steer_position[0], 
       ros_params_manager_.data().pid_lf_steer_position[1],
       ros_params_manager_.data().pid_lf_steer_position[2],
       ros_params_manager_.data().pid_lf_steer_position[3],
       ros_params_manager_.data().pid_lf_steer_position[4],
       2 * M_PI);
-  fsm::Chassis::controller.rf_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.rf_steer_position = std::make_unique<PosRingPid>(
       ros_params_manager_.data().pid_rf_steer_position[0], 
       ros_params_manager_.data().pid_rf_steer_position[1],
       ros_params_manager_.data().pid_rf_steer_position[2],
       ros_params_manager_.data().pid_rf_steer_position[3],
       ros_params_manager_.data().pid_rf_steer_position[4],
       2 * M_PI);
-  fsm::Chassis::controller.lr_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.lr_steer_position = std::make_unique<PosRingPid>(
       ros_params_manager_.data().pid_lr_steer_position[0], 
       ros_params_manager_.data().pid_lr_steer_position[1],
       ros_params_manager_.data().pid_lr_steer_position[2],
       ros_params_manager_.data().pid_lr_steer_position[3],
       ros_params_manager_.data().pid_lr_steer_position[4],
       2 * M_PI);
-  fsm::Chassis::controller.rr_steer_position = std::make_unique<rm::modules::algorithm::RingPID>(
-      rm::modules::algorithm::PIDType::kPosition,
+  fsm::Chassis::controller.rr_steer_position = std::make_unique<PosRingPid>(
       ros_params_manager_.data().pid_rr_steer_position[0], 
       ros_params_manager_.data().pid_rr_steer_position[1],
       ros_params_manager_.data().pid_rr_steer_position[2],

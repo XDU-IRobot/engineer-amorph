@@ -70,11 +70,16 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
    * @brief   控制器（算法对象）
    */
   static struct Controller {
-    std::unique_ptr<rm::modules::algorithm::PID> lf_wheel_speed{nullptr}, rf_wheel_speed{nullptr},
-        lr_wheel_speed{nullptr}, rr_wheel_speed{nullptr}, lf_steer_speed{nullptr}, rf_steer_speed{nullptr},
-        lr_steer_speed{nullptr}, rr_steer_speed{nullptr};
-    std::unique_ptr<rm::modules::algorithm::RingPID> lf_steer_position{nullptr}, rf_steer_position{nullptr},
-        lr_steer_position{nullptr}, rr_steer_position{nullptr};
+   private:
+    using PosPid = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+    using PosRingPid = rm::modules::algorithm::RingPID<rm::modules::algorithm::PIDType::kPosition>;
+
+   public:
+    std::unique_ptr<PosPid> lf_wheel_speed{nullptr}, rf_wheel_speed{nullptr}, lr_wheel_speed{nullptr},
+        rr_wheel_speed{nullptr}, lf_steer_speed{nullptr}, rf_steer_speed{nullptr}, lr_steer_speed{nullptr},
+        rr_steer_speed{nullptr};
+    std::unique_ptr<PosRingPid> lf_steer_position{nullptr}, rf_steer_position{nullptr}, lr_steer_position{nullptr},
+        rr_steer_position{nullptr};
     rm::modules::algorithm::SteeringChassis chassis_solver{0.5f};
   } controller;
 };

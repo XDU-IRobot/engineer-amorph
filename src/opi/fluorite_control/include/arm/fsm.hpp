@@ -14,6 +14,7 @@
 
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
+#include "arm/pid_trajectory_tracker.hpp"
 #include "common/logger.hpp"
 
 namespace event {
@@ -65,9 +66,7 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
   /**
    * @brief   控制器（算法对象）
    */
-  static struct Controller {
-    ;
-  } controller;
+  static struct Controller { PidTrajectoryTracker<6> trajectory_tracker; } controller;
 };
 
 using fsm_list = tinyfsm::FsmList<Arm>;

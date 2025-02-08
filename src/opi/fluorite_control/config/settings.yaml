@@ -40,7 +40,7 @@ fluorite_control_chassis:
     lr_steer_reverse: false
     rr_steer_reverse: false
 
-    # configurations
+    # encoder offsets
     lf_steer_front_encoder: 0.7693852782249451
     rf_steer_front_encoder: 0.7548106908798218
     lr_steer_front_encoder: 0.17642933130264282
@@ -69,6 +69,31 @@ fluorite_control_arm:
     end_pitch_slave_id: 0xc8
     end_yaw_2_id: 1
 
+    # pid param
+    pid_base_yaw_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_yaw_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_1_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_2_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_end_yaw_1_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_end_pitch_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_end_yaw_2_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_base_yaw_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_yaw_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_1_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_2_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_end_yaw_1_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_end_pitch_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_end_yaw_2_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+    # encoder offsets
+    base_yaw_encoder_zero_offset: 0.0
+    yaw_encoder_zero_offset: 0.0
+    pitch_1_encoder_zero_offset: 0.0
+    pitch_2_encoder_zero_offset: 0.0
+    end_yaw_1_encoder_zero_offset: 0.0
+    end_pitch_encoder_zero_offset: 0.0
+    end_yaw_2_encoder_zero_offset: 0.0
+
     # motor settings
     base_yaw_reverse: false
     yaw_reverse: false
@@ -85,3 +110,10 @@ fluorite_control_arm:
     storage_left_valve_pin: 11
     storage_right_valve_pin: 12
     storage_vaccum_pump_pin: 16 # pwm1_m2
+
+    # input settings
+    control_use_fpv_channel: false # 使用图传链路控制
+    control_invert_vertical: true
+    control_invert_horizontal: true
+    control_sensitivity_vertical: 4.3
+    control_sensitivity_horizontal: 4.3

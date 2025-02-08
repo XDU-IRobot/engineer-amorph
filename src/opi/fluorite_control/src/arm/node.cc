@@ -110,6 +110,9 @@ void FluoriteArm::InitFsm() {
                                       Pin<OUTPUT>(ros_params_manager_.data().storage_right_valve_pin),
                                       Pin<PWM_OUTPUT>(ros_params_manager_.data().storage_vaccum_pump_pin));
 
+  using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+  fsm::Arm::controller.trajectory_tracker = PidTrajectoryTracker<6>{};
+
   arm_can->SetFilter(0, 0);  // 设置can过滤器
   arm_can->Begin();          // 开启can总线
   fsm::fsm_list::start();    // 状态机开始监听事件

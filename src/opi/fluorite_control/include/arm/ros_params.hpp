@@ -3,6 +3,7 @@
 #define CHASSIS_ROS_PARAMS_HPP
 
 #include <string>
+#include <vector>
 
 struct RosParams {
   // can net interface names
@@ -22,6 +23,31 @@ struct RosParams {
   short end_pitch_slave_id{};
   int end_yaw_2_id{};
 
+  // pid param
+  std::vector<double> pid_base_yaw_speed{};
+  std::vector<double> pid_yaw_speed{};
+  std::vector<double> pid_pitch_1_speed{};
+  std::vector<double> pid_pitch_2_speed{};
+  std::vector<double> pid_end_yaw_1_speed{};
+  std::vector<double> pid_end_pitch_speed{};
+  std::vector<double> pid_end_yaw_2_speed{};
+  std::vector<double> pid_base_yaw_position{};
+  std::vector<double> pid_yaw_position{};
+  std::vector<double> pid_pitch_1_position{};
+  std::vector<double> pid_pitch_2_position{};
+  std::vector<double> pid_end_yaw_1_position{};
+  std::vector<double> pid_end_pitch_position{};
+  std::vector<double> pid_end_yaw_2_position{};
+
+  // encoder offsets
+  double base_yaw_encoder_zero_offset{};
+  double yaw_encoder_zero_offset{};
+  double pitch_1_encoder_zero_offset{};
+  double pitch_2_encoder_zero_offset{};
+  double end_yaw_1_encoder_zero_offset{};
+  double end_pitch_encoder_zero_offset{};
+  double end_yaw_2_encoder_zero_offset{};
+
   // motor settings
   bool base_yaw_reverse{};
   bool yaw_reverse{};
@@ -38,6 +64,13 @@ struct RosParams {
   int storage_left_valve_pin{};
   int storage_right_valve_pin{};
   int storage_vaccum_pump_pin{};
+
+  // input settings
+  bool control_use_fpv_channel{};  // 使用图传链路控制
+  bool control_invert_vertical{};
+  bool control_invert_horizontal{};
+  double control_sensitivity_vertical{};
+  double control_sensitivity_horizontal{};
 };
 
 #endif  // CHASSIS_ROS_PARAMS_HPP
