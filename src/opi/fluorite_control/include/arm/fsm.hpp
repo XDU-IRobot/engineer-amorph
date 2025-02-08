@@ -66,7 +66,9 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
   /**
    * @brief   控制器（算法对象）
    */
-  static struct Controller { PidTrajectoryTracker<6> trajectory_tracker; } controller;
+  static struct Controller {
+    PidTrajectoryTracker<6> trajectory_tracker;
+  } controller;
 };
 
 using fsm_list = tinyfsm::FsmList<Arm>;
