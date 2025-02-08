@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="BehaviorTree">
+    <!-- ////////// -->
+    <BehaviorTree ID="BehaviorTree">
+        <Sequence>
+            <Action ID="ActionArmPumpOn"/>
+            <Delay delay_msec="1000">
+                <Action ID="ActionArmPumpOff"/>
+            </Delay>
+        </Sequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <TreeNodesModel>
+        <Action ID="ActionArmBack"/>
+        <Action ID="ActionArmExtendAboveSilver"/>
+        <Action ID="ActionArmPumpOff"/>
+        <Action ID="ActionArmPumpOn"/>
+    </TreeNodesModel>
+    <!-- ////////// -->
+</root>
