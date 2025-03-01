@@ -20,11 +20,11 @@ def main():
                        help='Build all packages(for debug/development/ci)')
     args = parser.parse_args()
     if args.jetson:
-        subprocess.run(["colcon", "build", "--paths", "src/common/*",
-                       "src/jetson/*", "--packages-ignore", "keyboard", *COMMON_ARGS])
+        subprocess.run(["colcon", "build", "--base-paths", "src/common/**",
+                       "src/jetson/**", *COMMON_ARGS])
     elif args.orangepi:
-        subprocess.run(["colcon", "build", "--paths",
-                       "src/common/*", "src/opi/*", *COMMON_ARGS])
+        subprocess.run(["colcon", "build", "--base-paths",
+                       "src/common/**", "src/opi/**", "--packages-ignore", "keyboard", *COMMON_ARGS])
     elif args.debug:
         subprocess.run(["colcon", "build", *COMMON_ARGS])
     else:
