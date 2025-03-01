@@ -26,3 +26,6 @@
 [submodule "src/opi/witmotion_ros2_driver"]
 	path = src/opi/witmotion_ros2_driver
 	url = https://github.com/lunarifish/witmotion_ros2_driver.git
+[submodule "src/opi/ros2-keyboard"]
+	path = src/opi/ros2-keyboard
+	url = https://github.com/cmower/ros2-keyboard.git
