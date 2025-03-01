@@ -6,8 +6,6 @@
 #include "arm/node.hpp"
 
 #include <chrono>
-#include <cmath>
-#include <memory>
 
 #include <fo_lpf.h>
 #include <librm.hpp>
@@ -30,13 +28,12 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
   this->DeviceMonitor();   // 设备在线状态监控
   this->Remote();          // 启动遥控器接收
   this->Referee();         // 启动裁判系统接收
-  this->Navigation();      // 启动和导航节点的通信
   this->Blackbox();        // 启动黑匣子（广播state和control）
 
   // 启动控制循环
   info("control node initialize ok");
   control_loop_timer_ = this->create_wall_timer(2.5ms, [this] {
-    this->UpdateFsmState();
+    this->ProcessSensorData();
     this->ParamHotUpdate();
     fluorite::fsm::DispatchEvent(control_msg_);
     // device::DjiMotor<>::SendCommand();
@@ -62,18 +59,66 @@ void FluoriteArm::InitializeShit() {
   // 这个can对象的生命周期和程序一样长，所以new一个就不管他了，不用delete
   auto arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
   fluorite::controller = std::make_unique<fluorite::Controller>(PidTrajectoryTracker<6>{
-      PosPID{0, 0, 0, 0, 0},  // yaw 速度环
-      PosPID{0, 0, 0, 0, 0},  // yaw 位置环
-      PosPID{0, 0, 0, 0, 0},  // pitch_1 速度环
-      PosPID{0, 0, 0, 0, 0},  // pitch_1 位置环
-      PosPID{0, 0, 0, 0, 0},  // pitch_2 速度环
-      PosPID{0, 0, 0, 0, 0},  // pitch_2 位置环
-      PosPID{0, 0, 0, 0, 0},  // end_yaw_1 速度环
-      PosPID{0, 0, 0, 0, 0},  // end_yaw_1 位置环
-      PosPID{0, 0, 0, 0, 0},  // end_pitch 速度环
-      PosPID{0, 0, 0, 0, 0},  // end_pitch 位置环
-      PosPID{0, 0, 0, 0, 0},  // end_yaw 速度环
-      PosPID{0, 0, 0, 0, 0}   // end_yaw 位置环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_speed[0]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[1]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[2]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[3]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[4])},  // yaw 速度环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_position[0]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_position[1]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_position[2]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_position[3]),
+             static_cast<float>(ros_params_manager_.data().pid_yaw_position[4])},  // yaw 位置环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[0]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[1]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[2]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[3]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[4])},  // pitch_1 速度环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[0]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[1]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[2]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[3]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[4])},  // pitch_1 位置环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[0]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[1]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[2]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[3]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[4])},  // pitch_1 速度环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[0]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[1]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[2]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[3]),
+             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[4])},  // pitch_1 位置环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[0]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[1]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[2]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[3]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[4])},  // end_yaw_1 速度环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[0]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[1]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[2]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[3]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[4])},  // end_yaw_1 位置环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[0]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[1]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[2]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[3]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[4])},  // end_pitch 速度环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[0]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[1]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[2]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[3]),
+             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[4])},  // end_pitch 位置环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[0]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[1]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[2]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[3]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[4])},  // end_yaw_2 速度环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[0]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[1]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[2]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[3]),
+             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[4])},  // end_yaw_2 位置环
   });
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
@@ -135,7 +180,23 @@ void FluoriteArm::InitializeShit() {
   info("objects construction ok");
 }
 
-void FluoriteArm::Navigation() { info("navigation ok"); }
+void FluoriteArm::Ins() {
+  auto quaternion_buffer = new float[4];  // 这里不用担心free的问题，因为这个数组的生命周期和程序一样长
+  auto euler_angle_buffer = new float[3];
+  ins_sub_ = this->create_subscription<sensor_msgs::msg::Imu>("/imu", rclcpp::SensorDataQoS(),
+                                                              [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
+                                                                using rm::modules::algorithm::utils::QuatToEuler;
+                                                                quaternion_buffer[0] = msg->orientation.w;
+                                                                quaternion_buffer[1] = msg->orientation.x;
+                                                                quaternion_buffer[2] = msg->orientation.y;
+                                                                quaternion_buffer[3] = msg->orientation.z;
+                                                                QuatToEuler(quaternion_buffer, euler_angle_buffer);
+                                                                fluorite::state.imu_yaw = euler_angle_buffer[0];
+                                                                fluorite::state.imu_pitch = euler_angle_buffer[1];
+                                                                fluorite::state.imu_roll = euler_angle_buffer[2];
+                                                              });
+  info("ins ok");
+}
 
 void FluoriteArm::Remote() {
   static std::array<short, 16> last_channels{};
@@ -151,7 +212,8 @@ void FluoriteArm::Remote() {
 void FluoriteArm::Referee() { info("referee ok"); }
 
 /**
- * @brief 字面意思
+ * @brief
+ * 把fluorite::state广播出去，方便调试的时候看数据，没有实质性作用，确认不需要debug或者记录log的时候可以把这个timer关掉
  */
 void FluoriteArm::Blackbox() {
   blackbox_state_pub_ =
@@ -174,11 +236,58 @@ void FluoriteArm::DeviceMonitor() {
 }
 
 /**
- * @brief 把电机对象里的保存的电机状态复制到控制事件里
+ * @brief 从电机对象里拿数据，做单位换算、范围处理、滤波器处理等等，最后更新fluorite::state
  */
-void FluoriteArm::UpdateFsmState() {}
+void FluoriteArm::ProcessSensorData() {
+  fluorite::state.base_yaw_encoder = fluorite::actuator->base_yaw.encoder();
+  fluorite::state.base_yaw_encoder_speed = fluorite::actuator->base_yaw.rpm();
+  fluorite::state.yaw_encoder = fluorite::actuator->yaw.pos();
+  fluorite::state.yaw_encoder_speed = fluorite::actuator->yaw.vel();
+  fluorite::state.pitch_1_encoder = fluorite::actuator->pitch_1.pos();
+  fluorite::state.pitch_1_encoder_speed = fluorite::actuator->pitch_1.vel();
+  fluorite::state.pitch_2_encoder = fluorite::actuator->pitch_2.pos();
+  fluorite::state.pitch_2_encoder_speed = fluorite::actuator->pitch_2.vel();
+  fluorite::state.end_yaw_1_encoder = fluorite::actuator->end_yaw_1.pos();
+  fluorite::state.end_yaw_1_encoder_speed = fluorite::actuator->end_yaw_1.vel();
+  fluorite::state.end_pitch_encoder = fluorite::actuator->end_pitch.pos();
+  fluorite::state.end_pitch_encoder_speed = fluorite::actuator->end_pitch.vel();
+  fluorite::state.end_yaw_2_encoder = fluorite::actuator->end_yaw_2.pos_rad();
+  fluorite::state.end_yaw_2_encoder_speed = fluorite::actuator->end_yaw_2.rpm();
+  using namespace fluorite;
+}
 
+/**
+ * @brief 获取参数服务器中的最新参数，更新到pid对象里
+ */
 void FluoriteArm::ParamHotUpdate() {}
+
+/**
+ * @brief 把关节状态发布给joint_state_publisher节点，jsp节点再转发给moveit
+ */
+void FluoriteArm::JointStatesPublisher() {
+  joint_states_pub_ =
+      create_publisher<sensor_msgs::msg::JointState>("fluorite/arm/joint_states", rclcpp::SensorDataQoS());
+  joint_states_msg_.name = {"yaw_joint",     "pitch1_joint",   "pitch2_joint",
+                            "endyaw1_joint", "endpitch_joint", "endyaw2_joint"};
+  joint_states_msg_.position.resize(6);
+  joint_states_msg_.velocity.resize(6);
+  joint_states_pub_timer_ = create_wall_timer(20ms, [this] {
+    joint_states_msg_.header.stamp = now();
+    joint_states_msg_.position[0] = fluorite::state.yaw_encoder;
+    joint_states_msg_.position[1] = fluorite::state.pitch_1_encoder;
+    joint_states_msg_.position[2] = fluorite::state.pitch_2_encoder;
+    joint_states_msg_.position[3] = fluorite::state.end_yaw_1_encoder;
+    joint_states_msg_.position[4] = fluorite::state.end_pitch_encoder;
+    joint_states_msg_.position[5] = fluorite::state.end_yaw_2_encoder;
+    joint_states_msg_.velocity[0] = fluorite::state.yaw_encoder_speed;
+    joint_states_msg_.velocity[1] = fluorite::state.pitch_1_encoder_speed;
+    joint_states_msg_.velocity[2] = fluorite::state.pitch_2_encoder_speed;
+    joint_states_msg_.velocity[3] = fluorite::state.end_yaw_1_encoder_speed;
+    joint_states_msg_.velocity[4] = fluorite::state.end_pitch_encoder_speed;
+    joint_states_msg_.velocity[5] = fluorite::state.end_yaw_2_encoder_speed;
+    joint_states_pub_->publish(joint_states_msg_);
+  });
+}
 
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);

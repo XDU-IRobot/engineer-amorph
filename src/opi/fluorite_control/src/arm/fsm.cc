@@ -12,8 +12,8 @@
 namespace fluorite {
 
 fluorite_msgs::msg::ArmState state{};
-std::unique_ptr<Actuator> actuator;
-std::unique_ptr<Controller> controller;
+std::unique_ptr<Actuator> actuator{nullptr};
+std::unique_ptr<Controller> controller{nullptr};
 
 namespace fsm {
 

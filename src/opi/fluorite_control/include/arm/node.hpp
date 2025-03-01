@@ -8,6 +8,8 @@
 #include <sbus_interface/msg/sbus.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <librm.hpp>
 
 #include "arm/fsm.hpp"
@@ -29,14 +31,15 @@ class FluoriteArm final : public rclcpp::Node {
   void InitParameters();
   void InitializeShit();
 
-  void Navigation();
   void Blackbox();
   void DeviceMonitor();
+  void Ins();
   void Remote();
   void Referee();
+  void JointStatesPublisher();
 
   void ParamHotUpdate();
-  void UpdateFsmState();
+  void ProcessSensorData();
 
   auto ParameterCallback(const std::vector<rclcpp::Parameter> &parameters) -> rcl_interfaces::msg::SetParametersResult;
 
@@ -45,6 +48,10 @@ class FluoriteArm final : public rclcpp::Node {
   RosParamsManager<RosParams> ros_params_manager_{reinterpret_cast<rclcpp::Node *>(this)};
   /** </parameters> **/
 
+  /** <ins> **/
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr ins_sub_{nullptr};
+  /** </ins> **/
+
   /** <remote> **/
   rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr remote_sub_{nullptr};
   /** </remote> **/
@@ -52,11 +59,6 @@ class FluoriteArm final : public rclcpp::Node {
   /** <referee> **/
   rclcpp::Subscription<rm2_referee_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_{nullptr};
   /** </referee> **/
-
-  /** <nav comm> **/
-  rclcpp::TimerBase::SharedPtr nav_comm_timer_{nullptr};
-  // TODO
-  /** </vision comm> **/
 
   /** <blackbox> **/
   rclcpp::TimerBase::SharedPtr blackbox_timer_{nullptr};
@@ -78,6 +80,12 @@ class FluoriteArm final : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr control_loop_timer_{nullptr};
   fluorite::fsm::event::Control control_msg_;
   /** </control loop> **/
+
+  /** <joint states publisher> **/
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_states_pub_{nullptr};
+  rclcpp::TimerBase::SharedPtr joint_states_pub_timer_{nullptr};
+  sensor_msgs::msg::JointState joint_states_msg_;
+  /** </joint states publisher> **/
 };
 
 #endif

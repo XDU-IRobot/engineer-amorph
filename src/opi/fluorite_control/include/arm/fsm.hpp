@@ -1,17 +1,18 @@
 /**
  * @file  fsm.hpp
- * @brief 使用tinyfsm库实现的状态机定义，分为大yaw轴底座和机械臂两个状态机，每个state对应一种操作模式，control
+ * @brief 使用tinyfsm库实现的状态机定义，分为大yaw轴底座和机械臂两个状态机，每个state类对应一种模式，control
  * event驱动控制逻辑运行，switchmode event驱动状态转移
  */
 
 #ifndef ARM_FSM_HPP
 #define ARM_FSM_HPP
 
+#include <atomic>
 #include <memory>
+#include <type_traits>
 
 #include <tinyfsm.hpp>
 #include <librm.hpp>
-#include <type_traits>
 
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
@@ -42,11 +43,11 @@ struct Actuator {
         yaw(std::move(yaw)),
         pitch_1(std::move(pitch_1)),
         pitch_2(std::move(pitch_2)),
-        end_yaw_2(std::move(end_yaw_2)),
         end_yaw_1(std::move(end_yaw_1)),
         end_pitch(std::move(end_pitch)),
-        sucker_system(sucker_system),
-        storage_system(storage_system) {}
+        end_yaw_2(std::move(end_yaw_2)),
+        sucker_system(std::move(sucker_system)),
+        storage_system(std::move(storage_system)) {}
   rm::device::DirectDriveMotor base_yaw;
   rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> yaw, pitch_1, pitch_2, end_yaw_1, end_pitch;
   rm::device::GM6020 end_yaw_2;
@@ -68,7 +69,15 @@ namespace fsm {
 namespace event {
 
 struct Control {
-  std::array<double, 16> sbus_channels;  ///< 遥控器数据，范围[-1, 1]
+  std::atomic<double> left_x;                       ///< 左摇杆x轴，范围[-1, 1]
+  std::atomic<double> left_y;                       ///< 左摇杆y轴，范围[-1, 1]
+  std::atomic<double> right_x;                      ///< 右摇杆x轴，范围[-1, 1]
+  std::atomic<double> right_y;                      ///< 右摇杆y轴，范围[-1, 1]
+  std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
+  struct {
+    std::atomic<bool> w, a, s, d, r, f, i, j, k, l;
+  } keyboard_key;                           ///< 键盘按键
+  std::atomic<uint16_t> keyboard_modifier;  ///< 键盘组合键modifier
 };
 template <typename T>
 struct SwitchMode : tinyfsm::Event {};
@@ -80,7 +89,7 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
   void react(tinyfsm::Event const &event);
   void react(event::Control const &control);
 
-  template <typename Mode, std::enable_if_t<std::is_base_of_v<Arm, Mode>, int> = 0>
+  template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
     if constexpr (std::is_base_of_v<Arm, Mode>) {
       if (this->is_in_state<Mode>()) {
