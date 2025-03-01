@@ -1,4 +1,7 @@
 
+#ifndef ARM_PNEUMATIC_HPP
+#define ARM_PNEUMATIC_HPP
+
 #include <arm/gpio.hpp>
 
 /**
@@ -83,3 +86,5 @@ class StorageSystem {
   OutputPin right_valve_;
   PwmOutputPin vaccum_pump_;
 };
+
+#endif

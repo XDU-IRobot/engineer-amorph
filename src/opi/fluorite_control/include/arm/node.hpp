@@ -27,7 +27,7 @@ class FluoriteArm final : public rclcpp::Node {
 
  private:
   void InitParameters();
-  void InitFsm();
+  void InitializeShit();
 
   void Navigation();
   void Blackbox();
@@ -42,7 +42,7 @@ class FluoriteArm final : public rclcpp::Node {
 
  private:
   /** <parameters> **/
-  RosParamsManager<RosParams> ros_params_manager_{this};
+  RosParamsManager<RosParams> ros_params_manager_{reinterpret_cast<rclcpp::Node *>(this)};
   /** </parameters> **/
 
   /** <remote> **/
@@ -76,7 +76,7 @@ class FluoriteArm final : public rclcpp::Node {
 
   /** <control loop> **/
   rclcpp::TimerBase::SharedPtr control_loop_timer_{nullptr};
-  event::arm::Control control_msg_;
+  fluorite::fsm::event::Control control_msg_;
   /** </control loop> **/
 };
 

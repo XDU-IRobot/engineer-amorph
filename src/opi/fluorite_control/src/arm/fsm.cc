@@ -9,26 +9,55 @@
 
 #include "common/logger.hpp"
 
-using namespace rm::modules::algorithm::utils;
+namespace fluorite {
 
-fluorite_msgs::msg::ArmState fsm::Arm::state{};
-fsm::Arm::Actuator fsm::Arm::actuator{};
-fsm::Arm::Controller fsm::Arm::controller{};
+fluorite_msgs::msg::ArmState state{};
+std::unique_ptr<Actuator> actuator;
+std::unique_ptr<Controller> controller;
 
 namespace fsm {
 
-// default behaviours
-void Arm::react(tinyfsm::Event const &event) {}  // 忽略不关心的event
-void Arm::react(event::arm::Control const &event) {}
+// 忽略不关心的event
+void Arm::react(tinyfsm::Event const &event) {}
+void Arm::react(event::Control const &control) {}
+void GimbalBase::react(tinyfsm::Event const &event) {}
+void GimbalBase::react(event::Control const &control) {}
+
+namespace state {
+
+namespace arm {
+
+void Debug::entry() {}
+void FollowTrajectory::entry() {}
+void Retracted::entry() {}
+void NoForce::entry() {}
+
+void Debug::react(event::Control const &control) {}
+void FollowTrajectory::react(event::Control const &control) {}
+void Retracted::react(event::Control const &control) {}
+void NoForce::react(event::Control const &control) {}
+
+}  // namespace arm
+
+namespace gimbal_base {
+
+void FollowChassis::entry() {}
+void FollowArm::entry() {}
+void FollowArmLazy::entry() {}
+void NoForce::entry() {}
+
+void FollowChassis::react(event::Control const &control) {}
+void FollowArm::react(event::Control const &control) {}
+void FollowArmLazy::react(event::Control const &control) {}
+void NoForce::react(event::Control const &control) {}
+
+}  // namespace gimbal_base
+
+}  // namespace state
 
 }  // namespace fsm
 
-namespace state {
-namespace arm {
-void Debug::entry() {}
-void NoForce::entry() {}
-void NoForce::react(const event::arm::Control &control) {}
-}  // namespace arm
-}  // namespace state
+}  // namespace fluorite
 
-FSM_INITIAL_STATE(fsm::Arm, state::arm::NoForce)
+FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::NoForce)
+FSM_INITIAL_STATE(fluorite::fsm::GimbalBase, fluorite::fsm::state::gimbal_base::NoForce)

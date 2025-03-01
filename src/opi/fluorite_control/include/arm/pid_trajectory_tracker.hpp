@@ -2,6 +2,7 @@
 #ifndef ARM_PID_TRAJECTORY_TRACKER_HPP
 #define ARM_PID_TRAJECTORY_TRACKER_HPP
 
+#include <limits>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <trajectory_msgs/msg/joint_trajectory_point.hpp>
 
@@ -21,11 +22,18 @@ class PidTrajectoryTracker {
       : pids_(pids) {
     output_torque_.resize(NJoints);
   }
+  PidTrajectoryTracker(const PidTrajectoryTracker &) = default;
+  PidTrajectoryTracker(PidTrajectoryTracker &&) noexcept = default;
 
+  /**
+   * @brief 更新参考轨迹
+   * @param trajectory      参考轨迹
+   * @param playback_speed  参考轨迹播放速度，范围[0, std::numeric_limits<double>::max()]
+   */
   void UpdateTrajectory(const RT &trajectory, double playback_speed = 1.0) {
     current_trajectory_ = trajectory.joint_trajectory.points;
     current_point_index_ = 0;
-    playback_speed = std::clamp(playback_speed, 0.0, 1.0);
+    playback_speed = std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max());
     const auto time_ratio = 1.0 / playback_speed;
     for (auto &point : current_trajectory_) {
       point.time_from_start.sec *= time_ratio;
@@ -38,9 +46,19 @@ class PidTrajectoryTracker {
   }
 
   /**
+   * @brief 更新一条只有一个点的参考轨迹
+   * @param point 参考目标点
+   */
+  void UpdateTrajectory(const JTP &point) {
+    current_trajectory_.clear();
+    current_trajectory_.push_back(point);
+    current_point_index_ = 0;
+  }
+
+  /**
    * @brief 重置轨迹（把轨迹的播放进度重置到开始）
    */
-  void ResetReferenceAnimation() {
+  void ResetReferenceTrajectory() {
     traj_start_time_ = std::chrono::steady_clock::now();
     current_point_index_ = 0;
   }
@@ -62,7 +80,7 @@ class PidTrajectoryTracker {
         std::chrono::duration_cast<std::chrono::milliseconds>(current_time - traj_start_time_).count();
 
     // 遍历轨迹，找到第一个时间戳大于当前时间的点
-    // 如果没有找到，那么把最后一个点作为当前点
+    // 如果没有找到，那么说明轨迹已经播放完毕，把最后一个点作为当前点
     for (size_t i = current_point_index_; i < current_trajectory_.size(); ++i) {
       current_point_index_ = i;
       if (current_trajectory_[i].time_from_start.sec * 1000 + current_trajectory_[i].time_from_start.nanosec / 1e6 >

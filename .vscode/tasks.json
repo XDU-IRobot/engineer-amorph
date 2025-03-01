@@ -4,7 +4,7 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "colcon build --merge-install --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_EXPORT_COMPILE_COMMANDS=Yes",
+      "command": "colcon build --parallel-workers 1 --merge-install --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_EXPORT_COMPILE_COMMANDS=Yes",
       "group": {
         "kind": "build",
         "isDefault": true

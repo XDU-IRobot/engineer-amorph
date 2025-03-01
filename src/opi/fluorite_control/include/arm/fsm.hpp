@@ -1,77 +1,199 @@
 /**
  * @file  fsm.hpp
- * @brief 状态机定义，使用有限状态机库tinyfsm
+ * @brief 使用tinyfsm库实现的状态机定义，分为大yaw轴底座和机械臂两个状态机，每个state对应一种操作模式，control
+ * event驱动控制逻辑运行，switchmode event驱动状态转移
  */
 
 #ifndef ARM_FSM_HPP
 #define ARM_FSM_HPP
 
 #include <memory>
-#include <random>
 
 #include <tinyfsm.hpp>
 #include <librm.hpp>
+#include <type_traits>
 
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
 #include "common/logger.hpp"
 
-namespace event {
-namespace arm {
-template <typename T>
-struct SwitchMode : tinyfsm::Event {};
-struct Control {};
-}  // namespace arm
-}  // namespace event
+// 使用tinyfsm之后，就没办法再使用oop的各种编程范式来写代码了，因为状态机类没有对象
+// 这里被迫创建了几个全局变量（定义都在fsm.cc里），用来存储状态机的外部依赖
+// 如果以后找到了更好的实现方式，可以考虑重构
+namespace fluorite {
+
+/**
+ * @brief   部分状态向量
+ */
+extern fluorite_msgs::msg::ArmState state;
+
+/**
+ * @brief   执行器（电机、气泵、电磁阀）
+ */
+struct Actuator {
+  Actuator(rm::device::DirectDriveMotor &&base_yaw, rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&yaw,
+           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&pitch_1,
+           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&pitch_2,
+           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&end_yaw_1,
+           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&end_pitch, rm::device::GM6020 &&end_yaw_2,
+           SuckerSystem &&sucker_system, StorageSystem &&storage_system)
+      : base_yaw(std::move(base_yaw)),
+        yaw(std::move(yaw)),
+        pitch_1(std::move(pitch_1)),
+        pitch_2(std::move(pitch_2)),
+        end_yaw_2(std::move(end_yaw_2)),
+        end_yaw_1(std::move(end_yaw_1)),
+        end_pitch(std::move(end_pitch)),
+        sucker_system(sucker_system),
+        storage_system(storage_system) {}
+  rm::device::DirectDriveMotor base_yaw;
+  rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> yaw, pitch_1, pitch_2, end_yaw_1, end_pitch;
+  rm::device::GM6020 end_yaw_2;
+  SuckerSystem sucker_system;
+  StorageSystem storage_system;
+};
+extern std::unique_ptr<Actuator> actuator;
+
+/**
+ * @brief   控制器（算法对象）
+ */
+struct Controller {
+  Controller(PidTrajectoryTracker<6> &&ptt) : trajectory_tracker{std::move(ptt)} {}
+  PidTrajectoryTracker<6> trajectory_tracker;
+};
+extern std::unique_ptr<Controller> controller;
 
 namespace fsm {
+namespace event {
+
+struct Control {
+  std::array<double, 16> sbus_channels;  ///< 遥控器数据，范围[-1, 1]
+};
+template <typename T>
+struct SwitchMode : tinyfsm::Event {};
+
+}  // namespace event
 
 class Arm : public tinyfsm::MooreMachine<Arm> {
  public:
   void react(tinyfsm::Event const &event);
+  void react(event::Control const &control);
 
-  virtual void react(event::arm::Control const &control);
-  virtual void entry() = 0;
-
-  template <typename Mode>
-  void react(event::arm::SwitchMode<Mode> const &) {
-    if (this->is_in_state<Mode>()) {
-      return;
+  template <typename Mode, std::enable_if_t<std::is_base_of_v<Arm, Mode>, int> = 0>
+  void react(event::SwitchMode<Mode> const &) {
+    if constexpr (std::is_base_of_v<Arm, Mode>) {
+      if (this->is_in_state<Mode>()) {
+        return;
+      }
+      transit<Mode>();
+      info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
     }
-    transit<Mode>();
-    info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
   }
-
- public:
-  /**
-   * @brief   状态向量，数据更新要及时填进这里
-   * @note    角度单位rad，转速单位rpm
-   * @note    先按定义、范围把数据处理好再填进来
-   */
-  static fluorite_msgs::msg::ArmState state;
-
-  /**
-   * @brief   执行器（电机、气泵、电磁阀）
-   */
-  static struct Actuator {
-    std::unique_ptr<rm::device::DirectDriveMotor> base_yaw{nullptr};
-    std::unique_ptr<rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>> yaw{nullptr}, pitch_1{nullptr},
-        pitch_2{nullptr}, end_yaw_1{nullptr}, end_pitch{nullptr};
-    std::unique_ptr<rm::device::GM6020> end_yaw_2{nullptr};
-    std::unique_ptr<SuckerSystem> sucker_system{nullptr};
-    std::unique_ptr<StorageSystem> storage_system{nullptr};
-  } actuator;
-
-  /**
-   * @brief   控制器（算法对象）
-   */
-  static struct Controller {
-    PidTrajectoryTracker<6> trajectory_tracker;
-  } controller;
 };
 
-using fsm_list = tinyfsm::FsmList<Arm>;
+class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
+ public:
+  void react(tinyfsm::Event const &event);
+  void react(event::Control const &control);
+
+  template <typename Mode>
+  void react(event::SwitchMode<Mode> const &) {
+    if constexpr (std::is_base_of_v<GimbalBase, Mode>) {
+      if (this->is_in_state<Mode>()) {
+        return;
+      }
+      transit<Mode>();
+      info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
+    }
+  }
+};
+
+namespace state {
+namespace arm {
+
+/**
+ * @brief 单关节调试
+ */
+class Debug : public fsm::Arm {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+/**
+ * @brief 跟随参考轨迹
+ */
+class FollowTrajectory : public fsm::Arm {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+/**
+ * @brief 机械臂保持收回
+ */
+class Retracted : public fsm::Arm {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+/**
+ * @brief 机械臂无力
+ */
+class NoForce : public fsm::Arm {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+}  // namespace arm
+
+namespace gimbal_base {
+
+/**
+ * @brief 大yaw轴跟底盘转
+ */
+class FollowChassis : public fsm::GimbalBase {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+/**
+ * @brief 大yaw轴跟上层机械臂转
+ *
+ */
+class FollowArm : public fsm::GimbalBase {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+/**
+ * @brief 大yaw轴跟上层机械臂转，但是只有小yaw轴快碰到转动限位的时候才跟
+ */
+class FollowArmLazy : public fsm::GimbalBase {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+/**
+ * @brief 大yaw轴无力
+ */
+class NoForce : public fsm::GimbalBase {
+ public:
+  void react(event::Control const &control);
+  void entry();
+};
+
+}  // namespace gimbal_base
+
+}  // namespace state
+
+using fsm_list = tinyfsm::FsmList<Arm, GimbalBase>;
 
 template <typename Event>
 void DispatchEvent(Event const &event) {
@@ -80,20 +202,6 @@ void DispatchEvent(Event const &event) {
 
 }  // namespace fsm
 
-namespace state {
-namespace arm {
-
-class Debug : public fsm::Arm {
- public:
-  void entry() override;
-};
-
-class NoForce : public fsm::Arm {
- public:
-  void react(event::arm::Control const &control) override;
-  void entry() override;
-};
-}  // namespace arm
-}  // namespace state
+}  // namespace fluorite
 
 #endif
