@@ -133,6 +133,18 @@
 
 ### 环境配置
 
+#### 若需要开发调试，在开发/调试电脑上：
+
+安装以下软件：
+
+- ROS2 `>= humble`
+
+- moveit `apt install ros-rolling-moveit*`
+
+- SDL 1.2 `apt install libsdl1.2-dev`
+
+- behaviortree_cpp_v3 `apt install ros-rolling-behaviortree-cpp-v3`
+
 #### 在香橙派(`ubuntu 22.04, RT Kernel`)上：
 
 1. 安装以下软件
@@ -141,11 +153,7 @@
 
    - moveit `apt install ros-humble-moveit*`
 
-   - Eigen `apt install libeigen3-dev`
-
    - behaviortree_cpp_v3 `apt install ros-humble-behaviortree-cpp-v3`
-
-   - [qpOASES](https://github.com/coin-or/qpOASES)
 
    - [wiringOP](https://github.com/orangepi-xunlong/wiringOP)
 
