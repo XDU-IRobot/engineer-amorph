@@ -27,12 +27,9 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          apt update && apt install -y ros-${{ matrix.ros_distro }}-moveit* ros-${{ matrix.ros_distro }}-behaviortree-cpp-v3
-          git clone https://github.com/coin-or/qpOASES.git
-          cd qpOASES && mkdir build && cd build
-          cmake .. && make -j && make install
+          apt update && apt install -y ros-${{ matrix.ros_distro }}-moveit* ros-${{ matrix.ros_distro }}-behaviortree-cpp-v3 libsdl1.2-dev
       - name: Build
         shell: bash
         run: |
           source /opt/ros/${{ matrix.ros_distro }}/setup.sh
-          colcon build
+          python3 scripts/build.py --debug

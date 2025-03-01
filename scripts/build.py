@@ -17,7 +17,7 @@ def main():
     group.add_argument('-o', '--orangepi', action='store_true',
                        help='Build for Orange Pi')
     group.add_argument('-d', '--debug', action='store_true',
-                       help='Build all packages(for debug/development)')
+                       help='Build all packages(for debug/development/ci)')
     args = parser.parse_args()
     if args.jetson:
         subprocess.run(["colcon", "build", "--paths", "src/common/*",
