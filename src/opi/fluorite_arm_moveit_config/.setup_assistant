@@ -6,5 +6,20 @@ moveit_setup_assistant_config:
     relative_path: config/fluorite.srdf
   package_settings:
     author_name: lunarifish
-    author_email: messenger@lunariio.work
-    generated_timestamp: 1740894492
+    author_email: messsenger@lunariio.work
+    generated_timestamp: 1740895328
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity

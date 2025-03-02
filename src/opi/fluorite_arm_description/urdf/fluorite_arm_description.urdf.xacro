@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by
+Stephen Brawner (brawner@gmail.com) 
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
   xmlns:xacro="http://www.ros.org/wiki/xacro"
   name="fluorite_arm_description">
   <link
-    name="base_link">
+    name="base_yaw_link">
     <!-- <inertial>
       <origin
         xyz="1.5226605516255E-15 0.005 -0.105814679822469"
@@ -27,7 +28,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/base_link.STL" />
+          filename="package://fluorite_arm_description/meshes/base_yaw_link.STL" />
       </geometry>
       <material
         name="">
@@ -41,7 +42,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/base_link.STL" />
+          filename="package://fluorite_arm_description/meshes/base_yaw_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -92,7 +93,7 @@
       xyz="0 -0.21 0.005"
       rpy="1.5708 -1.5708 0" />
     <parent
-      link="base_link" />
+      link="base_yaw_link" />
     <child
       link="yaw_link" />
     <axis
@@ -220,7 +221,7 @@
       velocity="0" />
   </joint>
   <link
-    name="endyaw1_link">
+    name="end_yaw1_link">
     <inertial>
       <origin
         xyz="0.00499731811854646 -0.000154594489639198 -0.0459934684264077"
@@ -241,7 +242,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/endyaw1_link.STL" />
+          filename="package://fluorite_arm_description/meshes/end_yaw1_link.STL" />
       </geometry>
       <material
         name="">
@@ -255,12 +256,12 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/endyaw1_link.STL" />
+          filename="package://fluorite_arm_description/meshes/end_yaw1_link.STL" />
       </geometry>
     </collision>
   </link>
   <joint
-    name="endyaw1_joint"
+    name="end_yaw1_joint"
     type="revolute">
     <origin
       xyz="0.1495 -0.005 -0.017319"
@@ -268,7 +269,7 @@
     <parent
       link="pitch2_link" />
     <child
-      link="endyaw1_link" />
+      link="end_yaw1_link" />
     <axis
       xyz="0 0 -1" />
     <limit
@@ -278,7 +279,7 @@
       velocity="0" />
   </joint>
   <link
-    name="endpitch_link">
+    name="end_pitch_link">
     <inertial>
       <origin
         xyz="-0.000150770339045619 5.01207089216322E-06 -0.00512057657558546"
@@ -299,7 +300,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/endpitch_link.STL" />
+          filename="package://fluorite_arm_description/meshes/end_pitch_link.STL" />
       </geometry>
       <material
         name="">
@@ -313,20 +314,20 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/endpitch_link.STL" />
+          filename="package://fluorite_arm_description/meshes/end_pitch_link.STL" />
       </geometry>
     </collision>
   </link>
   <joint
-    name="endpitch_joint"
+    name="end_pitch_joint"
     type="revolute">
     <origin
       xyz="0.0049976 -0.0001546 -0.15186"
       rpy="-3.1416 0.042998 1.5399" />
     <parent
-      link="endyaw1_link" />
+      link="end_yaw1_link" />
     <child
-      link="endpitch_link" />
+      link="end_pitch_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -336,7 +337,7 @@
       velocity="0" />
   </joint>
   <link
-    name="endyaw2_link">
+    name="end_yaw2_link">
     <inertial>
       <origin
         xyz="0.00504914634289177 -0.121103773239335 0.244724895491841"
@@ -357,7 +358,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/endyaw2_link.STL" />
+          filename="package://fluorite_arm_description/meshes/end_yaw2_link.STL" />
       </geometry>
       <material
         name="">
@@ -371,20 +372,20 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://fluorite_arm_description/meshes/endyaw2_link.STL" />
+          filename="package://fluorite_arm_description/meshes/end_yaw2_link.STL" />
       </geometry>
     </collision>
   </link>
   <joint
-    name="endyaw2_joint"
+    name="end_yaw2_joint"
     type="revolute">
     <origin
       xyz="0.00058863 -0.005 0.019991"
       rpy="-3.1122 0.00090869 1.5399" />
     <parent
-      link="endpitch_link" />
+      link="end_pitch_link" />
     <child
-      link="endyaw2_link" />
+      link="end_yaw2_link" />
     <axis
       xyz="0 0 -1" />
     <limit

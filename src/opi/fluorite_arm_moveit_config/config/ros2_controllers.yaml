@@ -20,17 +20,19 @@ arm_controller:
       - yaw_joint
       - pitch1_joint
       - pitch2_joint
-      - endyaw1_joint
-      - endpitch_joint
-      - endyaw2_joint
+      - end_yaw1_joint
+      - end_pitch_joint
+      - end_yaw2_joint
     command_interfaces:
-      []
+      - position
     state_interfaces:
-      []
+      - position
+      - velocity
 end_controller:
   ros__parameters:
-    joint: endyaw2_joint
+    joint: end_yaw2_joint
     command_interfaces:
-      []
+      - position
     state_interfaces:
-      []
+      - position
+      - velocity

@@ -15,16 +15,12 @@ moveit_simple_controller_manager:
       - yaw_joint
       - pitch1_joint
       - pitch2_joint
-      - endyaw1_joint
-      - endpitch_joint
-      - endyaw2_joint
-    action_ns: follow_joint_trajectory
-    default: true
+      - end_yaw1_joint
+      - end_pitch_joint
+      - end_yaw2_joint
   end_controller:
     type: FollowJointTrajectory
     action_ns: follow_joint_trajectory
     default: true
     joints:
-      - endyaw2_joint
-    action_ns: follow_joint_trajectory
-    default: true
+      - end_yaw2_joint

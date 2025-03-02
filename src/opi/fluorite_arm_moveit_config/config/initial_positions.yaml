@@ -1,9 +1,9 @@
 # Default initial positions for fluorite's ros2_control fake system
 
 initial_positions:
-  endpitch_joint: 0
-  endyaw1_joint: 0
-  endyaw2_joint: 0
+  end_pitch_joint: 0
+  end_yaw1_joint: 0
+  end_yaw2_joint: 0
   pitch1_joint: 0
   pitch2_joint: 0
   yaw_joint: 0
