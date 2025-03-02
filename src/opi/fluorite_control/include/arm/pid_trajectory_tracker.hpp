@@ -59,8 +59,20 @@ class PidTrajectoryTracker {
    * @brief 重置轨迹（把轨迹的播放进度重置到开始）
    */
   void ResetReferenceTrajectory() {
+    for (auto &pid : pids_) {
+      pid.Clear();
+    }
     traj_start_time_ = std::chrono::steady_clock::now();
     current_point_index_ = 0;
+  }
+
+  /**
+   * @brief 重置所有pid控制器的内部状态
+   */
+  void ClearPid() {
+    for (auto &pid : pids_) {
+      pid.Clear();
+    }
   }
 
   /**

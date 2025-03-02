@@ -18,6 +18,7 @@
 #include "arm/pneumatic.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
 #include "common/logger.hpp"
+#include "librm/modules/algorithm/pid.hpp"
 
 // 使用tinyfsm之后，就没办法再使用oop的各种编程范式来写代码了，因为状态机类没有对象
 // 这里被迫创建了几个全局变量（定义都在fsm.cc里），用来存储状态机的外部依赖
@@ -60,8 +61,14 @@ extern std::unique_ptr<Actuator> actuator;
  * @brief   控制器（算法对象）
  */
 struct Controller {
-  Controller(PidTrajectoryTracker<6> &&ptt) : trajectory_tracker{std::move(ptt)} {}
+  using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+
+  Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosPID &&base_yaw_position_pid)
+      : trajectory_tracker{std::move(ptt)},
+        base_yaw_speed_pid{std::move(base_yaw_speed_pid)},
+        base_yaw_position_pid{std::move(base_yaw_position_pid)} {}
   PidTrajectoryTracker<6> trajectory_tracker;
+  PosPID base_yaw_speed_pid, base_yaw_position_pid;
 };
 extern std::unique_ptr<Controller> controller;
 
@@ -69,13 +76,13 @@ namespace fsm {
 namespace event {
 
 struct Control {
-  std::atomic<double> left_x;                       ///< 左摇杆x轴，范围[-1, 1]
-  std::atomic<double> left_y;                       ///< 左摇杆y轴，范围[-1, 1]
-  std::atomic<double> right_x;                      ///< 右摇杆x轴，范围[-1, 1]
-  std::atomic<double> right_y;                      ///< 右摇杆y轴，范围[-1, 1]
+  std::atomic<double> left_x;                       ///< 左摇杆x轴，范围[-1000, 1000]
+  std::atomic<double> left_y;                       ///< 左摇杆y轴，范围[-1000, 1000]
+  std::atomic<double> right_x;                      ///< 右摇杆x轴，范围[-1000, 1000]
+  std::atomic<double> right_y;                      ///< 右摇杆y轴，范围[-1000, 1000]
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
   struct {
-    std::atomic<bool> w, a, s, d, r, f, i, j, k, l;
+    std::atomic<bool> w, a, s, d, r, f, i, j, k, l, u, o;
   } keyboard_key;                           ///< 键盘按键
   std::atomic<uint16_t> keyboard_modifier;  ///< 键盘组合键modifier
 };
@@ -187,6 +194,13 @@ class FollowArmLazy : public fsm::GimbalBase {
  public:
   void react(event::Control const &control);
   void entry();
+
+ private:
+  enum class LazyState { kStay, kFollow };
+
+ private:
+  static double lazily_stay_at_;
+  static LazyState lazy_state_;
 };
 
 /**

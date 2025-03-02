@@ -9,6 +9,7 @@
 
 #include <fo_lpf.h>
 #include <librm.hpp>
+#include <rclcpp/qos.hpp>
 #include <tinyfsm.hpp>
 #if __has_include("wiringPi.h")
 #include <wiringPi.h>
@@ -24,17 +25,20 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
 #if __has_include("wiringPi.h")
   wiringPiSetup();  // 初始化wiringPi
 #endif
-  this->InitializeShit();  // 初始化状态机
-  this->DeviceMonitor();   // 设备在线状态监控
-  this->Remote();          // 启动遥控器接收
-  this->Referee();         // 启动裁判系统接收
-  this->Blackbox();        // 启动黑匣子（广播state和control）
+  InitializeShit();        // 初始化状态机
+  DeviceMonitor();         // 设备在线状态监控
+  Ins();                   // 启动IMU接收
+  Remote();                // 启动遥控器接收
+  Referee();               // 启动裁判系统接收
+  Blackbox();              // 启动黑匣子（广播state和control）
+  JointStatesPublisher();  // 启动关节状态发布
+  TFBroadcaster();         // 启动imu到base_yaw_link的tf广播
 
   // 启动控制循环
   info("control node initialize ok");
-  control_loop_timer_ = this->create_wall_timer(2.5ms, [this] {
-    this->ProcessSensorData();
-    this->ParamHotUpdate();
+  control_loop_timer_ = create_wall_timer(2.5ms, [this] {
+    ProcessSensorData();
+    ParamHotUpdate();
     fluorite::fsm::DispatchEvent(control_msg_);
     // device::DjiMotor<>::SendCommand();
   });
@@ -58,68 +62,80 @@ void FluoriteArm::InitializeShit() {
 
   // 这个can对象的生命周期和程序一样长，所以new一个就不管他了，不用delete
   auto arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
-  fluorite::controller = std::make_unique<fluorite::Controller>(PidTrajectoryTracker<6>{
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_speed[0]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[1]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[2]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[3]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_speed[4])},  // yaw 速度环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_position[0]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_position[1]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_position[2]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_position[3]),
-             static_cast<float>(ros_params_manager_.data().pid_yaw_position[4])},  // yaw 位置环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[0]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[1]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[2]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[3]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[4])},  // pitch_1 速度环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[0]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[1]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[2]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[3]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[4])},  // pitch_1 位置环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[0]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[1]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[2]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[3]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[4])},  // pitch_1 速度环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[0]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[1]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[2]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[3]),
-             static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[4])},  // pitch_1 位置环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[0]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[1]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[2]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[3]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[4])},  // end_yaw_1 速度环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[0]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[1]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[2]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[3]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[4])},  // end_yaw_1 位置环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[0]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[1]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[2]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[3]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[4])},  // end_pitch 速度环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[0]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[1]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[2]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[3]),
-             static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[4])},  // end_pitch 位置环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[0]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[1]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[2]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[3]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[4])},  // end_yaw_2 速度环
-      PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[0]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[1]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[2]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[3]),
-             static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[4])},  // end_yaw_2 位置环
-  });
+  fluorite::controller = std::make_unique<fluorite::Controller>(
+      PidTrajectoryTracker<6>{
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_speed[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[4])},  // yaw 速度环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_position[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[4])},  // yaw 位置环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[4])},  // pitch_1 速度环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[4])},  // pitch_1 位置环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[4])},  // pitch_1 速度环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[4])},  // pitch_1 位置环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[4])},  // end_yaw_1 速度环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[4])},  // end_yaw_1 位置环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[4])},  // end_pitch 速度环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[4])},  // end_pitch 位置环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[4])},  // end_yaw_2 速度环
+          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[0]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[1]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[2]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[3]),
+                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[4])},  // end_yaw_2 位置环
+      },
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[0]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[1]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[2]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[3]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[4])},  // base_yaw 速度环
+      PosPID{static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[0]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[1]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])}  // base_yaw 位置环
+  );
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
       DmMit{*arm_can,
@@ -183,29 +199,29 @@ void FluoriteArm::InitializeShit() {
 void FluoriteArm::Ins() {
   auto quaternion_buffer = new float[4];  // 这里不用担心free的问题，因为这个数组的生命周期和程序一样长
   auto euler_angle_buffer = new float[3];
-  ins_sub_ = this->create_subscription<sensor_msgs::msg::Imu>("/imu", rclcpp::SensorDataQoS(),
-                                                              [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
-                                                                using rm::modules::algorithm::utils::QuatToEuler;
-                                                                quaternion_buffer[0] = msg->orientation.w;
-                                                                quaternion_buffer[1] = msg->orientation.x;
-                                                                quaternion_buffer[2] = msg->orientation.y;
-                                                                quaternion_buffer[3] = msg->orientation.z;
-                                                                QuatToEuler(quaternion_buffer, euler_angle_buffer);
-                                                                fluorite::state.imu_yaw = euler_angle_buffer[0];
-                                                                fluorite::state.imu_pitch = euler_angle_buffer[1];
-                                                                fluorite::state.imu_roll = euler_angle_buffer[2];
-                                                              });
+  ins_sub_ = create_subscription<sensor_msgs::msg::Imu>("/imu", rclcpp::SensorDataQoS(),
+                                                        [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
+                                                          using rm::modules::algorithm::utils::QuatToEuler;
+                                                          quaternion_buffer[0] = msg->orientation.w;
+                                                          quaternion_buffer[1] = msg->orientation.x;
+                                                          quaternion_buffer[2] = msg->orientation.y;
+                                                          quaternion_buffer[3] = msg->orientation.z;
+                                                          QuatToEuler(quaternion_buffer, euler_angle_buffer);
+                                                          fluorite::state.imu_yaw = euler_angle_buffer[0];
+                                                          fluorite::state.imu_pitch = euler_angle_buffer[1];
+                                                          fluorite::state.imu_roll = euler_angle_buffer[2];
+                                                        });
   info("ins ok");
 }
 
 void FluoriteArm::Remote() {
   static std::array<short, 16> last_channels{};
-  remote_sub_ = this->create_subscription<sbus_interface::msg::Sbus>(
-      "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
-        // remote_device_.IAmAlive();
+  remote_sub_ = create_subscription<sbus_interface::msg::Sbus>("/sbus", rclcpp::SensorDataQoS(),
+                                                               [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
+                                                                 // remote_device_.IAmAlive();
 
-        last_channels = msg->mapped_channels;
-      });
+                                                                 last_channels = msg->mapped_channels;
+                                                               });
   info("remote ok");
 }
 
@@ -217,8 +233,8 @@ void FluoriteArm::Referee() { info("referee ok"); }
  */
 void FluoriteArm::Blackbox() {
   blackbox_state_pub_ =
-      this->create_publisher<fluorite_msgs::msg::ArmState>("blackbox/arm_state", rclcpp::SystemDefaultsQoS());
-  blackbox_timer_ = this->create_wall_timer(20ms, [this] { blackbox_state_pub_->publish(fluorite::state); });
+      create_publisher<fluorite_msgs::msg::ArmState>("blackbox/arm_state", rclcpp::SystemDefaultsQoS());
+  blackbox_timer_ = create_wall_timer(20ms, [this] { blackbox_state_pub_->publish(fluorite::state); });
   info("blackbox ok");
 }
 
@@ -226,7 +242,7 @@ void FluoriteArm::Blackbox() {
  * @brief 设备在线状态监控
  */
 void FluoriteArm::DeviceMonitor() {
-  device_monitor_timer_ = this->create_wall_timer(300ms, [this] {
+  device_monitor_timer_ = create_wall_timer(300ms, [this] {
     // device_monitor_.Update();
     // if (!device_monitor_.all_device_ok()) {
     //   fsm::DispatchEvent(event::arm::SwitchMode<state::arm::NoForce>{});
@@ -253,7 +269,6 @@ void FluoriteArm::ProcessSensorData() {
   fluorite::state.end_pitch_encoder_speed = fluorite::actuator->end_pitch.vel();
   fluorite::state.end_yaw_2_encoder = fluorite::actuator->end_yaw_2.pos_rad();
   fluorite::state.end_yaw_2_encoder_speed = fluorite::actuator->end_yaw_2.rpm();
-  using namespace fluorite;
 }
 
 /**
@@ -262,13 +277,13 @@ void FluoriteArm::ProcessSensorData() {
 void FluoriteArm::ParamHotUpdate() {}
 
 /**
- * @brief 把关节状态发布给joint_state_publisher节点，jsp节点再转发给moveit
+ * @brief 把关节状态发布给joint_state_publisher节点，jsp节点再转发给moveit，频率50hz
  */
 void FluoriteArm::JointStatesPublisher() {
   joint_states_pub_ =
-      create_publisher<sensor_msgs::msg::JointState>("fluorite/arm/joint_states", rclcpp::SensorDataQoS());
-  joint_states_msg_.name = {"yaw_joint",     "pitch1_joint",   "pitch2_joint",
-                            "endyaw1_joint", "endpitch_joint", "endyaw2_joint"};
+      create_publisher<sensor_msgs::msg::JointState>("fluorite/arm/joint_states", rclcpp::SystemDefaultsQoS());
+  joint_states_msg_.name = {"yaw_joint",      "pitch1_joint",    "pitch2_joint",
+                            "end_yaw1_joint", "end_pitch_joint", "end_yaw2_joint"};
   joint_states_msg_.position.resize(6);
   joint_states_msg_.velocity.resize(6);
   joint_states_pub_timer_ = create_wall_timer(20ms, [this] {
@@ -286,6 +301,24 @@ void FluoriteArm::JointStatesPublisher() {
     joint_states_msg_.velocity[4] = fluorite::state.end_pitch_encoder_speed;
     joint_states_msg_.velocity[5] = fluorite::state.end_yaw_2_encoder_speed;
     joint_states_pub_->publish(joint_states_msg_);
+  });
+}
+
+/**
+ * @brief 发布从imu坐标系(world)到base_yaw_link坐标系的tf，频率50hz
+ */
+void FluoriteArm::TFBroadcaster() {
+  world_to_base_yaw_tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
+  world_to_base_yaw_tf_.header.frame_id = "world";
+  world_to_base_yaw_tf_.child_frame_id = "base_yaw_link";
+  world_to_base_yaw_tf_broadcaster_timer_ = create_wall_timer(20ms, [this] {
+    world_to_base_yaw_tf_.header.stamp = now();
+    world_to_base_yaw_tf_quat_.setRPY(fluorite::state.imu_roll, fluorite::state.imu_pitch, fluorite::state.imu_yaw);
+    world_to_base_yaw_tf_.transform.rotation.x = world_to_base_yaw_tf_quat_.x();
+    world_to_base_yaw_tf_.transform.rotation.y = world_to_base_yaw_tf_quat_.y();
+    world_to_base_yaw_tf_.transform.rotation.z = world_to_base_yaw_tf_quat_.z();
+    world_to_base_yaw_tf_.transform.rotation.w = world_to_base_yaw_tf_quat_.w();
+    world_to_base_yaw_tf_broadcaster_->sendTransform(world_to_base_yaw_tf_);
   });
 }
 

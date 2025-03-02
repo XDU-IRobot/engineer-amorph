@@ -10,6 +10,9 @@
 #include <rm2_referee_msgs/srv/tx.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include <librm.hpp>
 
 #include "arm/fsm.hpp"
@@ -37,16 +40,25 @@ class FluoriteArm final : public rclcpp::Node {
   void Remote();
   void Referee();
   void JointStatesPublisher();
+  void TFBroadcaster();
 
   void ParamHotUpdate();
   void ProcessSensorData();
 
-  auto ParameterCallback(const std::vector<rclcpp::Parameter> &parameters) -> rcl_interfaces::msg::SetParametersResult;
+  // auto ParameterCallback(const std::vector<rclcpp::Parameter> &parameters) ->
+  // rcl_interfaces::msg::SetParametersResult;
 
  private:
   /** <parameters> **/
   RosParamsManager<RosParams> ros_params_manager_{reinterpret_cast<rclcpp::Node *>(this)};
   /** </parameters> **/
+
+  /** <tf publishers> **/
+  std::unique_ptr<tf2_ros::TransformBroadcaster> world_to_base_yaw_tf_broadcaster_{nullptr};
+  rclcpp::TimerBase::SharedPtr world_to_base_yaw_tf_broadcaster_timer_{nullptr};
+  tf2::Quaternion world_to_base_yaw_tf_quat_{};
+  geometry_msgs::msg::TransformStamped world_to_base_yaw_tf_{};
+  /** </tf publishers> **/
 
   /** <ins> **/
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr ins_sub_{nullptr};
@@ -84,7 +96,7 @@ class FluoriteArm final : public rclcpp::Node {
   /** <joint states publisher> **/
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_states_pub_{nullptr};
   rclcpp::TimerBase::SharedPtr joint_states_pub_timer_{nullptr};
-  sensor_msgs::msg::JointState joint_states_msg_;
+  sensor_msgs::msg::JointState joint_states_msg_{};
   /** </joint states publisher> **/
 };
 
