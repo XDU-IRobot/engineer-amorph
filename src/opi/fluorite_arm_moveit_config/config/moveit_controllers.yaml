@@ -18,9 +18,13 @@ moveit_simple_controller_manager:
       - endyaw1_joint
       - endpitch_joint
       - endyaw2_joint
+    action_ns: follow_joint_trajectory
+    default: true
   end_controller:
     type: FollowJointTrajectory
     action_ns: follow_joint_trajectory
     default: true
     joints:
       - endyaw2_joint
+    action_ns: follow_joint_trajectory
+    default: true

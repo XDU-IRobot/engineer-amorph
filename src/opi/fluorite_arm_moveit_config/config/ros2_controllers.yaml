@@ -24,15 +24,13 @@ arm_controller:
       - endpitch_joint
       - endyaw2_joint
     command_interfaces:
-      - position
+      []
     state_interfaces:
-      - position
-      - velocity
+      []
 end_controller:
   ros__parameters:
     joint: endyaw2_joint
     command_interfaces:
-      - position
+      []
     state_interfaces:
-      - position
-      - velocity
+      []
