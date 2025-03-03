@@ -8,7 +8,6 @@
 #include <unordered_map>
 
 #include "common/logger.hpp"
-#include "librm/device/actuator/directdrive_motor.hpp"
 
 namespace fluorite {
 
@@ -71,11 +70,12 @@ void FollowArm::react(event::Control const &control) {
 double FollowArmLazy::lazily_stay_at_ = 0;
 FollowArmLazy::LazyState FollowArmLazy::lazy_state_ = LazyState::kStay;
 void FollowArmLazy::react(event::Control const &control) {
-  // 如果yaw轴编码器超过60度(1.0472rad)，就把error控制到50度(0.8727rad)，误差小于50度之后大yaw轴进入lazy状态，大yaw轴停留在当前位置，直到小yaw轴编码器再次超过60度，lazy状态解除，再次把error控制到50度
+  // 如果yaw轴编码器超过60度(1.0472rad)，就尝试把error控制到50度(0.8727rad)，误差小于55度(0.9599rad)之后大yaw轴进入lazy状态，大yaw轴停留在当前位置，直到小yaw轴编码器再次超过60度，lazy状态解除，再次把error控制到50度
+  // 体现出来的效果就是，大yaw轴只有在小yaw轴快碰到转动限位的时候才会跟随小yaw轴转动
   switch (lazy_state_) {
     case LazyState::kStay: {
+      fluorite::controller->base_yaw_position_pid.Update(lazily_stay_at_, fluorite::state.base_yaw_encoder);
       if (std::abs(fluorite::state.yaw_encoder) > 1.0472) {
-        fluorite::controller->base_yaw_position_pid.Update(lazily_stay_at_, fluorite::state.base_yaw_encoder);
         lazy_state_ = LazyState::kFollow;
       }
       break;
@@ -84,7 +84,7 @@ void FollowArmLazy::react(event::Control const &control) {
       fluorite::controller->base_yaw_position_pid.Update(std::copysign(0.8727, fluorite::state.yaw_encoder),
                                                          fluorite::state.yaw_encoder);
       lazily_stay_at_ = fluorite::state.base_yaw_encoder;
-      if (std::abs(fluorite::state.yaw_encoder) < 0.8727) {
+      if (std::abs(fluorite::state.yaw_encoder) < 0.9599) {
         lazy_state_ = LazyState::kStay;
       }
       break;
