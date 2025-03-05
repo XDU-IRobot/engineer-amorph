@@ -30,7 +30,7 @@ def main():
                        "src/common/**", "src/opi/**", "--packages-ignore", "keyboard", *COMMON_ARGS])
     elif args.customctrl:
         subprocess.run(["cmake", "-B", "custom_ctrl_build", "-S",
-                       "src/custom_controller", "-DCMAKE_BUILD_TYPE=Release"])
+                       "src/custom_controller/t265", "-DCMAKE_BUILD_TYPE=Release"])
         subprocess.run(["cmake", "--build", "custom_ctrl_build"])
     elif args.debug:
         subprocess.run(["colcon", "build", "--base-paths",
