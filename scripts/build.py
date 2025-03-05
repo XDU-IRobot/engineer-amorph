@@ -9,24 +9,32 @@ COMMON_ARGS = ["--merge-install", "--symlink-install", "--cmake-args",
 
 def main():
     parser = argparse.ArgumentParser(description='Build script')
-    # -j --jetson/-o --orangepi/-d --debug
+    # -j --jetson/-o --orangepi/-c --customctrl/-d --debug
     # if none of them is provided or both are provided, print help message
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-j', '--jetson', action='store_true',
                        help='Build for Jetson')
     group.add_argument('-o', '--orangepi', action='store_true',
                        help='Build for Orange Pi')
+    group.add_argument('-c', '--customctrl', action='store_true',
+                       help='Build for custom controller(on the raspberry pi)')
     group.add_argument('-d', '--debug', action='store_true',
-                       help='Build all packages(for debug/development/ci)')
+                       help='Build all packages except for custom controller(for debug/development/ci)')
     args = parser.parse_args()
+
     if args.jetson:
         subprocess.run(["colcon", "build", "--base-paths", "src/common/**",
                        "src/jetson/**", *COMMON_ARGS])
     elif args.orangepi:
         subprocess.run(["colcon", "build", "--base-paths",
                        "src/common/**", "src/opi/**", "--packages-ignore", "keyboard", *COMMON_ARGS])
+    elif args.customctrl:
+        subprocess.run(["cmake", "-B", "custom_ctrl_build", "-S",
+                       "src/custom_controller", "-DCMAKE_BUILD_TYPE=Release"])
+        subprocess.run(["cmmake", "--build", "custom_ctrl_build"])
     elif args.debug:
-        subprocess.run(["colcon", "build", *COMMON_ARGS])
+        subprocess.run(["colcon", "build", "--base-paths",
+                       "src/**", *COMMON_ARGS])
     else:
         parser.print_help()
 
