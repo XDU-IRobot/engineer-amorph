@@ -22,6 +22,10 @@ class PidTrajectoryTracker {
   PidTrajectoryTracker(
       std::initializer_list<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>> pids)
       : pids_(pids) {
+    if (pids_.size() != 2 * NJoints) {
+      error("trajectory tracker: PID number mismatch!");
+      throw std::invalid_argument("PID number mismatch!");
+    }
     output_torque_.resize(NJoints);
   }
   PidTrajectoryTracker(const PidTrajectoryTracker &) = default;
@@ -78,6 +82,11 @@ class PidTrajectoryTracker {
    * @param point 参考目标点
    */
   void UpdateTrajectory(const JTP &point) {
+    // corner case: 关节数量和对象创建时的给定数量不一致
+    if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
+      warn("trajectory tracker: joint number mismatch, rejecting!");
+      return;
+    }
     current_trajectory_.clear();
     current_trajectory_.push_back(point);
     ResetReferenceTrajectory();
@@ -145,16 +154,23 @@ class PidTrajectoryTracker {
   void Update(std::array<double, NJoints> current_joint_positions,
               std::array<double, NJoints> current_joint_velocities) {
     Update();
-    // corner case: 对象刚刚创建，没有轨迹，直接返回
+    // corner case: 对象刚刚创建，没有轨迹，把输入的当前位置作为目标位置
     if (current_trajectory_.empty()) {
-      return;
+      JTP point;
+      point.positions.resize(NJoints);
+      for (size_t i = 0; i < NJoints; ++i) {
+        point.positions[i] = current_joint_positions[i];
+      }
+      point.velocities.resize(NJoints);
+      UpdateTrajectory(point);
+      warn("trajectory tracker: no reference trajectory, using current position as reference.");
     }
 
     // 以当前点为参考计算每个关节的PID
     const auto current_point = current_trajectory_[current_point_index_];
     for (size_t i = 0; i < NJoints; ++i) {
-      const auto &pid_outer = pids_[2 * i];
-      const auto &pid_inner = pids_[2 * i + 1];
+      auto &pid_outer = pids_[2 * i];
+      auto &pid_inner = pids_[2 * i + 1];
       pid_outer.Update(current_point.positions[i], current_joint_positions[i]);
       pid_inner.Update(current_point.velocities[i], current_joint_velocities[i]);
       output_torque_[i] = pid_inner.value();

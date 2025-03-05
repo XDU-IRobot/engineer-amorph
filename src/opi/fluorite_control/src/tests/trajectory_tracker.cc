@@ -25,16 +25,9 @@ std::shared_ptr<moveit_msgs::msg::RobotTrajectory> GenerateValidTrajectory() {
   return rt;
 }
 
-void RegularTest() {
+template <int NJoints>
+void RunTracker(PidTrajectoryTracker<NJoints> &tt) {
   using namespace std::chrono_literals;
-  using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
-
-  PidTrajectoryTracker<1> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
-  auto mock_rt = *GenerateValidTrajectory();
-
-  tt.UpdateTrajectory(mock_rt);
-  tt.ResetReferenceTrajectory();
-
   const auto start_time = std::chrono::steady_clock::now();
   for (;;) {
     tt.Update();
@@ -44,61 +37,59 @@ void RegularTest() {
     }
     std::this_thread::sleep_for(100ms);
   }
+}
+
+void RegularTest() {
+  using namespace std::chrono_literals;
+  using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+
+  PidTrajectoryTracker<1> tt{PID{}, PID{}};
+  auto mock_rt = *GenerateValidTrajectory();
+
+  tt.UpdateTrajectory(mock_rt);
+  tt.ResetReferenceTrajectory();
+
+  RunTracker(tt);
 }
 
 void NonMonotonicTimeTest() {
   using namespace std::chrono_literals;
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
-  PidTrajectoryTracker<1> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
+  PidTrajectoryTracker<1> tt{PID{}, PID{}};
   auto mock_rt = *GenerateValidTrajectory();
 
   auto &points = mock_rt.joint_trajectory.points;
   std::swap(points[1], points[2]);
   tt.UpdateTrajectory(mock_rt);
 
-  const auto start_time = std::chrono::steady_clock::now();
-  for (;;) {
-    tt.Update();
-    std::cout << tt.current_point().positions[0] << std::endl;
-    if (std::chrono::steady_clock::now() - start_time > 1s) {
-      break;
-    }
-    std::this_thread::sleep_for(100ms);
-  }
+  RunTracker(tt);
 }
 
 void OnePointTest() {
   using namespace std::chrono_literals;
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
-  PidTrajectoryTracker<1> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
+  PidTrajectoryTracker<1> tt{PID{}, PID{}};
   moveit_msgs::msg::RobotTrajectory mock_rt{};
   trajectory_msgs::msg::JointTrajectoryPoint a;
   a.time_from_start.sec = 0;
   a.positions.push_back(1.0);
+  a.velocities.push_back(0.0);
 
   mock_rt.joint_trajectory.points = {a};
 
   tt.UpdateTrajectory(mock_rt);
   tt.ResetReferenceTrajectory();
 
-  const auto start_time = std::chrono::steady_clock::now();
-  for (;;) {
-    tt.Update();
-    std::cout << tt.current_point().positions[0] << std::endl;
-    if (std::chrono::steady_clock::now() - start_time > 1s) {
-      break;
-    }
-    std::this_thread::sleep_for(100ms);
-  }
+  RunTracker(tt);
 }
 
 void TwoPointTest() {
   using namespace std::chrono_literals;
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
-  PidTrajectoryTracker<1> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
+  PidTrajectoryTracker<1> tt{PID{}, PID{}};
   moveit_msgs::msg::RobotTrajectory mock_rt{};
   trajectory_msgs::msg::JointTrajectoryPoint a, b;
   a.time_from_start.sec = 0;
@@ -113,22 +104,14 @@ void TwoPointTest() {
   tt.UpdateTrajectory(mock_rt);
   tt.ResetReferenceTrajectory();
 
-  const auto start_time = std::chrono::steady_clock::now();
-  for (;;) {
-    tt.Update();
-    std::cout << tt.current_point().positions[0] << std::endl;
-    if (std::chrono::steady_clock::now() - start_time > 1s) {
-      break;
-    }
-    std::this_thread::sleep_for(100ms);
-  }
+  RunTracker(tt);
 }
 
 void NegativeTimeTest() {
   using namespace std::chrono_literals;
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
-  PidTrajectoryTracker<1> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
+  PidTrajectoryTracker<1> tt{PID{}, PID{}};
   auto mock_rt = *GenerateValidTrajectory();
 
   auto &points = mock_rt.joint_trajectory.points;
@@ -138,35 +121,19 @@ void NegativeTimeTest() {
   points[3].time_from_start.sec = -1;
   tt.UpdateTrajectory(mock_rt);
 
-  const auto start_time = std::chrono::steady_clock::now();
-  for (;;) {
-    tt.Update();
-    std::cout << tt.current_point().positions[0] << std::endl;
-    if (std::chrono::steady_clock::now() - start_time > 1s) {
-      break;
-    }
-    std::this_thread::sleep_for(100ms);
-  }
+  RunTracker(tt);
 }
 
 void EmptyTrajectoryTest() {
   using namespace std::chrono_literals;
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
-  PidTrajectoryTracker<1> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
+  PidTrajectoryTracker<1> tt{PID{}, PID{}};
   moveit_msgs::msg::RobotTrajectory mock_rt{};
 
   tt.UpdateTrajectory(mock_rt);
 
-  const auto start_time = std::chrono::steady_clock::now();
-  for (;;) {
-    tt.Update();
-    std::cout << tt.current_point().positions[0] << std::endl;
-    if (std::chrono::steady_clock::now() - start_time > 1s) {
-      break;
-    }
-    std::this_thread::sleep_for(100ms);
-  }
+  RunTracker(tt);
 }
 
 void JointNumberMismatchTest() {
@@ -180,14 +147,46 @@ void JointNumberMismatchTest() {
   points[0].positions.push_back(1.0);
   tt.UpdateTrajectory(mock_rt);
 
-  const auto start_time = std::chrono::steady_clock::now();
-  for (;;) {
-    tt.Update();
-    std::cout << tt.current_point().positions[0] << std::endl;
-    if (std::chrono::steady_clock::now() - start_time > 1s) {
-      break;
-    }
-    std::this_thread::sleep_for(100ms);
+  RunTracker(tt);
+}
+
+void SinglePointJointNumberMismatchTest() {
+  using namespace std::chrono_literals;
+  using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+
+  PidTrajectoryTracker<3> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
+  trajectory_msgs::msg::JointTrajectoryPoint p;
+  p.time_from_start.sec = 0;
+  p.positions.push_back(1.0);
+  p.positions.push_back(2.0);
+  p.positions.push_back(3.0);
+
+  tt.UpdateTrajectory(p);
+  tt.ResetReferenceTrajectory();
+
+  RunTracker(tt);
+}
+
+void PIDOnEmptyTrajectoryTest() {
+  using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+
+  PidTrajectoryTracker<3> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
+
+  auto mock_current_positions = std::array<double, 3>{1.0, 2.0, 3.0};
+  auto mock_current_velocities = std::array<double, 3>{0.0, 0.0, 0.0};
+
+  tt.Update(mock_current_positions, mock_current_velocities);
+
+  RunTracker(tt);
+}
+
+void PIDNumberMismatchTest() {
+  using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+
+  try {
+    PidTrajectoryTracker<3> tt{PID{}, PID{}, PID{}};
+  } catch (const std::invalid_argument &e) {
+    std::cout << e.what() << std::endl;
   }
 }
 
@@ -206,5 +205,11 @@ int main() {
   EmptyTrajectoryTest();
   info("TEST 7: Joint number mismatch");
   JointNumberMismatchTest();
+  info("TEST 8: Single point joint number mismatch");
+  SinglePointJointNumberMismatchTest();
+  info("TEST 9: PID on empty trajectory");
+  PIDOnEmptyTrajectoryTest();
+  info("TEST 10: PID number mismatch");
+  PIDNumberMismatchTest();
   return 0;
 }
