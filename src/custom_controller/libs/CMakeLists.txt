@@ -1,9 +1,9 @@
 
-find_library(log-lib log)
+find_package(Boost REQUIRED COMPONENTS system)  # boost::asio
 
 add_library(fluorite INTERFACE)
 
 target_link_libraries(fluorite INTERFACE
-    log
     realsense2
+    Boost::system
 )
