@@ -28,12 +28,12 @@ namespace state {
 namespace arm {
 
 void Debug::entry() {}
-void FollowTrajectory::entry() {}
+void FollowExternalTrajectory::entry() {}
 void Retracted::entry() {}
 void NoForce::entry() {}
 
 void Debug::react(event::Control const &control) {}
-void FollowTrajectory::react(event::Control const &control) {}
+void FollowExternalTrajectory::react(event::Control const &control) {}
 void Retracted::react(event::Control const &control) {}
 void NoForce::react(event::Control const &control) {
   fluorite::actuator->yaw.SendInstruction(rm::device::DmMotorInstructions::kDisable);

@@ -2,14 +2,16 @@
 #ifndef ARM_PID_TRAJECTORY_TRACKER_HPP
 #define ARM_PID_TRAJECTORY_TRACKER_HPP
 
-#include <limits>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <trajectory_msgs/msg/joint_trajectory_point.hpp>
 
+#include <limits>
 #include <vector>
 #include <chrono>
 
 #include <librm.hpp>
+
+#include "common/logger.hpp"
 
 template <int NJoints>
 class PidTrajectoryTracker {
@@ -31,8 +33,33 @@ class PidTrajectoryTracker {
    * @param playback_speed  参考轨迹播放速度，范围[0, std::numeric_limits<double>::max()]
    */
   void UpdateTrajectory(const RT &trajectory, double playback_speed = 1.0) {
+    // corner case 1: 空轨迹
+    if (trajectory.joint_trajectory.points.empty()) {
+      warn("trajectory tracker: empty trajectory, rejecting!");
+      return;
+    }
+    // 如果只有一个点，调用另一个重载函数
+    if (trajectory.joint_trajectory.points.size() == 1) {
+      UpdateTrajectory(trajectory.joint_trajectory.points[0]);
+      return;
+    }
+    // corner case 2: 时间不单调递增
+    for (size_t i = 1; i < trajectory.joint_trajectory.points.size(); ++i) {
+      if (PointTimeMs(trajectory.joint_trajectory.points[i]) <=
+          PointTimeMs(trajectory.joint_trajectory.points[i - 1])) {
+        warn("trajectory tracker: non-monotonic time in trajectory, rejecting!");
+        return;
+      }
+    }
+    // corner case 3: 存在点的关节数量和对象创建时的给定数量不一致
+    for (const auto &point : trajectory.joint_trajectory.points) {
+      if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
+        warn("trajectory tracker: joint number mismatch, rejecting!");
+        return;
+      }
+    }
+
     current_trajectory_ = trajectory.joint_trajectory.points;
-    current_point_index_ = 0;
     playback_speed = std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max());
     const auto time_ratio = 1.0 / playback_speed;
     for (auto &point : current_trajectory_) {
@@ -43,6 +70,7 @@ class PidTrajectoryTracker {
         point.time_from_start.nanosec -= 1e9;
       }
     }
+    ResetReferenceTrajectory();
   }
 
   /**
@@ -52,18 +80,15 @@ class PidTrajectoryTracker {
   void UpdateTrajectory(const JTP &point) {
     current_trajectory_.clear();
     current_trajectory_.push_back(point);
-    current_point_index_ = 0;
+    ResetReferenceTrajectory();
   }
 
   /**
    * @brief 重置轨迹（把轨迹的播放进度重置到开始）
    */
   void ResetReferenceTrajectory() {
-    for (auto &pid : pids_) {
-      pid.Clear();
-    }
+    ClearPid();
     traj_start_time_ = std::chrono::steady_clock::now();
-    current_point_index_ = 0;
   }
 
   /**
@@ -76,29 +101,53 @@ class PidTrajectoryTracker {
   }
 
   /**
+   * @brief 更新一步参考点，但不计算PID
+   */
+  void Update() {
+    // corner case 1: 对象刚刚创建，没有轨迹，直接返回
+    if (current_trajectory_.empty()) {
+      return;
+    }
+    // corner case 2：只有一个点，直接把index设为0返回
+    if (current_trajectory_.size() == 1) {
+      current_point_index_ = 0;
+      return;
+    }
+
+    const auto current_time = std::chrono::steady_clock::now();
+    const auto elapsed_time_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(current_time - traj_start_time_).count();
+
+    // corner case 3：轨迹播放完毕，直接把index设为最后一个点返回
+    if (PointTimeMs(current_trajectory_[current_trajectory_.size() - 1]) < elapsed_time_ms) {
+      current_point_index_ = current_trajectory_.size() - 1;
+      return;
+    }
+
+    // 因为更新轨迹时我们保证时间一定是单调递增的，所以这里可以二分查找最后一个小于等于当前时间的点
+    size_t left = 0, right = current_trajectory_.size() - 1;
+    while (left < right) {
+      const size_t mid = (left + right + 1) / 2;
+      if (PointTimeMs(current_trajectory_[mid]) <= elapsed_time_ms) {
+        left = mid;
+      } else {
+        right = mid - 1;
+      }
+    }
+    current_point_index_ = left;
+  }
+
+  /**
    * @brief 更新一步
    * @param current_joint_positions     当前关节位置，顺序和轨迹中的关节顺序一致
    * @param current_joint_velocities    当前关节速度，顺序和轨迹中的关节顺序一致
    */
   void Update(std::array<double, NJoints> current_joint_positions,
               std::array<double, NJoints> current_joint_velocities) {
-    // 如果轨迹为空，直接返回
+    Update();
+    // corner case: 对象刚刚创建，没有轨迹，直接返回
     if (current_trajectory_.empty()) {
       return;
-    }
-
-    const auto current_time = std::chrono::steady_clock::now();
-    const auto elapsed_time =
-        std::chrono::duration_cast<std::chrono::milliseconds>(current_time - traj_start_time_).count();
-
-    // 遍历轨迹，找到第一个时间戳大于当前时间的点
-    // 如果没有找到，那么说明轨迹已经播放完毕，把最后一个点作为当前点
-    for (size_t i = current_point_index_; i < current_trajectory_.size(); ++i) {
-      current_point_index_ = i;
-      if (current_trajectory_[i].time_from_start.sec * 1000 + current_trajectory_[i].time_from_start.nanosec / 1e6 >
-          elapsed_time) {
-        break;
-      }
     }
 
     // 以当前点为参考计算每个关节的PID
@@ -113,6 +162,28 @@ class PidTrajectoryTracker {
   }
 
   const auto &output_torque() const { return output_torque_; }
+  const auto &trajoctory() const { return current_trajectory_; }
+  const auto &current_point() {
+    const static auto empty_point = [] {
+      JTP point;
+      point.positions.resize(NJoints);
+      point.velocities.resize(NJoints);
+      point.accelerations.resize(NJoints);
+      point.effort.resize(NJoints);
+      return point;
+    }();
+    Update();
+    if (current_trajectory_.empty()) {
+      return empty_point;
+    } else {
+      return current_trajectory_[current_point_index_];
+    }
+  }
+
+ private:
+  int64_t PointTimeMs(const JTP &point) const {
+    return point.time_from_start.sec * 1000 + point.time_from_start.nanosec / 1e6;
+  }
 
  private:
   size_t current_point_index_{};
