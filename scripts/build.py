@@ -31,7 +31,7 @@ def main():
     elif args.customctrl:
         subprocess.run(["cmake", "-B", "custom_ctrl_build", "-S",
                        "src/custom_controller", "-DCMAKE_BUILD_TYPE=Release"])
-        subprocess.run(["cmmake", "--build", "custom_ctrl_build"])
+        subprocess.run(["cmake", "--build", "custom_ctrl_build"])
     elif args.debug:
         subprocess.run(["colcon", "build", "--base-paths",
                        "src/**", *COMMON_ARGS])
