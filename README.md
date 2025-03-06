@@ -126,6 +126,16 @@
 
 - 位于云台设备舱的电磁阀驱动器/分电板 [`pcb/engineer_2025.eprj`](pcb/engineer_2025.eprj)
 
+## 软件包架构
+
+### 手动模式
+
+![](assets/manual_flowchart.png)
+
+### 自动模式
+
+![](assets/auto_flowchart.png)
+
 ## 程序使用方法
 
 ### 环境配置
