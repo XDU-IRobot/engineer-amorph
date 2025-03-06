@@ -1,0 +1,12 @@
+# 控制存矿机构
+
+uint8 SUCK = 0  # 吸
+uint8 BLOW = 2  # 吹
+
+bool enable  # 如果是false，真空泵关，电磁阀打开（自然状态，不做任何操作）
+uint8 left
+uint8 right
+
+---
+
+bool success

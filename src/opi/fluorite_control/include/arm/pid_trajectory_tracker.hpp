@@ -2,8 +2,7 @@
 #ifndef ARM_PID_TRAJECTORY_TRACKER_HPP
 #define ARM_PID_TRAJECTORY_TRACKER_HPP
 
-#include <moveit_msgs/msg/robot_trajectory.hpp>
-#include <trajectory_msgs/msg/joint_trajectory_point.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 #include <limits>
 #include <vector>
@@ -15,8 +14,8 @@
 
 template <int NJoints>
 class PidTrajectoryTracker {
-  using RT = moveit_msgs::msg::RobotTrajectory;
-  using JTP = trajectory_msgs::msg::JointTrajectoryPoint;
+  using Trajectory = trajectory_msgs::msg::JointTrajectory;
+  using Point = trajectory_msgs::msg::JointTrajectoryPoint;
 
  public:
   PidTrajectoryTracker(
@@ -36,34 +35,33 @@ class PidTrajectoryTracker {
    * @param trajectory      参考轨迹
    * @param playback_speed  参考轨迹播放速度，范围[0, std::numeric_limits<double>::max()]
    */
-  void UpdateTrajectory(const RT &trajectory, double playback_speed = 1.0) {
+  void UpdateTrajectory(const Trajectory &traj, double playback_speed = 1.0) {
     // corner case 1: 空轨迹
-    if (trajectory.joint_trajectory.points.empty()) {
+    if (traj.points.empty()) {
       warn("trajectory tracker: empty trajectory, rejecting!");
       return;
     }
     // 如果只有一个点，调用另一个重载函数
-    if (trajectory.joint_trajectory.points.size() == 1) {
-      UpdateTrajectory(trajectory.joint_trajectory.points[0]);
+    if (traj.points.size() == 1) {
+      UpdateTrajectory(traj.points[0]);
       return;
     }
     // corner case 2: 时间不单调递增
-    for (size_t i = 1; i < trajectory.joint_trajectory.points.size(); ++i) {
-      if (PointTimeMs(trajectory.joint_trajectory.points[i]) <=
-          PointTimeMs(trajectory.joint_trajectory.points[i - 1])) {
+    for (size_t i = 1; i < traj.points.size(); ++i) {
+      if (PointTimeMs(traj.points[i]) <= PointTimeMs(traj.points[i - 1])) {
         warn("trajectory tracker: non-monotonic time in trajectory, rejecting!");
         return;
       }
     }
     // corner case 3: 存在点的关节数量和对象创建时的给定数量不一致
-    for (const auto &point : trajectory.joint_trajectory.points) {
+    for (const auto &point : traj.points) {
       if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
         warn("trajectory tracker: joint number mismatch, rejecting!");
         return;
       }
     }
 
-    current_trajectory_ = trajectory.joint_trajectory.points;
+    current_trajectory_ = traj.points;
     playback_speed = std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max());
     const auto time_ratio = 1.0 / playback_speed;
     for (auto &point : current_trajectory_) {
@@ -81,7 +79,7 @@ class PidTrajectoryTracker {
    * @brief 更新一条只有一个点的参考轨迹
    * @param point 参考目标点
    */
-  void UpdateTrajectory(const JTP &point) {
+  void UpdateTrajectory(const Point &point) {
     // corner case: 关节数量和对象创建时的给定数量不一致
     if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
       warn("trajectory tracker: joint number mismatch, rejecting!");
@@ -156,7 +154,7 @@ class PidTrajectoryTracker {
     Update();
     // corner case: 对象刚刚创建，没有轨迹，把输入的当前位置作为目标位置
     if (current_trajectory_.empty()) {
-      JTP point;
+      Point point;
       point.positions.resize(NJoints);
       for (size_t i = 0; i < NJoints; ++i) {
         point.positions[i] = current_joint_positions[i];
@@ -181,7 +179,7 @@ class PidTrajectoryTracker {
   const auto &trajoctory() const { return current_trajectory_; }
   const auto &current_point() {
     const static auto empty_point = [] {
-      JTP point;
+      Point point;
       point.positions.resize(NJoints);
       point.velocities.resize(NJoints);
       point.accelerations.resize(NJoints);
@@ -197,13 +195,13 @@ class PidTrajectoryTracker {
   }
 
  private:
-  int64_t PointTimeMs(const JTP &point) const {
+  int64_t PointTimeMs(const Point &point) const {
     return point.time_from_start.sec * 1000 + point.time_from_start.nanosec / 1e6;
   }
 
  private:
   size_t current_point_index_{};
-  std::vector<JTP> current_trajectory_{};
+  std::vector<Point> current_trajectory_{};
   std::chrono::steady_clock::time_point traj_start_time_{};
   std::vector<double> output_torque_{};
   std::vector<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>>

@@ -85,9 +85,6 @@ struct Control : tinyfsm::Event {
   } keyboard_key;                           ///< 键盘按键
   std::atomic<uint16_t> keyboard_modifier;  ///< 键盘组合键modifier
 };
-struct SwitchReferenceTrajectory : tinyfsm::Event {
-  moveit_msgs::msg::RobotTrajectory new_traj;
-};
 template <typename T>
 struct SwitchMode : tinyfsm::Event {};
 
@@ -187,15 +184,6 @@ class NoForce : public fsm::Arm {
 }  // namespace arm
 
 namespace gimbal_base {
-
-/**
- * @brief 大yaw轴跟底盘转
- */
-class FollowChassis : public fsm::GimbalBase {
- public:
-  void react(event::Control const &control);
-  void entry();
-};
 
 /**
  * @brief 大yaw轴跟上层机械臂转

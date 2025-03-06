@@ -4,9 +4,10 @@
 
 #include <chrono>
 #include <iostream>
+#include <trajectory_msgs/msg/detail/joint_trajectory__struct.hpp>
 
-std::shared_ptr<moveit_msgs::msg::RobotTrajectory> GenerateValidTrajectory() {
-  auto rt = std::make_shared<moveit_msgs::msg::RobotTrajectory>();
+std::shared_ptr<trajectory_msgs::msg::JointTrajectory> GenerateValidTrajectory() {
+  auto rt = std::make_shared<trajectory_msgs::msg::JointTrajectory>();
   trajectory_msgs::msg::JointTrajectoryPoint a, b, c, d;
   a.time_from_start.nanosec = 1e8;
   a.positions.push_back(1.0);
@@ -21,7 +22,7 @@ std::shared_ptr<moveit_msgs::msg::RobotTrajectory> GenerateValidTrajectory() {
   d.positions.push_back(4.0);
   d.velocities.push_back(0.0);
 
-  rt->joint_trajectory.points = {a, b, c, d};
+  rt->points = {a, b, c, d};
   return rt;
 }
 
@@ -59,7 +60,7 @@ void NonMonotonicTimeTest() {
   PidTrajectoryTracker<1> tt{PID{}, PID{}};
   auto mock_rt = *GenerateValidTrajectory();
 
-  auto &points = mock_rt.joint_trajectory.points;
+  auto &points = mock_rt.points;
   std::swap(points[1], points[2]);
   tt.UpdateTrajectory(mock_rt);
 
@@ -71,13 +72,13 @@ void OnePointTest() {
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
   PidTrajectoryTracker<1> tt{PID{}, PID{}};
-  moveit_msgs::msg::RobotTrajectory mock_rt{};
+  trajectory_msgs::msg::JointTrajectory mock_rt{};
   trajectory_msgs::msg::JointTrajectoryPoint a;
   a.time_from_start.sec = 0;
   a.positions.push_back(1.0);
   a.velocities.push_back(0.0);
 
-  mock_rt.joint_trajectory.points = {a};
+  mock_rt.points = {a};
 
   tt.UpdateTrajectory(mock_rt);
   tt.ResetReferenceTrajectory();
@@ -90,7 +91,7 @@ void TwoPointTest() {
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
   PidTrajectoryTracker<1> tt{PID{}, PID{}};
-  moveit_msgs::msg::RobotTrajectory mock_rt{};
+  trajectory_msgs::msg::JointTrajectory mock_rt{};
   trajectory_msgs::msg::JointTrajectoryPoint a, b;
   a.time_from_start.sec = 0;
   a.positions.push_back(1.0);
@@ -99,7 +100,7 @@ void TwoPointTest() {
   b.positions.push_back(2.0);
   b.velocities.push_back(0.0);
 
-  mock_rt.joint_trajectory.points = {a, b};
+  mock_rt.points = {a, b};
 
   tt.UpdateTrajectory(mock_rt);
   tt.ResetReferenceTrajectory();
@@ -114,7 +115,7 @@ void NegativeTimeTest() {
   PidTrajectoryTracker<1> tt{PID{}, PID{}};
   auto mock_rt = *GenerateValidTrajectory();
 
-  auto &points = mock_rt.joint_trajectory.points;
+  auto &points = mock_rt.points;
   points[0].time_from_start.sec = -4;
   points[1].time_from_start.sec = -3;
   points[2].time_from_start.sec = -2;
@@ -129,7 +130,7 @@ void EmptyTrajectoryTest() {
   using PID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
   PidTrajectoryTracker<1> tt{PID{}, PID{}};
-  moveit_msgs::msg::RobotTrajectory mock_rt{};
+  trajectory_msgs::msg::JointTrajectory mock_rt{};
 
   tt.UpdateTrajectory(mock_rt);
 
@@ -143,7 +144,7 @@ void JointNumberMismatchTest() {
   PidTrajectoryTracker<3> tt{PID{}, PID{}, PID{}, PID{}, PID{}, PID{}};
   auto mock_rt = *GenerateValidTrajectory();
 
-  auto &points = mock_rt.joint_trajectory.points;
+  auto &points = mock_rt.points;
   points[0].positions.push_back(1.0);
   tt.UpdateTrajectory(mock_rt);
 

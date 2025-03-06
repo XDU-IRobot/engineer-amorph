@@ -1,0 +1,10 @@
+# Goal
+trajectory_msgs/JointTrajectory trajectory
+
+---
+# Result
+bool success
+
+---
+# Feedback
+# nooope, current joint states are already published by joint_state_publisher node

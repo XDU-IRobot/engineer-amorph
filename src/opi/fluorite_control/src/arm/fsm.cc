@@ -7,6 +7,8 @@
 #include <iostream>
 #include <unordered_map>
 
+#include "keyboard_msgs/msg/key.hpp"
+
 #include "common/logger.hpp"
 
 namespace fluorite {
@@ -49,7 +51,6 @@ void NoForce::react(event::Control const &control) {
 
 namespace gimbal_base {
 
-void FollowChassis::entry() { fluorite::actuator->base_yaw.Enable(true); }
 void FollowArm::entry() { fluorite::actuator->base_yaw.Enable(true); }
 void FollowArmLazy::entry() {
   lazy_state_ = LazyState::kStay;
@@ -57,11 +58,6 @@ void FollowArmLazy::entry() {
 }
 void NoForce::entry() {}
 
-void FollowChassis::react(event::Control const &control) {
-  fluorite::controller->base_yaw_position_pid.Update(0, fluorite::state.base_yaw_encoder);
-  fluorite::controller->base_yaw_speed_pid.Update(0, fluorite::state.base_yaw_encoder_speed);
-  fluorite::actuator->base_yaw.Set(fluorite::controller->base_yaw_position_pid.value());
-}
 void FollowArm::react(event::Control const &control) {
   fluorite::controller->base_yaw_position_pid.Update(0, fluorite::state.yaw_encoder);
   fluorite::controller->base_yaw_speed_pid.Update(0, fluorite::state.base_yaw_encoder_speed);
@@ -74,7 +70,8 @@ void FollowArmLazy::react(event::Control const &control) {
   // 体现出来的效果就是，大yaw轴只有在小yaw轴快碰到转动限位的时候才会跟随小yaw轴转动
   switch (lazy_state_) {
     case LazyState::kStay: {
-      fluorite::controller->base_yaw_position_pid.Update(lazily_stay_at_, fluorite::state.base_yaw_encoder);
+      fluorite::controller->base_yaw_position_pid.Update(lazily_stay_at_,
+                                                         fluorite::state.imu_yaw - fluorite::state.yaw_encoder);
       if (std::abs(fluorite::state.yaw_encoder) > 1.0472) {
         lazy_state_ = LazyState::kFollow;
       }
@@ -83,7 +80,7 @@ void FollowArmLazy::react(event::Control const &control) {
     case LazyState::kFollow: {
       fluorite::controller->base_yaw_position_pid.Update(std::copysign(0.8727, fluorite::state.yaw_encoder),
                                                          fluorite::state.yaw_encoder);
-      lazily_stay_at_ = fluorite::state.base_yaw_encoder;
+      lazily_stay_at_ = fluorite::state.imu_yaw - fluorite::state.yaw_encoder;
       if (std::abs(fluorite::state.yaw_encoder) < 0.9599) {
         lazy_state_ = LazyState::kStay;
       }

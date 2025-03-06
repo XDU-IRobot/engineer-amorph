@@ -1,0 +1,11 @@
+
+float32 vx
+float32 vy
+float32 wz
+
+# 若没有后续命令，持续执行这条速度指令多久
+builtin_interfaces/Duration keep_move_for
+
+---
+
+bool success
