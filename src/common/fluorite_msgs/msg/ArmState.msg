@@ -5,6 +5,10 @@ float32 imu_yaw
 float32 imu_pitch
 float32 imu_roll
 
+float32 imu_yaw_target
+
+geometry_msgs/TransformStamped end_effector_pose
+
 float32 base_yaw_encoder
 float32 base_yaw_encoder_speed
 float32 yaw_encoder

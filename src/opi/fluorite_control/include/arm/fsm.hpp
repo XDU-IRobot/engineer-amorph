@@ -7,12 +7,17 @@
 #ifndef ARM_FSM_HPP
 #define ARM_FSM_HPP
 
+#include <mutex>
 #include <atomic>
 #include <memory>
 #include <type_traits>
 
 #include <tinyfsm.hpp>
 #include <librm.hpp>
+
+#include <moveit/move_group_interface/move_group_interface.h>
+
+#include "keyboard_msgs/msg/key.hpp"
 
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
@@ -25,7 +30,7 @@
 namespace fluorite {
 
 /**
- * @brief   部分状态向量
+ * @brief   机器人状态向量，由节点的各个传感器数据回调函数更新
  */
 extern fluorite_msgs::msg::ArmState state;
 
@@ -62,12 +67,17 @@ extern std::unique_ptr<Actuator> actuator;
 struct Controller {
   using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
-  Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosPID &&base_yaw_position_pid)
+  Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosPID &&base_yaw_position_pid,
+             moveit::planning_interface::MoveGroupInterface &&move_group)
       : trajectory_tracker{std::move(ptt)},
         base_yaw_speed_pid{std::move(base_yaw_speed_pid)},
-        base_yaw_position_pid{std::move(base_yaw_position_pid)} {}
+        base_yaw_position_pid{std::move(base_yaw_position_pid)},
+        move_group(std::move(move_group)) {}
   PidTrajectoryTracker<6> trajectory_tracker;
   PosPID base_yaw_speed_pid, base_yaw_position_pid;
+
+  moveit::planning_interface::MoveGroupInterface move_group;
+  std::mutex move_group_request_mutex;
 };
 extern std::unique_ptr<Controller> controller;
 
@@ -75,15 +85,36 @@ namespace fsm {
 namespace event {
 
 struct Control : tinyfsm::Event {
-  std::atomic<double> left_x;                       ///< 左摇杆x轴，范围[-1000, 1000]
-  std::atomic<double> left_y;                       ///< 左摇杆y轴，范围[-1000, 1000]
-  std::atomic<double> right_x;                      ///< 右摇杆x轴，范围[-1000, 1000]
-  std::atomic<double> right_y;                      ///< 右摇杆y轴，范围[-1000, 1000]
+  Control() {
+    // map里的std::atomic<bool>不能用std::initializer_list初始化，必须一个一个构造
+    for (const auto &keyboard_map_k : {
+             keyboard_msgs::msg::Key::KEY_W,
+             keyboard_msgs::msg::Key::KEY_A,
+             keyboard_msgs::msg::Key::KEY_S,
+             keyboard_msgs::msg::Key::KEY_D,
+             keyboard_msgs::msg::Key::KEY_R,
+             keyboard_msgs::msg::Key::KEY_F,
+             keyboard_msgs::msg::Key::KEY_I,
+             keyboard_msgs::msg::Key::KEY_J,
+             keyboard_msgs::msg::Key::KEY_K,
+             keyboard_msgs::msg::Key::KEY_L,
+             keyboard_msgs::msg::Key::KEY_U,
+             keyboard_msgs::msg::Key::KEY_O,
+             keyboard_msgs::msg::Key::KEY_G,
+         }) {
+      keyboard_key.try_emplace(keyboard_map_k, false);
+    }
+  }
+  std::atomic<double> mouse_x;                      ///< 鼠标左右，范围[-1, 1] * horizontal_sensitivity
+  std::atomic<double> mouse_y;                      ///< 鼠标上下，范围[-1, 1] * vertical_sensitivity
+  std::atomic<double> mouse_wheel;                  ///< 鼠标滚轮，范围[-1, 1]
+  std::atomic<double> left_x;                       ///< 左摇杆左右，范围[-1, 1] * horizontal_sensitivity
+  std::atomic<double> left_y;                       ///< 左摇杆上下，范围[-1, 1] * vertical_sensitivity
+  std::atomic<double> right_x;                      ///< 右摇杆左右，范围[-1, 1] * horizontal_sensitivity
+  std::atomic<double> right_y;                      ///< 右摇杆上下，范围[-1, 1] * vertical_sensitivity
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
-  struct {
-    std::atomic<bool> w, a, s, d, r, f, i, j, k, l, u, o, g;
-  } keyboard_key;                           ///< 键盘按键
-  std::atomic<uint16_t> keyboard_modifier;  ///< 键盘组合键modifier
+  std::unordered_map<uint16_t, bool> keyboard_key;  ///< 键盘按键
+  std::atomic<uint16_t> keyboard_modifier;          ///< 键盘组合键modifier
 };
 template <typename T>
 struct SwitchMode : tinyfsm::Event {};
@@ -97,7 +128,7 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
 
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
-    if constexpr (std::is_base_of_v<Arm, Mode>) {
+    if constexpr (std::is_base_of_v<Arm, Mode>) {  // 首先要判断这个模式属不属于这个状态机
       if (this->is_in_state<Mode>()) {
         return;
       }
@@ -105,6 +136,9 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
       info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
     }
   }
+
+ protected:
+  static void EnableActuators(bool enable);
 };
 
 class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
@@ -114,7 +148,7 @@ class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
 
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
-    if constexpr (std::is_base_of_v<GimbalBase, Mode>) {
+    if constexpr (std::is_base_of_v<GimbalBase, Mode>) {  // 首先要判断这个模式属不属于这个状态机
       if (this->is_in_state<Mode>()) {
         return;
       }
@@ -125,61 +159,47 @@ class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
 };
 
 namespace state {
+
+#define DeclareState(state_name, fsm)                                                                 \
+  class state_name : public fsm {                                                                     \
+    static_assert(std::is_base_of_v<tinyfsm::Fsm<fsm>, fsm>, "Given fsm class is not tinyfsm::Fsm!"); \
+                                                                                                      \
+   public:                                                                                            \
+    void react(event::Control const &control);                                                        \
+    void entry();                                                                                     \
+  }
+
 namespace arm {
 
 /**
  * @brief 单关节调试
  */
-class Debug : public fsm::Arm {
- public:
-  void react(event::Control const &control);
-  void entry();
-};
+DeclareState(Debug, Arm);
 
-// /**
-//  * @brief 键盘手动控制
-//  */
-// class KeyboardManual : public fsm::Arm {
-//  public:
-//   void react(event::Control const &control);
-//   void entry();
-// };
+/**
+ * @brief 键盘手动控制
+ */
+DeclareState(KeyboardManual, Arm);
 
-// /**
-//  * @brief 自定义控制器手动控制
-//  */
-// class CustomCtrlManual : public fsm::Arm {
-//  public:
-//   void react(event::Control const &control);
-//   void entry();
-// };
+/**
+ * @brief 自定义控制器手动控制
+ */
+DeclareState(CustomCtrlManual, Arm);
 
 /**
  * @brief 跟随参考轨迹
  */
-class FollowExternalTrajectory : public fsm::Arm {
- public:
-  void react(event::Control const &control);
-  void entry();
-};
+DeclareState(FollowExternalTrajectory, Arm);
 
 /**
  * @brief 机械臂保持收回
  */
-class Retracted : public fsm::Arm {
- public:
-  void react(event::Control const &control);
-  void entry();
-};
+DeclareState(Retracted, Arm);
 
 /**
  * @brief 机械臂无力
  */
-class NoForce : public fsm::Arm {
- public:
-  void react(event::Control const &control);
-  void entry();
-};
+DeclareState(NoForce, Arm);
 
 }  // namespace arm
 
@@ -189,11 +209,7 @@ namespace gimbal_base {
  * @brief 大yaw轴跟上层机械臂转
  *
  */
-class FollowArm : public fsm::GimbalBase {
- public:
-  void react(event::Control const &control);
-  void entry();
-};
+DeclareState(FollowArm, GimbalBase);
 
 /**
  * @brief 大yaw轴跟上层机械臂转，但是只有小yaw轴快碰到转动限位的时候才跟
@@ -214,13 +230,11 @@ class FollowArmLazy : public fsm::GimbalBase {
 /**
  * @brief 大yaw轴无力
  */
-class NoForce : public fsm::GimbalBase {
- public:
-  void react(event::Control const &control);
-  void entry();
-};
+DeclareState(NoForce, GimbalBase);
 
 }  // namespace gimbal_base
+
+#undef DeclareState
 
 }  // namespace state
 

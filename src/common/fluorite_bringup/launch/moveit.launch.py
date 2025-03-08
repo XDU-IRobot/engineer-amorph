@@ -4,7 +4,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 
-from launch_ros.actions import Node
+from launch_ros.actions import Node, SetParameter
 from launch_ros.substitutions import FindPackageShare
 
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -38,7 +38,6 @@ def generate_launch_description():
     )
     jsp = LaunchConfiguration("jsp")
 
-
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -50,8 +49,9 @@ def generate_launch_description():
         ]
     )
     robot_description = {"robot_description": robot_description_content}
-    
-    moveit_config = MoveItConfigsBuilder("fluorite", package_name="fluorite_arm_moveit_config").to_moveit_configs()
+
+    moveit_config = MoveItConfigsBuilder(
+        "fluorite", package_name="fluorite_arm_moveit_config").to_moveit_configs()
 
     joint_state_publisher_node = Node(
         package="joint_state_publisher_gui",
@@ -69,8 +69,9 @@ def generate_launch_description():
         joint_state_publisher_node,
         robot_state_publisher_node,
     ]
-    
-    launch = LaunchDescription(declared_arguments + nodes)
+
+    launch = LaunchDescription(
+        declared_arguments + nodes + [SetParameter(name='use_sim_time', value=True),])
     launch.add_entity(generate_move_group_launch(moveit_config))
 
     return launch

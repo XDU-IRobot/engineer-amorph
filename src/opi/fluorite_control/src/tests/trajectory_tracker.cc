@@ -47,7 +47,7 @@ void RegularTest() {
   PidTrajectoryTracker<1> tt{PID{}, PID{}};
   auto mock_rt = *GenerateValidTrajectory();
 
-  tt.UpdateTrajectory(mock_rt);
+  tt.SwitchReferenceTrajectory(mock_rt);
   tt.ResetReferenceTrajectory();
 
   RunTracker(tt);
@@ -62,7 +62,7 @@ void NonMonotonicTimeTest() {
 
   auto &points = mock_rt.points;
   std::swap(points[1], points[2]);
-  tt.UpdateTrajectory(mock_rt);
+  tt.SwitchReferenceTrajectory(mock_rt);
 
   RunTracker(tt);
 }
@@ -80,7 +80,7 @@ void OnePointTest() {
 
   mock_rt.points = {a};
 
-  tt.UpdateTrajectory(mock_rt);
+  tt.SwitchReferenceTrajectory(mock_rt);
   tt.ResetReferenceTrajectory();
 
   RunTracker(tt);
@@ -102,7 +102,7 @@ void TwoPointTest() {
 
   mock_rt.points = {a, b};
 
-  tt.UpdateTrajectory(mock_rt);
+  tt.SwitchReferenceTrajectory(mock_rt);
   tt.ResetReferenceTrajectory();
 
   RunTracker(tt);
@@ -120,7 +120,7 @@ void NegativeTimeTest() {
   points[1].time_from_start.sec = -3;
   points[2].time_from_start.sec = -2;
   points[3].time_from_start.sec = -1;
-  tt.UpdateTrajectory(mock_rt);
+  tt.SwitchReferenceTrajectory(mock_rt);
 
   RunTracker(tt);
 }
@@ -132,7 +132,7 @@ void EmptyTrajectoryTest() {
   PidTrajectoryTracker<1> tt{PID{}, PID{}};
   trajectory_msgs::msg::JointTrajectory mock_rt{};
 
-  tt.UpdateTrajectory(mock_rt);
+  tt.SwitchReferenceTrajectory(mock_rt);
 
   RunTracker(tt);
 }
@@ -146,7 +146,7 @@ void JointNumberMismatchTest() {
 
   auto &points = mock_rt.points;
   points[0].positions.push_back(1.0);
-  tt.UpdateTrajectory(mock_rt);
+  tt.SwitchReferenceTrajectory(mock_rt);
 
   RunTracker(tt);
 }
@@ -162,7 +162,7 @@ void SinglePointJointNumberMismatchTest() {
   p.positions.push_back(2.0);
   p.positions.push_back(3.0);
 
-  tt.UpdateTrajectory(p);
+  tt.SwitchReferenceTrajectory(p);
   tt.ResetReferenceTrajectory();
 
   RunTracker(tt);

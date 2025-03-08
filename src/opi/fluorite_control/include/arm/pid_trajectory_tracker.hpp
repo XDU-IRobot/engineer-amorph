@@ -35,7 +35,7 @@ class PidTrajectoryTracker {
    * @param trajectory      参考轨迹
    * @param playback_speed  参考轨迹播放速度，范围[0, std::numeric_limits<double>::max()]
    */
-  void UpdateTrajectory(const Trajectory &traj, double playback_speed = 1.0) {
+  void SwitchReferenceTrajectory(const Trajectory &traj, double playback_speed = 1.0) {
     // corner case 1: 空轨迹
     if (traj.points.empty()) {
       warn("trajectory tracker: empty trajectory, rejecting!");
@@ -43,7 +43,7 @@ class PidTrajectoryTracker {
     }
     // 如果只有一个点，调用另一个重载函数
     if (traj.points.size() == 1) {
-      UpdateTrajectory(traj.points[0]);
+      SwitchReferenceTrajectory(traj.points[0]);
       return;
     }
     // corner case 2: 时间不单调递增
@@ -79,7 +79,7 @@ class PidTrajectoryTracker {
    * @brief 更新一条只有一个点的参考轨迹
    * @param point 参考目标点
    */
-  void UpdateTrajectory(const Point &point) {
+  void SwitchReferenceTrajectory(const Point &point) {
     // corner case: 关节数量和对象创建时的给定数量不一致
     if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
       warn("trajectory tracker: joint number mismatch, rejecting!");
@@ -93,10 +93,7 @@ class PidTrajectoryTracker {
   /**
    * @brief 重置轨迹（把轨迹的播放进度重置到开始）
    */
-  void ResetReferenceTrajectory() {
-    ClearPid();
-    traj_start_time_ = std::chrono::steady_clock::now();
-  }
+  void ResetReferenceTrajectory() { traj_start_time_ = std::chrono::steady_clock::now(); }
 
   /**
    * @brief 重置所有pid控制器的内部状态
@@ -160,7 +157,7 @@ class PidTrajectoryTracker {
         point.positions[i] = current_joint_positions[i];
       }
       point.velocities.resize(NJoints);
-      UpdateTrajectory(point);
+      SwitchReferenceTrajectory(point);
       warn("trajectory tracker: no reference trajectory, using current position as reference.");
     }
 

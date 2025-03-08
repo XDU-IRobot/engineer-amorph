@@ -1,6 +1,8 @@
 
 list(APPEND tests
     trajectory_tracker
+    end_effector_pose
+    keyboard
 )
 
 foreach(test ${tests})

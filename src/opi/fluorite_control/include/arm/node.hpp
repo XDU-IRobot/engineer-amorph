@@ -12,7 +12,9 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2/LinearMath/Quaternion.h>
+#include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
 #include <librm.hpp>
 
 #include "arm/fsm.hpp"
@@ -38,9 +40,11 @@ class FluoriteArm final : public rclcpp::Node {
   void DeviceMonitor();
   void Ins();
   void Remote();
+  void Keyboard();
   void Referee();
   void JointStatesPublisher();
   void TFBroadcaster();
+  void TFListener();
 
   void ParamHotUpdate();
   void ProcessSensorData();
@@ -60,13 +64,21 @@ class FluoriteArm final : public rclcpp::Node {
   geometry_msgs::msg::TransformStamped world_to_base_yaw_tf_{};
   /** </tf publishers> **/
 
+  /** <end effector tf listener> **/
+  std::shared_ptr<tf2_ros::Buffer> tf_listener_buffer_{nullptr};
+  std::shared_ptr<tf2_ros::TransformListener> end_effector_pose_tf_listener_{nullptr};
+  rclcpp::TimerBase::SharedPtr end_effector_pose_tf_listener_timer_{nullptr};
+  /** </end effector tf listener> **/
+
   /** <ins> **/
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr ins_sub_{nullptr};
   /** </ins> **/
 
-  /** <remote> **/
+  /** <user input subscribers> **/
   rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr remote_sub_{nullptr};
-  /** </remote> **/
+  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr keyboard_keydown_sub_{nullptr};
+  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr keyboard_keyup_sub_{nullptr};
+  /** </user input subscribers> **/
 
   /** <referee> **/
   rclcpp::Subscription<rm2_referee_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_{nullptr};

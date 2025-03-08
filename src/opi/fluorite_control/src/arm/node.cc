@@ -8,8 +8,8 @@
 #include <chrono>
 
 #include <fo_lpf.h>
+#include <keyboard_msgs/msg/detail/key__struct.hpp>
 #include <librm.hpp>
-#include <rclcpp/qos.hpp>
 #include <tinyfsm.hpp>
 #if __has_include("wiringPi.h")
 #include <wiringPi.h>
@@ -29,10 +29,12 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
   DeviceMonitor();         // 设备在线状态监控
   Ins();                   // 启动IMU接收
   Remote();                // 启动遥控器接收
+  Keyboard();              // 启动键盘接收
   Referee();               // 启动裁判系统接收
   Blackbox();              // 启动黑匣子（广播state和control）
   JointStatesPublisher();  // 启动关节状态发布
   TFBroadcaster();         // 启动imu到base_yaw_link的tf广播
+  TFListener();            // 启动tf监听，为了实时更新当前机械臂末端的位姿
 
   // 启动控制循环
   info("control node initialize ok");
@@ -134,8 +136,8 @@ void FluoriteArm::InitializeShit() {
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[1]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
-             static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])}  // base_yaw 位置环
-  );
+             static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])},  // base_yaw 位置环
+      moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "arm"});
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
       DmMit{*arm_can,
@@ -190,7 +192,6 @@ void FluoriteArm::InitializeShit() {
                     Pin<OUTPUT>(ros_params_manager_.data().storage_right_valve_pin),
                     Pin<PWM_OUTPUT>(ros_params_manager_.data().storage_vaccum_pump_pin)});
 
-  arm_can->SetFilter(0, 0);          // 设置can过滤器
   arm_can->Begin();                  // 启动can总线接收
   fluorite::fsm::fsm_list::start();  // 状态机开始监听事件
   info("objects construction ok");
@@ -225,6 +226,24 @@ void FluoriteArm::Remote() {
   info("remote ok");
 }
 
+void FluoriteArm::Keyboard() {
+  keyboard_keydown_sub_ = create_subscription<keyboard_msgs::msg::Key>(
+      "/keydown", rclcpp::SensorDataQoS(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
+        if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
+          control_msg_.keyboard_key[msg->code] = true;
+        }
+        control_msg_.keyboard_modifier |= msg->modifiers;
+      });
+  keyboard_keyup_sub_ = create_subscription<keyboard_msgs::msg::Key>(
+      "/keyup", rclcpp::SensorDataQoS(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
+        if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
+          control_msg_.keyboard_key[msg->code] = false;
+        }
+        control_msg_.keyboard_modifier &= (~msg->modifiers);
+      });
+  info("keyboard ok");
+}
+
 void FluoriteArm::Referee() { info("referee ok"); }
 
 /**
@@ -233,7 +252,7 @@ void FluoriteArm::Referee() { info("referee ok"); }
  */
 void FluoriteArm::Blackbox() {
   blackbox_state_pub_ =
-      create_publisher<fluorite_msgs::msg::ArmState>("blackbox/arm_state", rclcpp::SystemDefaultsQoS());
+      create_publisher<fluorite_msgs::msg::ArmState>("fluorite/blackbox/arm_state", rclcpp::SystemDefaultsQoS());
   blackbox_timer_ = create_wall_timer(20ms, [this] { blackbox_state_pub_->publish(fluorite::state); });
   info("blackbox ok");
 }
@@ -242,12 +261,12 @@ void FluoriteArm::Blackbox() {
  * @brief 设备在线状态监控
  */
 void FluoriteArm::DeviceMonitor() {
-  device_monitor_timer_ = create_wall_timer(300ms, [this] {
-    // device_monitor_.Update();
-    // if (!device_monitor_.all_device_ok()) {
-    //   fsm::DispatchEvent(event::arm::SwitchMode<state::arm::NoForce>{});
-    // }
-  });
+  // device_monitor_timer_ = create_wall_timer(300ms, [this] {
+  //   // device_monitor_.Update();
+  //   // if (!device_monitor_.all_device_ok()) {
+  //   //   fsm::DispatchEvent(event::arm::SwitchMode<state::arm::NoForce>{});
+  //   // }
+  // });
   info("device monitor ok");
 }
 
@@ -319,6 +338,22 @@ void FluoriteArm::TFBroadcaster() {
     world_to_base_yaw_tf_.transform.rotation.z = world_to_base_yaw_tf_quat_.z();
     world_to_base_yaw_tf_.transform.rotation.w = world_to_base_yaw_tf_quat_.w();
     world_to_base_yaw_tf_broadcaster_->sendTransform(world_to_base_yaw_tf_);
+  });
+}
+
+/**
+ * @brief 监听tf，实时更新当前机械臂末端的位姿
+ */
+void FluoriteArm::TFListener() {
+  tf_listener_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+  end_effector_pose_tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_listener_buffer_, this);
+  end_effector_pose_tf_listener_timer_ = create_wall_timer(20ms, [this] {
+    try {
+      fluorite::state.end_effector_pose =
+          tf_listener_buffer_->lookupTransform("end_yaw2_link", "base_yaw_link", tf2::TimePointZero);
+    } catch (tf2::TransformException &ex) {
+      RCLCPP_ERROR(get_logger(), "%s", ex.what());
+    }
   });
 }
 
