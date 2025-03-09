@@ -72,7 +72,7 @@ void KeyboardManual::react(event::Control const &control) {
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O))) {
-    //并且上一轮规划结束（锁被释放），才进行一轮规划，否则只是按旧target执行一轮控制
+    // 并且上一轮规划结束（锁被释放），才进行一轮规划，否则只是按旧target执行一轮控制
     if (fluorite::controller->move_group_request_mutex.try_lock()) {
       move_group_request_thread_pool_.enqueue([&] {  // 异步执行规划，防止阻塞主控制循环
         try {
