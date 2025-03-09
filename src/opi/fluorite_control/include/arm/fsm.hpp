@@ -22,6 +22,7 @@
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
+#include "common/thread_pool.hpp"
 #include "common/logger.hpp"
 
 // 使用tinyfsm之后，就没办法再使用oop的各种编程范式来写代码了，因为状态机类没有对象
@@ -123,8 +124,10 @@ struct SwitchMode : tinyfsm::Event {};
 
 class Arm : public tinyfsm::MooreMachine<Arm> {
  public:
+  virtual void entry() = 0;
+
   void react(tinyfsm::Event const &event);
-  void react(event::Control const &control);
+  virtual void react(event::Control const &control) = 0;
 
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
@@ -143,8 +146,10 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
 
 class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
  public:
+  virtual void entry() = 0;
+
   void react(tinyfsm::Event const &event);
-  void react(event::Control const &control);
+  virtual void react(event::Control const &control) = 0;
 
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
@@ -165,8 +170,8 @@ namespace state {
     static_assert(std::is_base_of_v<tinyfsm::Fsm<fsm>, fsm>, "Given fsm class is not tinyfsm::Fsm!"); \
                                                                                                       \
    public:                                                                                            \
-    void react(event::Control const &control);                                                        \
-    void entry();                                                                                     \
+    void react(event::Control const &control) override;                                               \
+    void entry() override;                                                                            \
   }
 
 namespace arm {
@@ -179,7 +184,14 @@ DeclareState(Debug, Arm);
 /**
  * @brief 键盘手动控制
  */
-DeclareState(KeyboardManual, Arm);
+class KeyboardManual : public Arm {
+ public:
+  void react(event::Control const &control) override;
+  void entry() override;
+
+ private:
+  static ThreadPool move_group_request_thread_pool_;
+};
 
 /**
  * @brief 自定义控制器手动控制

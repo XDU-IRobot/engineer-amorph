@@ -1,5 +1,8 @@
 
+if (${BUILD_TESTS})
+
 list(APPEND tests
+    do_tinyfsm_has_object
     trajectory_tracker
     end_effector_pose
     keyboard
@@ -13,3 +16,5 @@ foreach(test ${tests})
 endforeach()
 
 unset(tests)
+
+endif()

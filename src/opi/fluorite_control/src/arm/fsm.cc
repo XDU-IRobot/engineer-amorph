@@ -10,11 +10,9 @@
 
 #include <Eigen/Dense>
 
-#include "Eigen/src/Geometry/Quaternion.h"
 #include "keyboard_msgs/msg/key.hpp"
 
-#include "common/logger.hpp"
-#include "librm/modules/algorithm/utils.hpp"
+#include "librm.hpp"
 
 namespace fluorite {
 
@@ -25,10 +23,11 @@ std::unique_ptr<Controller> controller{nullptr};
 namespace fsm {
 
 // 忽略不关心的event
-void Arm::react(tinyfsm::Event const &event) {}
-void Arm::react(event::Control const &control) {}
-void GimbalBase::react(tinyfsm::Event const &event) {}
-void GimbalBase::react(event::Control const &control) {}
+// these functions should never be called so wtf in them
+void Arm::react(tinyfsm::Event const &event) { error("wtf1"); }
+void Arm::react(event::Control const &control) { error("wt2f"); }
+void GimbalBase::react(tinyfsm::Event const &event) { error("wtf3"); }
+void GimbalBase::react(event::Control const &control) { error("wt4f"); }
 
 void Arm::EnableActuators(bool enable) {
   fluorite::actuator->base_yaw.Enable(enable);
@@ -62,70 +61,80 @@ void NoForce::entry() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void Debug::react(event::Control const &control) {}
+ThreadPool KeyboardManual::move_group_request_thread_pool_{1};
 void KeyboardManual::react(event::Control const &control) {
-  if (fluorite::controller->move_group_request_mutex.try_lock()) {
-    // 如果没有其他线程正在使用move_group，才进行一轮新的规划，否则不更新target，只是按旧target执行一轮控制
-    fluorite::controller->move_group_request_mutex.lock();
+  // 如果键盘有输入，
+  if ((control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O))) {
+    //并且上一轮规划结束（锁被释放），才进行一轮规划，否则只是按旧target执行一轮控制
+    if (fluorite::controller->move_group_request_mutex.try_lock()) {
+      move_group_request_thread_pool_.enqueue([&] {  // 异步执行规划，防止阻塞主控制循环
+        try {
+          const auto target_pose = [&] {  // 根据键盘输入计算末端的目标位姿
+            auto ret = fluorite::controller->move_group.getCurrentPose();
 
-    // 异步执行规划，防止阻塞主控制循环
-    auto plan_future = std::async(std::launch::async, [&] {
-      try {
-        const auto target_pose = [&] {  // 根据键盘输入计算末端的目标位姿
-          geometry_msgs::msg::PoseStamped ret;
+            const double delta_x = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
+                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) * 0.1;
+            const double delta_y = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) -
+                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) * 0.1;
+            const double delta_z = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
+                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) * 0.1;
+            const double delta_yaw = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
+                                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O) * 0.1;
+            double delta_pitch{0}, delta_roll{0};
+            if (control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
+              delta_pitch = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
+                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K) * 0.02;
+              delta_roll = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
+                           control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) * 0.02;
+            }
 
-          const double delta_x = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
-                                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A);
-          const double delta_y = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) -
-                                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W);
-          const double delta_z = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
-                                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F);
-          const double delta_yaw = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
-                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O);
-          double delta_pitch{0}, delta_roll{0};
-          if (control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
-            delta_pitch = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
-                          control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K);
-            delta_roll = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
-                         control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L);
+            const Eigen::Quaterniond q(fluorite::state.end_effector_pose.transform.rotation.w,
+                                       fluorite::state.end_effector_pose.transform.rotation.x,
+                                       fluorite::state.end_effector_pose.transform.rotation.y,
+                                       fluorite::state.end_effector_pose.transform.rotation.z);
+            Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(0, 1, 2);
+            euler.x() += delta_roll * 0.01;
+            euler.y() += delta_pitch * 0.01;
+            euler.z() += delta_yaw * 0.01;
+
+            ret.pose.position.x += delta_x;
+            ret.pose.position.y += delta_y;
+            ret.pose.position.z += delta_z;
+
+            return ret;
+          }();
+
+          // 向move_group提交规划请求
+          fluorite::controller->move_group.setNumPlanningAttempts(10);
+          fluorite::controller->move_group.setPlanningTime(0.5);
+          fluorite::controller->move_group.setPoseTarget(target_pose);
+          const auto [success, plan] = [&] {
+            moveit::planning_interface::MoveGroupInterface::Plan plan;
+            return std::make_pair(fluorite::controller->move_group.plan(plan), plan);
+          }();
+
+          // 如果规划成功，更新规划结果到PID轨迹追踪器中
+          if (success) {
+            fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(plan.trajectory_.joint_trajectory);
+          } else {
+            warn("failed to plan trajectory: invalid target position");
           }
-
-          ret.pose.position.x = fluorite::state.end_effector_pose.transform.translation.x + delta_x * 0.01;
-          ret.pose.position.y = fluorite::state.end_effector_pose.transform.translation.y + delta_x * 0.01;
-          ret.pose.position.z = fluorite::state.end_effector_pose.transform.translation.z + delta_z * 0.01;
-
-          const Eigen::Quaterniond q(fluorite::state.end_effector_pose.transform.rotation.w,
-                                     fluorite::state.end_effector_pose.transform.rotation.x,
-                                     fluorite::state.end_effector_pose.transform.rotation.y,
-                                     fluorite::state.end_effector_pose.transform.rotation.z);
-          Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(0, 1, 2);
-          euler.x() += delta_roll * 0.01;
-          euler.y() += delta_pitch * 0.01;
-          euler.z() += delta_yaw * 0.01;
-
-          return ret;
-        }();
-
-        // 向move_group提交规划请求
-        fluorite::controller->move_group.setPoseTarget(target_pose);
-        const auto [success, plan] = [&] {
-          moveit::planning_interface::MoveGroupInterface::Plan plan;
-          return std::make_pair(fluorite::controller->move_group.plan(plan), plan);
-        }();
-
-        // 如果规划成功，更新规划结果到PID轨迹追踪器中
-        if (success) {
-          fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(plan.trajectory_.joint_trajectory);
-        } else {
-          warn("failed to plan trajectory: invalid target position");
+        } catch (const std::exception &e) {
+          error("failed to plan trajectory: %s", e.what());
+          fluorite::controller->move_group_request_mutex.unlock();
         }
-      } catch (const std::exception &e) {
-        error("failed to plan trajectory: %s", e.what());
-        fluorite::controller->move_group_request_mutex.unlock();
-      }
 
-      // 解锁move_group
-      fluorite::controller->move_group_request_mutex.unlock();
-    });
+        // 解锁move_group
+        fluorite::controller->move_group_request_mutex.unlock();
+      });
+    }
   }
 
   const std::array<double, 6> kCurrentPosition = {fluorite::state.imu_yaw,           fluorite::state.pitch_1_encoder,
@@ -159,7 +168,7 @@ void CustomCtrlManual::react(event::Control const &control) {
   // TODO
   if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) {
     // equivalent to transit<CustomCtrlManual>(), but with logging
-    DispatchEvent(event::SwitchMode<CustomCtrlManual>{});
+    DispatchEvent(event::SwitchMode<KeyboardManual>{});
   }
 }
 void FollowExternalTrajectory::react(event::Control const &control) {
@@ -281,5 +290,5 @@ void NoForce::react(event::Control const &control) {
 
 }  // namespace fluorite
 
-FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::NoForce)
-FSM_INITIAL_STATE(fluorite::fsm::GimbalBase, fluorite::fsm::state::gimbal_base::NoForce)
+FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::KeyboardManual);
+FSM_INITIAL_STATE(fluorite::fsm::GimbalBase, fluorite::fsm::state::gimbal_base::NoForce);

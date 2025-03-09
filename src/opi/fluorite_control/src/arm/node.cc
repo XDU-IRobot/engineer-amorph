@@ -8,7 +8,6 @@
 #include <chrono>
 
 #include <fo_lpf.h>
-#include <keyboard_msgs/msg/detail/key__struct.hpp>
 #include <librm.hpp>
 #include <tinyfsm.hpp>
 #if __has_include("wiringPi.h")
@@ -198,8 +197,8 @@ void FluoriteArm::InitializeShit() {
 }
 
 void FluoriteArm::Ins() {
-  auto quaternion_buffer = new float[4];  // 这里不用担心free的问题，因为这个数组的生命周期和程序一样长
-  auto euler_angle_buffer = new float[3];
+  static float quaternion_buffer[4]{0};
+  static float euler_angle_buffer[4]{0};
   ins_sub_ = create_subscription<sensor_msgs::msg::Imu>("/imu", rclcpp::SensorDataQoS(),
                                                         [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
                                                           using rm::modules::algorithm::utils::QuatToEuler;
@@ -217,12 +216,24 @@ void FluoriteArm::Ins() {
 
 void FluoriteArm::Remote() {
   static std::array<short, 16> last_channels{};
-  remote_sub_ = create_subscription<sbus_interface::msg::Sbus>("/sbus", rclcpp::SensorDataQoS(),
-                                                               [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
-                                                                 // remote_device_.IAmAlive();
+  remote_sub_ = create_subscription<sbus_interface::msg::Sbus>(
+      "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
+        // remote_device_.IAmAlive();
+        control_msg_.left_x = -(double)msg->mapped_channels[3] / 1000.0;
+        control_msg_.left_y = -(double)msg->mapped_channels[1] / 1000.0;
+        control_msg_.right_x = (double)msg->mapped_channels[0] / 1000.0;
+        control_msg_.right_y = (double)msg->mapped_channels[2] / 1000.0;
+        control_msg_.sa = -msg->mapped_channels[8] / 1000;
+        control_msg_.sb = -msg->mapped_channels[9] / 1000;
+        control_msg_.sc = -msg->mapped_channels[10] / 1000;
+        control_msg_.sd = -msg->mapped_channels[11] / 1000;
+        control_msg_.se = -msg->mapped_channels[12] / 1000;
+        control_msg_.sf = -msg->mapped_channels[13] / 1000;
+        control_msg_.sg = -msg->mapped_channels[14] / 1000;
+        control_msg_.sh = -msg->mapped_channels[15] / 1000;
 
-                                                                 last_channels = msg->mapped_channels;
-                                                               });
+        last_channels = msg->mapped_channels;
+      });
   info("remote ok");
 }
 
@@ -321,6 +332,7 @@ void FluoriteArm::JointStatesPublisher() {
     joint_states_msg_.velocity[5] = fluorite::state.end_yaw_2_encoder_speed;
     joint_states_pub_->publish(joint_states_msg_);
   });
+  info("jsp ok");
 }
 
 /**
@@ -339,6 +351,7 @@ void FluoriteArm::TFBroadcaster() {
     world_to_base_yaw_tf_.transform.rotation.w = world_to_base_yaw_tf_quat_.w();
     world_to_base_yaw_tf_broadcaster_->sendTransform(world_to_base_yaw_tf_);
   });
+  info("tf broadcaster ok");
 }
 
 /**
@@ -355,6 +368,7 @@ void FluoriteArm::TFListener() {
       RCLCPP_ERROR(get_logger(), "%s", ex.what());
     }
   });
+  info("tf listener ok");
 }
 
 int main(int argc, char *argv[]) {
