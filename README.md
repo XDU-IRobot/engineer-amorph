@@ -152,6 +152,8 @@
 
 - behaviortree_cpp_v3 `apt install ros-rolling-behaviortree-cpp-v3`
 
+- NLopt `apt install libnlopt-dev libnlopt-cxx-dev`
+
 #### 在香橙派(`ubuntu 22.04, RT Kernel`)上：
 
 1. 安装以下软件
@@ -161,6 +163,8 @@
    - moveit `apt install ros-humble-moveit*`
 
    - behaviortree_cpp_v3 `apt install ros-humble-behaviortree-cpp-v3`
+
+   - NLopt `apt install libnlopt-dev libnlopt-cxx-dev`
 
    - [wiringOP](https://github.com/orangepi-xunlong/wiringOP)
 
@@ -180,7 +184,9 @@
 
    - [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
 
-2. 执行初始化脚本：
+2. 按指引配 mrc-net 的环境，被折磨一个周（祝你好运:)))))）
+
+3. 执行初始化脚本：
 
    ```bash
    sudo python3 ./scripts/setup_env.py -j
