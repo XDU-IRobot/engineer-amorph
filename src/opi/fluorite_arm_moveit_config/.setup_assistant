@@ -7,19 +7,4 @@ moveit_setup_assistant_config:
   package_settings:
     author_name: lunarifish
     author_email: messsenger@lunariio.work
-    generated_timestamp: 1740895328
-  control_xacro:
-    command:
-      - position
-    state:
-      - position
-      - velocity
-  modified_urdf:
-    xacros:
-      - control_xacro
-  control_xacro:
-    command:
-      - position
-    state:
-      - position
-      - velocity
+    generated_timestamp: 1741602666
