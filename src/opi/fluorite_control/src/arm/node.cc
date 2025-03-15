@@ -7,6 +7,9 @@
 
 #include <chrono>
 
+#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <moveit/robot_model/robot_model.h>
+#include <moveit/robot_state/robot_state.h>
 #include <fo_lpf.h>
 #include <librm.hpp>
 #include <tinyfsm.hpp>
@@ -33,7 +36,6 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
   Blackbox();              // 启动黑匣子（广播state和control）
   JointStatesPublisher();  // 启动关节状态发布
   TFBroadcaster();         // 启动imu到base_yaw_link的tf广播
-  TFListener();            // 启动tf监听，为了实时更新当前机械臂末端的位姿
 
   // 启动控制循环
   info("control node initialize ok");
@@ -60,6 +62,10 @@ void FluoriteArm::InitializeShit() {
   using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;
   using DmSettingsMit = rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>;
   using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+
+  robot_model_loader::RobotModelLoader robot_model_loader{rclcpp::Node::SharedPtr{this}};
+  const auto kinematic_model = robot_model_loader.getModel();
+  auto robot_state = std::make_shared<moveit::core::RobotState>(kinematic_model);
 
   // 这个can对象的生命周期和程序一样长，所以new一个就不管他了，不用delete
   auto arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
@@ -136,6 +142,7 @@ void FluoriteArm::InitializeShit() {
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])},  // base_yaw 位置环
+      std::move(robot_state),
       moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "arm"});
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
@@ -190,6 +197,9 @@ void FluoriteArm::InitializeShit() {
       StorageSystem{Pin<OUTPUT>(ros_params_manager_.data().storage_left_valve_pin),
                     Pin<OUTPUT>(ros_params_manager_.data().storage_right_valve_pin),
                     Pin<PWM_OUTPUT>(ros_params_manager_.data().storage_vaccum_pump_pin)});
+
+  fluorite::controller->move_group.setPlanningPipelineId("ompl");
+  fluorite::controller->move_group.setPlannerId(ros_params_manager_.data().ompl_planner_id);
 
   arm_can->Begin();                  // 启动can总线接收
   fluorite::fsm::fsm_list::start();  // 状态机开始监听事件
@@ -352,23 +362,6 @@ void FluoriteArm::TFBroadcaster() {
     world_to_base_yaw_tf_broadcaster_->sendTransform(world_to_base_yaw_tf_);
   });
   info("tf broadcaster ok");
-}
-
-/**
- * @brief 监听tf，实时更新当前机械臂末端的位姿
- */
-void FluoriteArm::TFListener() {
-  tf_listener_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
-  end_effector_pose_tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_listener_buffer_, this);
-  end_effector_pose_tf_listener_timer_ = create_wall_timer(20ms, [this] {
-    try {
-      fluorite::state.end_effector_pose =
-          tf_listener_buffer_->lookupTransform("end_yaw2_link", "base_yaw_link", tf2::TimePointZero);
-    } catch (tf2::TransformException &ex) {
-      RCLCPP_ERROR(get_logger(), "%s", ex.what());
-    }
-  });
-  info("tf listener ok");
 }
 
 int main(int argc, char *argv[]) {

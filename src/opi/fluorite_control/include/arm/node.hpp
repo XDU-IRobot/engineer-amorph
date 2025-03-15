@@ -44,7 +44,6 @@ class FluoriteArm final : public rclcpp::Node {
   void Referee();
   void JointStatesPublisher();
   void TFBroadcaster();
-  void TFListener();
 
   void ParamHotUpdate();
   void ProcessSensorData();
@@ -63,12 +62,6 @@ class FluoriteArm final : public rclcpp::Node {
   tf2::Quaternion world_to_base_yaw_tf_quat_{};
   geometry_msgs::msg::TransformStamped world_to_base_yaw_tf_{};
   /** </tf publishers> **/
-
-  /** <end effector tf listener> **/
-  std::shared_ptr<tf2_ros::Buffer> tf_listener_buffer_{nullptr};
-  std::shared_ptr<tf2_ros::TransformListener> end_effector_pose_tf_listener_{nullptr};
-  rclcpp::TimerBase::SharedPtr end_effector_pose_tf_listener_timer_{nullptr};
-  /** </end effector tf listener> **/
 
   /** <ins> **/
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr ins_sub_{nullptr};

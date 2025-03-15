@@ -69,16 +69,19 @@ struct Controller {
   using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
   Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosPID &&base_yaw_position_pid,
-             moveit::planning_interface::MoveGroupInterface &&move_group)
+             moveit::core::RobotStatePtr &&kinematic_model, moveit::planning_interface::MoveGroupInterface &&move_group)
       : trajectory_tracker{std::move(ptt)},
         base_yaw_speed_pid{std::move(base_yaw_speed_pid)},
         base_yaw_position_pid{std::move(base_yaw_position_pid)},
+        kinematic_model(std::move(kinematic_model)),
         move_group(std::move(move_group)) {}
   PidTrajectoryTracker<6> trajectory_tracker;
   PosPID base_yaw_speed_pid, base_yaw_position_pid;
 
+  moveit::core::RobotStatePtr kinematic_model;
   moveit::planning_interface::MoveGroupInterface move_group;
   std::mutex move_group_request_mutex;
+  ThreadPool move_group_request_thread_pool_{1};
 };
 extern std::unique_ptr<Controller> controller;
 
@@ -184,14 +187,7 @@ DeclareState(Debug, Arm);
 /**
  * @brief 键盘手动控制
  */
-class KeyboardManual : public Arm {
- public:
-  void react(event::Control const &control) override;
-  void entry() override;
-
- private:
-  static ThreadPool move_group_request_thread_pool_;
-};
+DeclareState(KeyboardManual, Arm);
 
 /**
  * @brief 自定义控制器手动控制

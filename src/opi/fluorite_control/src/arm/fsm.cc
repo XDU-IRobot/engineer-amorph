@@ -14,6 +14,10 @@
 
 #include "librm.hpp"
 
+constexpr int kRcSwitchUp = 1;
+constexpr int kRcSwitchMiddle = 0;
+constexpr int kRcSwitchDown = -1;
+
 namespace fluorite {
 
 fluorite_msgs::msg::ArmState state{};
@@ -32,7 +36,7 @@ void GimbalBase::react(event::Control const &control) { error("wt4f"); }
 void Arm::EnableActuators(bool enable) {
   fluorite::actuator->base_yaw.Enable(enable);
   const auto dm_enable = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
-  fluorite::actuator->yaw.SendInstruction(dm_enable);
+  fluorite::actuator->yaw.SendInstruction(rm::device::DmMotorInstructions::kDisable);
   fluorite::actuator->pitch_1.SendInstruction(dm_enable);
   fluorite::actuator->pitch_2.SendInstruction(dm_enable);
   fluorite::actuator->end_yaw_1.SendInstruction(dm_enable);
@@ -44,8 +48,23 @@ namespace state {
 namespace arm {
 
 void Debug::entry() { Arm::EnableActuators(true); }
-void KeyboardManual::entry() { Arm::EnableActuators(true); }
-void CustomCtrlManual::entry() { Arm::EnableActuators(true); }
+void KeyboardManual::entry() {
+  Arm::EnableActuators(true);
+  fluorite::controller->move_group_request_mutex.try_lock();
+  fluorite::controller->move_group_request_thread_pool_.enqueue([&] {
+    // 获取当前机械臂末端的位姿，设置为目标位姿
+    fluorite::state.target_end_effector_pose = fluorite::controller->move_group.getCurrentPose();
+    fluorite::controller->move_group_request_mutex.unlock();
+  });
+}
+void CustomCtrlManual::entry() {
+  Arm::EnableActuators(true);
+  fluorite::controller->move_group_request_thread_pool_.enqueue([&] {
+    // 获取当前机械臂末端的位姿，设置为目标位姿
+    fluorite::state.target_end_effector_pose = fluorite::controller->move_group.getCurrentPose();
+    fluorite::controller->move_group_request_mutex.unlock();
+  });
+}
 void FollowExternalTrajectory::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
   Arm::EnableActuators(true);
@@ -60,8 +79,38 @@ void NoForce::entry() {
 ////////////////////////////////CONTROL LOOPS///////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+// 根据遥控器拨杆和键盘的状态，更新机械臂的运行模式
+// 转换逻辑请看仓库最顶层的README.md，操作方法一章
+// 每次控制循环运行结束后，都会调用这个宏一次
+#define UpdateState()                                                         \
+  if (control.sd != kRcSwitchUp) {                                            \
+    DispatchEvent(event::SwitchMode<NoForce>{});                              \
+    return;                                                                   \
+  }                                                                           \
+  if (control.sf == kRcSwitchUp) {                                            \
+    DispatchEvent(event::SwitchMode<Debug>{});                                \
+    return;                                                                   \
+  }                                                                           \
+  switch (control.sc) {                                                       \
+    case kRcSwitchUp: {                                                       \
+      if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) { \
+        DispatchEvent(event::SwitchMode<KeyboardManual>{});                   \
+      } else {                                                                \
+        DispatchEvent(event::SwitchMode<CustomCtrlManual>{});                 \
+      }                                                                       \
+      return;                                                                 \
+    }                                                                         \
+    case kRcSwitchMiddle: {                                                   \
+      DispatchEvent(event::SwitchMode<FollowExternalTrajectory>{});           \
+      return;                                                                 \
+    }                                                                         \
+    case kRcSwitchDown: {                                                     \
+      DispatchEvent(event::SwitchMode<Retracted>{});                          \
+      return;                                                                 \
+    }                                                                         \
+  }
+
 void Debug::react(event::Control const &control) {}
-ThreadPool KeyboardManual::move_group_request_thread_pool_{1};
 void KeyboardManual::react(event::Control const &control) {
   // 如果键盘有输入，
   if ((control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) ||
@@ -72,21 +121,21 @@ void KeyboardManual::react(event::Control const &control) {
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O))) {
-    // 并且上一轮规划结束（锁被释放），才进行一轮规划，否则只是按旧target执行一轮控制
+    // 并且上一轮计算结束（锁被释放），才计算一次新的目标关节位置，否则只是按TrajectoryTracker中留存的参考轨迹继续运动
     if (fluorite::controller->move_group_request_mutex.try_lock()) {
-      move_group_request_thread_pool_.enqueue([&] {  // 异步执行规划，防止阻塞主控制循环
+      fluorite::controller->move_group_request_thread_pool_.enqueue([&] {  // 异步计算ik，防止阻塞控制循环
         try {
-          const auto target_pose = [&] {  // 根据键盘输入计算末端的目标位姿
-            auto ret = fluorite::controller->move_group.getCurrentPose();
+          const auto target_pose = [&] {  // 根据键盘输入移动目标位置的笛卡尔坐标
+            auto ret = fluorite::controller->move_group.getCurrentPose();  // 获取当前机械臂末端的位姿
 
             const double delta_x = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
-                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) * 0.1;
+                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) * 0.02;
             const double delta_y = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) -
-                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) * 0.1;
+                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) * 0.02;
             const double delta_z = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
-                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) * 0.1;
+                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) * 0.02;
             const double delta_yaw = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
-                                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O) * 0.1;
+                                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O) * 0.02;
             double delta_pitch{0}, delta_roll{0};
             if (control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
               delta_pitch = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
@@ -95,10 +144,10 @@ void KeyboardManual::react(event::Control const &control) {
                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) * 0.02;
             }
 
-            const Eigen::Quaterniond q(fluorite::state.end_effector_pose.transform.rotation.w,
-                                       fluorite::state.end_effector_pose.transform.rotation.x,
-                                       fluorite::state.end_effector_pose.transform.rotation.y,
-                                       fluorite::state.end_effector_pose.transform.rotation.z);
+            const Eigen::Quaterniond q(fluorite::state.target_end_effector_pose.pose.orientation.w,
+                                       fluorite::state.target_end_effector_pose.pose.orientation.x,
+                                       fluorite::state.target_end_effector_pose.pose.orientation.y,
+                                       fluorite::state.target_end_effector_pose.pose.orientation.z);
             Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(0, 1, 2);
             euler.x() += delta_roll * 0.01;
             euler.y() += delta_pitch * 0.01;
@@ -163,13 +212,11 @@ void KeyboardManual::react(event::Control const &control) {
     // equivalent to transit<CustomCtrlManual>(), but with logging
     DispatchEvent(event::SwitchMode<CustomCtrlManual>{});
   }
+
+  UpdateState();
 }
 void CustomCtrlManual::react(event::Control const &control) {
   // TODO
-  if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) {
-    // equivalent to transit<CustomCtrlManual>(), but with logging
-    DispatchEvent(event::SwitchMode<KeyboardManual>{});
-  }
 }
 void FollowExternalTrajectory::react(event::Control const &control) {
   const std::array<double, 6> kCurrentPosition = {fluorite::state.imu_yaw,           fluorite::state.pitch_1_encoder,
@@ -190,6 +237,8 @@ void FollowExternalTrajectory::react(event::Control const &control) {
   fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
   fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
+
+  UpdateState();
 }
 void Retracted::react(event::Control const &control) {
   fluorite::state.imu_yaw_target += control.left_x;
@@ -218,11 +267,22 @@ void Retracted::react(event::Control const &control) {
   fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
   fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
+
+  // 状态机模式更新
+  if (control.sd != kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<NoForce>{});
+    return;
+  }
+
+  UpdateState();
 }
 void NoForce::react(event::Control const &control) {
   Arm::EnableActuators(false);
   fluorite::actuator->end_yaw_2.SetCurrent(0);
+  UpdateState();
 }
+
+#undef UpdateState
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
