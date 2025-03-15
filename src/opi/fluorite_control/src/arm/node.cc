@@ -197,9 +197,6 @@ void FluoriteArm::InitializeShit() {
                     Pin<OUTPUT>(ros_params_manager_.data().storage_right_valve_pin),
                     Pin<PWM_OUTPUT>(ros_params_manager_.data().storage_vaccum_pump_pin)});
 
-  fluorite::controller->move_group.setPlanningPipelineId("ompl");
-  fluorite::controller->move_group.setPlannerId(ros_params_manager_.data().ompl_planner_id);
-
   arm_can->Begin();                  // 启动can总线接收
   fluorite::fsm::fsm_list::start();  // 状态机开始监听事件
   info("objects construction ok");

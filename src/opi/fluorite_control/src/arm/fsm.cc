@@ -43,6 +43,27 @@ void Arm::EnableActuators(bool enable) {
   fluorite::actuator->end_pitch.SendInstruction(dm_enable);
 }
 
+void Arm::CalcPidAndExecute() {
+  const std::array<double, 6> kCurrentPosition = {fluorite::state.imu_yaw,           fluorite::state.pitch_1_encoder,
+                                                  fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                                                  fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
+  const std::array<double, 6> kCurrentSpeed = {
+      fluorite::state.yaw_encoder_speed,       fluorite::state.pitch_1_encoder_speed,
+      fluorite::state.pitch_2_encoder_speed,   fluorite::state.end_yaw_1_encoder_speed,
+      fluorite::state.end_pitch_encoder_speed, fluorite::state.end_yaw_2_encoder_speed};
+
+  fluorite::controller->trajectory_tracker.Update(kCurrentPosition, kCurrentSpeed);
+
+  // apply output torque
+  const auto &kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
+  fluorite::actuator->yaw.SetPosition(0, 0, kOutputTorque[0], 0, 0);
+  fluorite::actuator->pitch_1.SetPosition(0, 0, kOutputTorque[1], 0, 0);
+  fluorite::actuator->pitch_2.SetPosition(0, 0, kOutputTorque[2], 0, 0);
+  fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
+  fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
+  fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
+}
+
 namespace state {
 
 namespace arm {
@@ -82,35 +103,59 @@ void NoForce::entry() {
 // 根据遥控器拨杆和键盘的状态，更新机械臂的运行模式
 // 转换逻辑请看仓库最顶层的README.md，操作方法一章
 // 每次控制循环运行结束后，都会调用这个宏一次
-#define UpdateState()                                                         \
-  if (control.sd != kRcSwitchUp) {                                            \
-    DispatchEvent(event::SwitchMode<NoForce>{});                              \
-    return;                                                                   \
-  }                                                                           \
-  if (control.sf == kRcSwitchUp) {                                            \
-    DispatchEvent(event::SwitchMode<Debug>{});                                \
-    return;                                                                   \
-  }                                                                           \
-  switch (control.sc) {                                                       \
-    case kRcSwitchUp: {                                                       \
-      if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) { \
-        DispatchEvent(event::SwitchMode<KeyboardManual>{});                   \
-      } else {                                                                \
-        DispatchEvent(event::SwitchMode<CustomCtrlManual>{});                 \
-      }                                                                       \
-      return;                                                                 \
-    }                                                                         \
-    case kRcSwitchMiddle: {                                                   \
-      DispatchEvent(event::SwitchMode<FollowExternalTrajectory>{});           \
-      return;                                                                 \
-    }                                                                         \
-    case kRcSwitchDown: {                                                     \
-      DispatchEvent(event::SwitchMode<Retracted>{});                          \
-      return;                                                                 \
-    }                                                                         \
-  }
+#define UpdateState()                                                           \
+  do {                                                                          \
+    if (control.sd != kRcSwitchUp) {                                            \
+      DispatchEvent(event::SwitchMode<NoForce>{});                              \
+      return;                                                                   \
+    }                                                                           \
+    if (control.sf == kRcSwitchUp) {                                            \
+      DispatchEvent(event::SwitchMode<Debug>{});                                \
+      return;                                                                   \
+    }                                                                           \
+    switch (control.sc) {                                                       \
+      case kRcSwitchUp: {                                                       \
+        if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) { \
+          DispatchEvent(event::SwitchMode<KeyboardManual>{});                   \
+        } else {                                                                \
+          DispatchEvent(event::SwitchMode<CustomCtrlManual>{});                 \
+        }                                                                       \
+        return;                                                                 \
+      }                                                                         \
+      case kRcSwitchMiddle: {                                                   \
+        DispatchEvent(event::SwitchMode<FollowExternalTrajectory>{});           \
+        return;                                                                 \
+      }                                                                         \
+      case kRcSwitchDown: {                                                     \
+        DispatchEvent(event::SwitchMode<Retracted>{});                          \
+        return;                                                                 \
+      }                                                                         \
+    }                                                                           \
+  } while (0)
 
-void Debug::react(event::Control const &control) {}
+void Debug::react(event::Control const &control) {
+  auto joint_positions = fluorite::controller->trajectory_tracker.current_point();
+  if (control.se == kRcSwitchUp) {
+    joint_positions.positions[0] += control.left_y * 0.001;
+  } else if (control.se == kRcSwitchMiddle) {
+    joint_positions.positions[1] += control.left_y * 0.001;
+  } else {
+    if (control.sg == kRcSwitchUp) {
+      joint_positions.positions[2] += control.left_y * 0.001;
+    } else if (control.sg == kRcSwitchMiddle) {
+      joint_positions.positions[3] += control.left_y * 0.001;
+    } else {
+      if (control.sh == kRcSwitchUp) {
+        joint_positions.positions[4] += control.left_y * 0.001;
+      } else if (control.sh == kRcSwitchDown) {
+        joint_positions.positions[5] += control.left_y * 0.001;
+      }
+    }
+  }
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(joint_positions);
+  CalcPidAndExecute();
+  UpdateState();
+}
 void KeyboardManual::react(event::Control const &control) {
   // 如果键盘有输入，
   if ((control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) ||
@@ -121,11 +166,11 @@ void KeyboardManual::react(event::Control const &control) {
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O))) {
-    // 并且上一轮计算结束（锁被释放），才计算一次新的目标关节位置，否则只是按TrajectoryTracker中留存的参考轨迹继续运动
+    // 并且上一轮计算结束（锁被释放），才计算一次新的目标关节位置，否则还是按TrajectoryTracker中的参考轨迹继续运动
     if (fluorite::controller->move_group_request_mutex.try_lock()) {
       fluorite::controller->move_group_request_thread_pool_.enqueue([&] {  // 异步计算ik，防止阻塞控制循环
         try {
-          const auto target_pose = [&] {  // 根据键盘输入移动目标位置的笛卡尔坐标
+          const auto target_pose = [&] {                                   // 根据键盘输入设置目标位置
             auto ret = fluorite::controller->move_group.getCurrentPose();  // 获取当前机械臂末端的位姿
 
             const double delta_x = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
@@ -186,57 +231,14 @@ void KeyboardManual::react(event::Control const &control) {
     }
   }
 
-  const std::array<double, 6> kCurrentPosition = {fluorite::state.imu_yaw,           fluorite::state.pitch_1_encoder,
-                                                  fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
-                                                  fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
-  const std::array<double, 6> kCurrentSpeed = {
-      fluorite::state.yaw_encoder_speed,       fluorite::state.pitch_1_encoder_speed,
-      fluorite::state.pitch_2_encoder_speed,   fluorite::state.end_yaw_1_encoder_speed,
-      fluorite::state.end_pitch_encoder_speed, fluorite::state.end_yaw_2_encoder_speed};
-
-  fluorite::controller->trajectory_tracker.Update(kCurrentPosition, kCurrentSpeed);
-
-  // apply output torque
-  const auto &kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
-  fluorite::actuator->yaw.SetPosition(0, 0, kOutputTorque[0], 0, 0);
-  fluorite::actuator->pitch_1.SetPosition(0, 0, kOutputTorque[1], 0, 0);
-  fluorite::actuator->pitch_2.SetPosition(0, 0, kOutputTorque[2], 0, 0);
-  fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
-  fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
-  fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
-
-  if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == true &&
-      !(control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) &&
-      !(control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LCTRL) &&
-      !(control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LALT)) {
-    // equivalent to transit<CustomCtrlManual>(), but with logging
-    DispatchEvent(event::SwitchMode<CustomCtrlManual>{});
-  }
-
+  Arm::CalcPidAndExecute();
   UpdateState();
 }
 void CustomCtrlManual::react(event::Control const &control) {
   // TODO
 }
 void FollowExternalTrajectory::react(event::Control const &control) {
-  const std::array<double, 6> kCurrentPosition = {fluorite::state.imu_yaw,           fluorite::state.pitch_1_encoder,
-                                                  fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
-                                                  fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
-  const std::array<double, 6> kCurrentSpeed = {
-      fluorite::state.yaw_encoder_speed,       fluorite::state.pitch_1_encoder_speed,
-      fluorite::state.pitch_2_encoder_speed,   fluorite::state.end_yaw_1_encoder_speed,
-      fluorite::state.end_pitch_encoder_speed, fluorite::state.end_yaw_2_encoder_speed};
-
-  fluorite::controller->trajectory_tracker.Update(kCurrentPosition, kCurrentSpeed);
-
-  // apply output torque
-  const auto &kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
-  fluorite::actuator->yaw.SetPosition(0, 0, kOutputTorque[0], 0, 0);
-  fluorite::actuator->pitch_1.SetPosition(0, 0, kOutputTorque[1], 0, 0);
-  fluorite::actuator->pitch_2.SetPosition(0, 0, kOutputTorque[2], 0, 0);
-  fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
-  fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
-  fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
+  Arm::CalcPidAndExecute();
 
   UpdateState();
 }
@@ -248,25 +250,9 @@ void Retracted::react(event::Control const &control) {
     p.velocities = {0, 0, 0, 0, 0, 0};
     return p;
   }();
-  const std::array<double, 6> kCurrentPosition = {fluorite::state.imu_yaw,           fluorite::state.pitch_1_encoder,
-                                                  fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
-                                                  fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
-  const std::array<double, 6> kCurrentSpeed = {
-      fluorite::state.yaw_encoder_speed,       fluorite::state.pitch_1_encoder_speed,
-      fluorite::state.pitch_2_encoder_speed,   fluorite::state.end_yaw_1_encoder_speed,
-      fluorite::state.end_pitch_encoder_speed, fluorite::state.end_yaw_2_encoder_speed};
 
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kReferenceTraj);
-  fluorite::controller->trajectory_tracker.Update(kCurrentPosition, kCurrentSpeed);
-
-  // apply output torque
-  const auto &kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
-  fluorite::actuator->yaw.SetPosition(0, 0, kOutputTorque[0], 0, 0);
-  fluorite::actuator->pitch_1.SetPosition(0, 0, kOutputTorque[1], 0, 0);
-  fluorite::actuator->pitch_2.SetPosition(0, 0, kOutputTorque[2], 0, 0);
-  fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
-  fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
-  fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
+  Arm::CalcPidAndExecute();
 
   // 状态机模式更新
   if (control.sd != kRcSwitchUp) {

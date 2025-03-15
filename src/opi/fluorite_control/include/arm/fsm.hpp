@@ -145,6 +145,7 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
 
  protected:
   static void EnableActuators(bool enable);
+  static void CalcPidAndExecute();
 };
 
 class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
