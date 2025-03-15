@@ -142,8 +142,7 @@ void FluoriteArm::InitializeShit() {
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])},  // base_yaw 位置环
-      std::move(robot_state),
-      moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "arm"});
+      std::move(robot_state), moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "arm"});
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
       DmMit{*arm_can,
