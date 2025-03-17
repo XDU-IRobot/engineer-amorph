@@ -1,82 +1,45 @@
+
+#include <iostream>
+
+#include <opencv2/opencv.hpp>
+#include <cv_bridge/cv_bridge.h>
+
 #include "ore_detector/ore_detector_node.hpp"
 #include "ore_detector/detection.hpp"
-#include <iostream>
-#include <opencv2/opencv.hpp>
 
-OreDetectorNode::OreDetectorNode(const rclcpp::NodeOptions &options) : Node("ore_detector") {
-  std::string config_file = "detector/config/config.xml";
+OreDetectorNode::OreDetectorNode(const rclcpp::NodeOptions &options) : Node("ore_detector", options) {
+  declare_parameter("lower_b", 150);
+  declare_parameter("upper_b", 255);
+  declare_parameter("lower_h", 20);
+  declare_parameter("upper_h", 30);
+  declare_parameter("lower_s", 100);
+  declare_parameter("upper_s", 255);
+  declare_parameter("lower_v", 100);
+  declare_parameter("upper_v", 255);
+  declare_parameter("min_contour_area", 10);
+  lowerB_ = get_parameter("lower_b").as_int();
+  upperB_ = get_parameter("upper_b").as_int();
+  lowerH_ = get_parameter("lower_h").as_int();
+  upperH_ = get_parameter("upper_h").as_int();
+  lowerS_ = get_parameter("lower_s").as_int();
+  upperS_ = get_parameter("upper_s").as_int();
+  lowerV_ = get_parameter("lower_v").as_int();
+  upperV_ = get_parameter("upper_v").as_int();
+  minContourArea_ = get_parameter("min_contour_area").as_int();
 
-  cv::FileStorage fs(config_file, cv::FileStorage::READ);
+  publisher_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("pnp_points", rclcpp::SystemDefaultsQoS());
 
-  if (!fs.isOpened()) {
-    throw std::runtime_error("Config file not found: " + config_file);
-  }
-
-  lowerB_ = (int)fs["lowerB"];
-  upperB_ = (int)fs["upperB"];
-  lowerH_ = (int)fs["lowerH"];
-  upperH_ = (int)fs["upperH"];
-  lowerS_ = (int)fs["lowerS"];
-  upperS_ = (int)fs["upperS"];
-  lowerV_ = (int)fs["lowerV"];
-  upperV_ = (int)fs["upperV"];
-  minContourArea_ = (int)fs["minContourArea"];
-  int device_id = (int)fs["device_id"];
-
-  int debug_mode = (int)fs["debug_mode"];
-
-  publisher_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("pnp_points", 10);
-
-  cap_ = cv::VideoCapture(device_id);
-  if (!cap_.isOpened()) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to open camera");
-    return;
-  }
-
-  if (debug_mode) {
-    cv::namedWindow("Trackbars", cv::WINDOW_AUTOSIZE);
-    cv::createTrackbar("LowerH", "Trackbars", &lowerH_, 179);
-    cv::createTrackbar("UpperH", "Trackbars", &upperH_, 179);
-    cv::createTrackbar("LowerS", "Trackbars", &lowerS_, 255);
-    cv::createTrackbar("UpperS", "Trackbars", &upperS_, 255);
-    cv::createTrackbar("LowerV", "Trackbars", &lowerV_, 255);
-    cv::createTrackbar("UpperV", "Trackbars", &upperV_, 255);
-  }
-
-  bool recording = false;
-  cv::VideoWriter video_writer;
-
-  rclcpp::Rate rate(30);
-  while (rclcpp::ok()) {
-    cv::Mat frame;
-    cap_ >> frame;
-    if (!frame.empty()) {
-      processFrame(frame);
-
-      if (recording) {
-        video_writer.write(frame);
-      }
-
-      int key = cv::waitKey(1);
-      if (key == 'r') {
-        if (!recording) {
-          std::string video_file = "/home/lzy/workspace/OreDetector/detector/output/video.avi";
-          video_writer.open(video_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 30, frame.size());
-          if (!video_writer.isOpened()) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to open video writer");
-          } else {
-            recording = true;
-            RCLCPP_INFO(this->get_logger(), "Started recording video");
-          }
-        } else {
-          recording = false;
-          video_writer.release();
-          RCLCPP_INFO(this->get_logger(), "Stopped recording video");
+  image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+      "/image_raw", 10, [&](const sensor_msgs::msg::Image::SharedPtr msg) {
+        cv_bridge::CvImagePtr cv_ptr;
+        try {
+          cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+        } catch (cv_bridge::Exception &e) {
+          RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+          return;
         }
-      }
-    }
-    rate.sleep();
-  }
+        imageCallback(cv_ptr->image);
+      });
 }
 
 OreDetectorNode::~OreDetectorNode() {}

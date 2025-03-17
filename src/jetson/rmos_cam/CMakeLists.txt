@@ -48,6 +48,10 @@ install(
   DIRECTORY ${3RDPARTY_LIB} # 发现你项目中的lib中所有的文件
   DESTINATION lib/ # 拷贝到install目录中
 )
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
+)
 ament_auto_package(
   INSTALL_TO_SHARE
 )

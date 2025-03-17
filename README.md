@@ -184,6 +184,8 @@
 
    - ROS2 `>= galactic`
 
+   - cv_bridge `apt install ros-galactic-cv-bridge`
+
    - [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
 
 2. 按指引配 mrc-net 的环境，被折磨一个周（祝你好运:)))))）
