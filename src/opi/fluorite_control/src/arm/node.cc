@@ -143,7 +143,8 @@ void FluoriteArm::InitializeShit() {
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])},  // base_yaw 位置环
-      std::move(robot_state), moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "fluorite_arm"});
+      std::move(robot_state),
+      moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "fluorite_arm"});
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
       DmMit{*arm_can,
@@ -362,7 +363,7 @@ void FluoriteArm::ParamHotUpdate() {}
 void FluoriteArm::JointStatesPublisher() {
   joint_states_pub_ =
       create_publisher<sensor_msgs::msg::JointState>("fluorite/arm/joint_states", rclcpp::SystemDefaultsQoS());
-  joint_states_msg_.name = {"yaw_joint",      "pitch_1_joint",    "pitch_2_joint",
+  joint_states_msg_.name = {"yaw_joint",       "pitch_1_joint",   "pitch_2_joint",
                             "end_yaw_1_joint", "end_pitch_joint", "end_yaw_2_joint"};
   joint_states_msg_.position.resize(6);
   joint_states_msg_.velocity.resize(6);
