@@ -13,6 +13,7 @@
 #include <fo_lpf.h>
 #include <librm.hpp>
 #include <tinyfsm.hpp>
+#include "librm/modules/algorithm/ahrs/ahrs_interface.h"
 #if __has_include("wiringPi.h")
 #include <wiringPi.h>
 #endif
@@ -43,15 +44,16 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
     ProcessSensorData();
     ParamHotUpdate();
     fluorite::fsm::DispatchEvent(control_msg_);
-    // device::DjiMotor<>::SendCommand();
+    rm::device::DjiMotor<>::SendCommand();
+    rm::device::DirectDriveMotor::SendCommand();
   });
   info("CONTROL UP");
 }
 
 FluoriteArm::~FluoriteArm() {
-  using namespace fluorite;
-  fsm::DispatchEvent(fsm::event::SwitchMode<fsm::state::arm::NoForce>{});
-  fsm::DispatchEvent(fsm::event::SwitchMode<fsm::state::gimbal_base::NoForce>{});
+  using namespace fluorite::fsm;
+  DispatchEvent(event::SwitchMode<state::arm::NoForce>{});
+  DispatchEvent(event::SwitchMode<state::gimbal_base::NoForce>{});
 }
 
 /**
@@ -203,20 +205,15 @@ void FluoriteArm::InitializeShit() {
 }
 
 void FluoriteArm::Ins() {
-  static float quaternion_buffer[4]{0};
-  static float euler_angle_buffer[4]{0};
-  ins_sub_ = create_subscription<sensor_msgs::msg::Imu>("/imu", rclcpp::SensorDataQoS(),
-                                                        [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
-                                                          using rm::modules::algorithm::utils::QuatToEuler;
-                                                          quaternion_buffer[0] = msg->orientation.w;
-                                                          quaternion_buffer[1] = msg->orientation.x;
-                                                          quaternion_buffer[2] = msg->orientation.y;
-                                                          quaternion_buffer[3] = msg->orientation.z;
-                                                          QuatToEuler(quaternion_buffer, euler_angle_buffer);
-                                                          fluorite::state.imu_yaw = euler_angle_buffer[0];
-                                                          fluorite::state.imu_pitch = euler_angle_buffer[1];
-                                                          fluorite::state.imu_roll = euler_angle_buffer[2];
-                                                        });
+  ins_sub_ = create_subscription<sensor_msgs::msg::Imu>(
+      "/imu", rclcpp::SensorDataQoS(), [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
+        mahony_.Update(rm::modules::algorithm::ImuData6Dof{
+            (float)msg->angular_velocity.y / 360 * 2 * M_PIf, (float)msg->angular_velocity.z / 360 * 2 * M_PIf, (float)msg->angular_velocity.x / 360 * 2 * M_PIf,
+            (float)msg->linear_acceleration.y, (float)msg->linear_acceleration.z, (float)msg->linear_acceleration.x});
+        fluorite::state.imu_yaw = mahony_.euler_angle().roll;
+        fluorite::state.imu_pitch = mahony_.euler_angle().yaw;
+        fluorite::state.imu_roll = mahony_.euler_angle().pitch;
+      });
   info("ins ok");
 }
 
@@ -265,12 +262,30 @@ void FluoriteArm::Referee() { info("referee ok"); }
 
 /**
  * @brief
- * 把fluorite::state广播出去，方便调试的时候看数据，没有实质性作用，确认不需要debug或者记录log的时候可以把这个timer关掉
+ * 把fluorite::state广播出去，方便调试的时候看数据，没有实质性作用，不需要debug或者记录log的时候可以把这个timer关掉
  */
 void FluoriteArm::Blackbox() {
+  static auto PopulatePidMsg = [](fluorite_msgs::msg::Pid &msg, const fluorite::Controller::PosPID &pid) {
+    msg.kp = pid.kp_;
+    msg.ki = pid.ki_;
+    msg.kd = pid.kd_;
+    msg.i_max = pid.max_iout_;
+    msg.output_max = pid.max_out_;
+    msg.error = pid.last_error();
+    msg.p_out = pid.p_out();
+    msg.i_out = pid.i_out();
+    msg.d_out = pid.d_out();
+    msg.out = pid.value();
+  };
   blackbox_state_pub_ =
       create_publisher<fluorite_msgs::msg::ArmState>("fluorite/blackbox/arm_state", rclcpp::SystemDefaultsQoS());
-  blackbox_timer_ = create_wall_timer(20ms, [this] { blackbox_state_pub_->publish(fluorite::state); });
+  blackbox_timer_ = create_wall_timer(20ms, [this] {
+    fluorite::state.header.stamp = now();
+    for (size_t i = 0; i < 12; ++i) {
+      PopulatePidMsg(fluorite::state.pids[i], fluorite::controller->trajectory_tracker.pids()[i]);
+    }
+    blackbox_state_pub_->publish(fluorite::state);
+  });
   info("blackbox ok");
 }
 
@@ -291,19 +306,19 @@ void FluoriteArm::DeviceMonitor() {
  * @brief 从电机对象里拿数据，做单位换算、范围处理、滤波器处理等等，最后更新fluorite::state
  */
 void FluoriteArm::ProcessSensorData() {
-  fluorite::state.base_yaw_encoder = fluorite::actuator->base_yaw.encoder();
+  fluorite::state.base_yaw_encoder = fluorite::actuator->base_yaw.pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset;
   fluorite::state.base_yaw_encoder_speed = fluorite::actuator->base_yaw.rpm();
-  fluorite::state.yaw_encoder = fluorite::actuator->yaw.pos();
+  fluorite::state.yaw_encoder = fluorite::actuator->yaw.pos() - ros_params_manager_.data().yaw_encoder_zero_offset;
   fluorite::state.yaw_encoder_speed = fluorite::actuator->yaw.vel();
-  fluorite::state.pitch_1_encoder = fluorite::actuator->pitch_1.pos();
+  fluorite::state.pitch_1_encoder = fluorite::actuator->pitch_1.pos() - ros_params_manager_.data().pitch_1_encoder_zero_offset;
   fluorite::state.pitch_1_encoder_speed = fluorite::actuator->pitch_1.vel();
-  fluorite::state.pitch_2_encoder = fluorite::actuator->pitch_2.pos();
+  fluorite::state.pitch_2_encoder = fluorite::actuator->pitch_2.pos() - ros_params_manager_.data().pitch_2_encoder_zero_offset;
   fluorite::state.pitch_2_encoder_speed = fluorite::actuator->pitch_2.vel();
-  fluorite::state.end_yaw_1_encoder = fluorite::actuator->end_yaw_1.pos();
+  fluorite::state.end_yaw_1_encoder = fluorite::actuator->end_yaw_1.pos() - ros_params_manager_.data().end_yaw_1_encoder_zero_offset;
   fluorite::state.end_yaw_1_encoder_speed = fluorite::actuator->end_yaw_1.vel();
-  fluorite::state.end_pitch_encoder = fluorite::actuator->end_pitch.pos();
+  fluorite::state.end_pitch_encoder = fluorite::actuator->end_pitch.pos() - ros_params_manager_.data().end_pitch_encoder_zero_offset;
   fluorite::state.end_pitch_encoder_speed = fluorite::actuator->end_pitch.vel();
-  fluorite::state.end_yaw_2_encoder = fluorite::actuator->end_yaw_2.pos_rad();
+  fluorite::state.end_yaw_2_encoder = fluorite::actuator->end_yaw_2.pos_rad() - ros_params_manager_.data().end_yaw_2_encoder_zero_offset;
   fluorite::state.end_yaw_2_encoder_speed = fluorite::actuator->end_yaw_2.rpm();
 }
 

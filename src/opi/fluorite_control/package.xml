@@ -18,6 +18,7 @@
   <depend>rm2_referee_msgs</depend>
   <depend>sbus_interface</depend>
   <depend>keyboard_msgs</depend>
+  <depend>backward_ros</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

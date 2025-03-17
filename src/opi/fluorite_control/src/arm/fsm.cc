@@ -153,7 +153,18 @@ void Debug::react(event::Control const &control) {
     }
   }
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(joint_positions);
-  CalcPidAndExecute();
+  Arm::CalcPidAndExecute();
+  std::printf("output: ");
+  const auto tau = fluorite::controller->trajectory_tracker.output_torque();
+  for (const auto val : tau) {
+    std::printf("%f ", val);
+  }
+  std::printf("target position: ");
+  for (const auto jp : joint_positions.positions) {
+    std::printf("%f ", jp);
+  }
+  std::printf(" | ");
+  std::printf("\n");
   UpdateState();
 }
 void KeyboardManual::react(event::Control const &control) {
@@ -336,5 +347,5 @@ void NoForce::react(event::Control const &control) {
 
 }  // namespace fluorite
 
-FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::KeyboardManual);
+FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::NoForce);
 FSM_INITIAL_STATE(fluorite::fsm::GimbalBase, fluorite::fsm::state::gimbal_base::NoForce);

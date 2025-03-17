@@ -50,5 +50,6 @@
     "--pretty",
     "--clang-tidy",
     "--query-driver=clang++"
-  ]
+  ],
+  "ros.distro": "humble"
 }

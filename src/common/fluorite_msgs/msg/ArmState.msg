@@ -23,3 +23,7 @@ float32 end_pitch_encoder
 float32 end_pitch_encoder_speed
 float32 end_yaw_2_encoder
 float32 end_yaw_2_encoder_speed
+
+##### 以下是调试信息，不用于实际控制 #####
+
+fluorite_msgs/Pid[12] pids

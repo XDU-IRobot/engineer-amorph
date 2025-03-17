@@ -138,8 +138,8 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
       if (this->is_in_state<Mode>()) {
         return;
       }
-      transit<Mode>();
       info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
+      transit<Mode>();
     }
   }
 
@@ -161,8 +161,8 @@ class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
       if (this->is_in_state<Mode>()) {
         return;
       }
-      transit<Mode>();
       info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
+      transit<Mode>();
     }
   }
 };

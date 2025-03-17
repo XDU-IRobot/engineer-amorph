@@ -32,3 +32,7 @@
 [submodule "src/opi/trac_ik"]
 	path = src/opi/trac_ik
 	url = https://github.com/lunarifish/trac_ik.git
+[submodule "src/common/backward_ros"]
+	path = src/common/backward_ros
+	url = https://github.com/pal-robotics/backward_ros.git
+	branch = foxy-devel

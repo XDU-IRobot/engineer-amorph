@@ -7,6 +7,7 @@ ament_auto_find_build_dependencies()
 list(APPEND ${PROJECT_NAME}_msgs
   "msg/ArmState.msg"
   "msg/ChassisState.msg"
+  "msg/Pid.msg"
 )
 list(APPEND ${PROJECT_NAME}_srvs
   "srv/CommandChassis.srv"

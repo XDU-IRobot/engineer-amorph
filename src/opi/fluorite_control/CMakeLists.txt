@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(-std=c++20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(backward_ros REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 

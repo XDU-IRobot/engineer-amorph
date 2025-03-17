@@ -72,14 +72,14 @@ fluorite_control_arm:
     # pid param
     pid_base_yaw_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_yaw_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_pitch_1_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_1_speed: [4.2, 0.0, 0.0, 10.0, 10.0]
     pid_pitch_2_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_end_yaw_1_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_end_pitch_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_end_yaw_2_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_base_yaw_position: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_yaw_position: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_pitch_1_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_1_position: [60.0, 0.0, 0.0, 3.0, 3.0]
     pid_pitch_2_position: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_end_yaw_1_position: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_end_pitch_position: [0.0, 0.0, 0.0, 0.0, 0.0]
@@ -88,7 +88,7 @@ fluorite_control_arm:
     # encoder offsets
     base_yaw_encoder_zero_offset: 0.0
     yaw_encoder_zero_offset: 0.0
-    pitch_1_encoder_zero_offset: 0.0
+    pitch_1_encoder_zero_offset: -1.5756845474243164
     pitch_2_encoder_zero_offset: 0.0
     end_yaw_1_encoder_zero_offset: 0.0
     end_pitch_encoder_zero_offset: 0.0
@@ -98,7 +98,7 @@ fluorite_control_arm:
     base_yaw_reverse: false
     yaw_reverse: false
     pitch_1_reverse: false
-    pitch_2_reverse: false
+    pitch_2_reverse: true
     end_yaw_1_reverse: false
     end_pitch_reverse: false
     end_yaw_2_reverse: false

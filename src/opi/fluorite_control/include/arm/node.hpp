@@ -21,6 +21,7 @@
 #include "arm/ros_params.hpp"
 #include "common/device_monitor.hpp"
 #include "common/ros_params_manager.hpp"
+#include "librm/modules/algorithm/ahrs/mahony.h"
 
 /**
  * @brief    控制节点
@@ -65,6 +66,7 @@ class FluoriteArm final : public rclcpp::Node {
 
   /** <ins> **/
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr ins_sub_{nullptr};
+  rm::modules::algorithm::MahonyAhrs mahony_{};
   /** </ins> **/
 
   /** <user input subscribers> **/

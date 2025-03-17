@@ -53,10 +53,15 @@ def generate_launch_description():
     moveit_config = MoveItConfigsBuilder(
         "fluorite", package_name="fluorite_arm_moveit_config").to_moveit_configs()
 
-    joint_state_publisher_node = Node(
+    joint_state_publisher_gui_node = Node(
         package="joint_state_publisher_gui",
         executable="joint_state_publisher_gui",
         condition=IfCondition(jsp),
+    )
+    joint_state_publisher_node = Node(
+        package="joint_state_publisher",
+        executable="joint_state_publisher",
+        output="both",
     )
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
@@ -67,6 +72,7 @@ def generate_launch_description():
 
     nodes = [
         joint_state_publisher_node,
+        joint_state_publisher_gui_node,
         robot_state_publisher_node,
     ]
 

@@ -26,6 +26,14 @@ class PidTrajectoryTracker {
       throw std::invalid_argument("PID number mismatch!");
     }
     output_torque_.resize(NJoints);
+
+    std::printf("=======================================================\n");
+    std::printf("trajectory tracker:\n");
+    for (size_t i = 0; i < 2 * NJoints; ++i) {
+      std::printf("PID %zu: P=%f, I=%f, D=%f, max_iout=%f, max_out=%f\n", i, pids_[i].kp_, pids_[i].ki_, pids_[i].kd_,
+                  pids_[i].max_iout_, pids_[i].max_out_);
+    }
+    std::printf("=======================================================\n");
   }
   PidTrajectoryTracker(const PidTrajectoryTracker &) = default;
   PidTrajectoryTracker(PidTrajectoryTracker &&) noexcept = default;
@@ -166,12 +174,13 @@ class PidTrajectoryTracker {
     for (size_t i = 0; i < NJoints; ++i) {
       auto &pid_outer = pids_[2 * i];
       auto &pid_inner = pids_[2 * i + 1];
-      pid_outer.Update(current_point.positions[i], current_joint_positions[i]);
-      pid_inner.Update(current_point.velocities[i], current_joint_velocities[i]);
-      output_torque_[i] = pid_inner.value();
+      pid_inner.Update(current_point.positions[i], current_joint_positions[i]);
+      pid_outer.Update(pid_inner.value(), current_joint_velocities[i]);
+      output_torque_[i] = pid_outer.value();
     }
   }
 
+  const auto &pids() const { return pids_; }
   const auto &output_torque() const { return output_torque_; }
   const auto &trajoctory() const { return current_trajectory_; }
   const auto &current_point() {
