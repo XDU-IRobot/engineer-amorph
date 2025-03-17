@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          apt update && apt install -y ros-${{ matrix.ros_distro }}-moveit* ros-${{ matrix.ros_distro }}-behaviortree-cpp-v3 libsdl1.2-dev
+          apt update && apt install -y ros-${{ matrix.ros_distro }}-moveit* ros-${{ matrix.ros_distro }}-behaviortree-cpp-v3 libsdl1.2-dev libopencv-dev libopencv-contrib-dev
       - name: Build
         shell: bash
         run: |

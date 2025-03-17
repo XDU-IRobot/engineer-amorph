@@ -1,12 +1,3 @@
-// this requires the following extensions:
-// - ms-python.python
-// - twxs.cmake
-// - xaver.clang-format
-// - xaver.clangd
-// - ms-vscode.cmake-tools
-// - ms-vscode.cpptools
-// - spencerwmiles.vscode-task-buttons
-
 {
   "C_Cpp.intelliSenseEngine": "disabled",
   "python.autoComplete.extraPaths": [

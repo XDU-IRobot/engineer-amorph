@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<lowerB>150</lowerB>
+<upperB>255</upperB>
+<lowerH>20</lowerH> <!-- Adjusted for silver -->
+<upperH>30</upperH> <!-- Adjusted for silver -->
+<lowerS>100</lowerS> <!-- Adjusted for silver -->
+<upperS>255</upperS> <!-- Adjusted for silver -->
+<lowerV>100</lowerV> <!-- Adjusted for silver -->
+<upperV>255</upperV> <!-- Adjusted for silver -->
+<minContourArea>10</minContourArea>
+<device_id>4</device_id>
+<debug_mode>1</debug_mode>
+</opencv_storage>
