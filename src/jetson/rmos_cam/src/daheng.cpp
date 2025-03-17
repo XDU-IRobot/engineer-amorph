@@ -7,7 +7,7 @@ DahengCam::DahengCam(const std::string camera_sn) : camera_sn_(camera_sn), devic
   params_[CamParamType::Width] = 1920;
   params_[CamParamType::AutoExposure] = 0;      // 自动曝光 ，0为否
   params_[CamParamType::Exposure] = 1000;       // 曝光时间 单位 us
-  params_[CamParamType::AutoWhiteBalance] = 0;  //自动白平衡 ，0为否
+  params_[CamParamType::AutoWhiteBalance] = 0;  // 自动白平衡 ，0为否
   params_[CamParamType::RGain] = 19;            // 红通道增益
   params_[CamParamType::GGain] = 10;            // 绿通道增益
   params_[CamParamType::BGain] = 19;            // 蓝通道增益
@@ -83,7 +83,7 @@ bool DahengCam::grab_image(cv::Mat &image) {
     this->error_message_ = "DahengCam get buffer failed ";
     return false;
   }
-  //转换格式
+  // 转换格式
   VxInt32 DXstatus = DxRaw8toRGB24(pFrameBuffer_->pImgBuf, rgbImagebuf_, pFrameBuffer_->nWidth, pFrameBuffer_->nHeight,
                                    RAW2RGB_NEIGHBOUR,
                                    DX_PIXEL_COLOR_FILTER(4),  // DX_PIXEL_COLOR_FILTER(colorfilter_),

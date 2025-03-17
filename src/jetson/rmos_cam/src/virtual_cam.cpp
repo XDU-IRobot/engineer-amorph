@@ -24,4 +24,4 @@ bool VirtualCam::grab_image(cv::Mat &image) {
 
 std::string VirtualCam::getVideoPath() { return this->video_path; }
 
-} // namespace camera
+}  // namespace camera
