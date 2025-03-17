@@ -23,18 +23,28 @@ def main():
     args = parser.parse_args()
 
     if args.jetson:
-        subprocess.run(["colcon", "build", "--base-paths", "src/common/**",
+        status = subprocess.run(["colcon", "build", "--base-paths", "src/common/**",
                        "src/jetson/**", *COMMON_ARGS])
+        if status.returncode != 0:
+            exit(1)
     elif args.orangepi:
-        subprocess.run(["colcon", "build", "--base-paths",
+        status = subprocess.run(["colcon", "build", "--base-paths",
                        "src/common/**", "src/opi/**", "--packages-ignore", "keyboard", *COMMON_ARGS])
+        if status.returncode != 0:
+            exit(1)
     elif args.customctrl:
-        subprocess.run(["cmake", "-B", "custom_ctrl_build", "-S",
+        status = subprocess.run(["cmake", "-B", "custom_ctrl_build", "-S",
                        "src/custom_controller/t265", "-DCMAKE_BUILD_TYPE=Release"])
-        subprocess.run(["cmake", "--build", "custom_ctrl_build"])
+        if status.returncode != 0:
+            exit(1)
+        status = subprocess.run(["cmake", "--build", "custom_ctrl_build"])
+        if status.returncode != 0:
+            exit(1)
     elif args.debug:
-        subprocess.run(["colcon", "build", "--base-paths",
+        status = subprocess.run(["colcon", "build", "--base-paths",
                        "src/**", *COMMON_ARGS])
+        if status.returncode != 0:
+            exit(1)
     else:
         parser.print_help()
 
