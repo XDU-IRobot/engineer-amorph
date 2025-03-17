@@ -1,6 +1,6 @@
 /**
  * @file  fluorite_chassis.cc
- * @brief 控制节点
+ * @brief 大yaw轴基座+机械臂控制节点
  */
 
 #include "arm/node.hpp"
@@ -13,7 +13,6 @@
 #include <fo_lpf.h>
 #include <librm.hpp>
 #include <tinyfsm.hpp>
-#include "librm/modules/algorithm/ahrs/ahrs_interface.h"
 #if __has_include("wiringPi.h")
 #include <wiringPi.h>
 #endif
@@ -144,7 +143,7 @@ void FluoriteArm::InitializeShit() {
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])},  // base_yaw 位置环
-      std::move(robot_state), moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "arm"});
+      std::move(robot_state), moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "fluorite_arm"});
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
       DmMit{*arm_can,
@@ -307,6 +306,29 @@ void FluoriteArm::DeviceMonitor() {
  * @brief 从电机对象里拿数据，做单位换算、范围处理、滤波器处理等等，最后更新fluorite::state
  */
 void FluoriteArm::ProcessSensorData() {
+  // 初始化低通滤波器
+  static auto lp_filter = [this] {
+    struct _ {
+      _(FluoriteArm *this_ptr) {
+        yaw_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_yaw,
+                                      this_ptr->ros_params_manager_.data().lpf_sample_rate);
+        pitch_1_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_pitch_1,
+                                          this_ptr->ros_params_manager_.data().lpf_sample_rate);
+        pitch_2_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_pitch_2,
+                                          this_ptr->ros_params_manager_.data().lpf_sample_rate);
+        end_yaw_1_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_end_yaw_1,
+                                            this_ptr->ros_params_manager_.data().lpf_sample_rate);
+        end_pitch_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_end_pitch,
+                                            this_ptr->ros_params_manager_.data().lpf_sample_rate);
+        end_yaw_2_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_end_yaw_2,
+                                            this_ptr->ros_params_manager_.data().lpf_sample_rate);
+      }
+      FO_LPF yaw_position, pitch_1_position, pitch_2_position, end_yaw_1_position, end_pitch_position,
+          end_yaw_2_position;
+    };
+    return _{this};
+  }();
+
   fluorite::state.base_yaw_encoder =
       fluorite::actuator->base_yaw.pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset;
   fluorite::state.base_yaw_encoder_speed = fluorite::actuator->base_yaw.rpm();
@@ -340,8 +362,8 @@ void FluoriteArm::ParamHotUpdate() {}
 void FluoriteArm::JointStatesPublisher() {
   joint_states_pub_ =
       create_publisher<sensor_msgs::msg::JointState>("fluorite/arm/joint_states", rclcpp::SystemDefaultsQoS());
-  joint_states_msg_.name = {"yaw_joint",      "pitch1_joint",    "pitch2_joint",
-                            "end_yaw1_joint", "end_pitch_joint", "end_yaw2_joint"};
+  joint_states_msg_.name = {"yaw_joint",      "pitch_1_joint",    "pitch_2_joint",
+                            "end_yaw_1_joint", "end_pitch_joint", "end_yaw_2_joint"};
   joint_states_msg_.position.resize(6);
   joint_states_msg_.velocity.resize(6);
   joint_states_pub_timer_ = create_wall_timer(20ms, [this] {
@@ -372,7 +394,7 @@ void FluoriteArm::TFBroadcaster() {
   world_to_base_yaw_tf_.child_frame_id = "base_yaw_link";
   world_to_base_yaw_tf_broadcaster_timer_ = create_wall_timer(20ms, [this] {
     world_to_base_yaw_tf_.header.stamp = now();
-    world_to_base_yaw_tf_quat_.setRPY(fluorite::state.imu_roll, fluorite::state.imu_pitch, fluorite::state.imu_yaw);
+    world_to_base_yaw_tf_quat_.setRPY(0, 0, fluorite::state.imu_yaw - fluorite::state.yaw_encoder);
     world_to_base_yaw_tf_.transform.rotation.x = world_to_base_yaw_tf_quat_.x();
     world_to_base_yaw_tf_.transform.rotation.y = world_to_base_yaw_tf_quat_.y();
     world_to_base_yaw_tf_.transform.rotation.z = world_to_base_yaw_tf_quat_.z();

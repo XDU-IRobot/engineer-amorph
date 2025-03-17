@@ -36,7 +36,7 @@ void GimbalBase::react(event::Control const &control) { error("wt4f"); }
 void Arm::EnableActuators(bool enable) {
   fluorite::actuator->base_yaw.Enable(enable);
   const auto dm_enable = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
-  fluorite::actuator->yaw.SendInstruction(rm::device::DmMotorInstructions::kDisable);
+  fluorite::actuator->yaw.SendInstruction(dm_enable);
   fluorite::actuator->pitch_1.SendInstruction(dm_enable);
   fluorite::actuator->pitch_2.SendInstruction(dm_enable);
   fluorite::actuator->end_yaw_1.SendInstruction(dm_enable);
@@ -68,7 +68,22 @@ namespace state {
 
 namespace arm {
 
-void Debug::entry() { Arm::EnableActuators(true); }
+void Debug::entry() {
+  Arm::EnableActuators(true);
+  const auto kCurrentJointPositions = [&] {
+    trajectory_msgs::msg::JointTrajectoryPoint p;
+    p.positions.resize(6);
+    p.velocities.resize(6);
+    p.positions[0] = fluorite::state.imu_yaw;
+    p.positions[1] = fluorite::state.pitch_1_encoder;
+    p.positions[2] = fluorite::state.pitch_2_encoder;
+    p.positions[3] = fluorite::state.end_yaw_1_encoder;
+    p.positions[4] = fluorite::state.end_pitch_encoder;
+    p.positions[5] = fluorite::state.end_yaw_2_encoder;
+    return p;
+  }();
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
+}
 void KeyboardManual::entry() {
   Arm::EnableActuators(true);
   fluorite::controller->move_group_request_mutex.try_lock();
@@ -136,35 +151,24 @@ void NoForce::entry() {
 void Debug::react(event::Control const &control) {
   auto joint_positions = fluorite::controller->trajectory_tracker.current_point();
   if (control.se == kRcSwitchUp) {
-    joint_positions.positions[0] += control.left_y * 0.001;
+    joint_positions.positions[0] += control.left_y * 0.0017;
   } else if (control.se == kRcSwitchMiddle) {
-    joint_positions.positions[1] += control.left_y * 0.001;
+    joint_positions.positions[1] += control.left_y * 0.0017;
   } else {
     if (control.sg == kRcSwitchUp) {
-      joint_positions.positions[2] += control.left_y * 0.001;
+      joint_positions.positions[2] += control.left_y * 0.0017;
     } else if (control.sg == kRcSwitchMiddle) {
-      joint_positions.positions[3] += control.left_y * 0.001;
+      joint_positions.positions[3] += control.left_y * 0.0017;
     } else {
       if (control.sh == kRcSwitchUp) {
-        joint_positions.positions[4] += control.left_y * 0.001;
+        joint_positions.positions[4] += control.left_y * 0.0017;
       } else if (control.sh == kRcSwitchDown) {
-        joint_positions.positions[5] += control.left_y * 0.001;
+        joint_positions.positions[5] += control.left_y * 0.0017;
       }
     }
   }
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(joint_positions);
   Arm::CalcPidAndExecute();
-  std::printf("output: ");
-  const auto tau = fluorite::controller->trajectory_tracker.output_torque();
-  for (const auto val : tau) {
-    std::printf("%f ", val);
-  }
-  std::printf("target position: ");
-  for (const auto jp : joint_positions.positions) {
-    std::printf("%f ", jp);
-  }
-  std::printf(" | ");
-  std::printf("\n");
   UpdateState();
 }
 void KeyboardManual::react(event::Control const &control) {

@@ -39,6 +39,15 @@ struct RosParams {
   std::vector<double> pid_end_pitch_position{};
   std::vector<double> pid_end_yaw_2_position{};
 
+  // low-pass filter settings
+  int lpf_sample_rate{};
+  int lpf_cutoff_freq_yaw{};
+  int lpf_cutoff_freq_pitch_1{};
+  int lpf_cutoff_freq_pitch_2{};
+  int lpf_cutoff_freq_end_yaw_1{};
+  int lpf_cutoff_freq_end_pitch{};
+  int lpf_cutoff_freq_end_yaw_2{};
+
   // encoder offsets
   double base_yaw_encoder_zero_offset{};
   double yaw_encoder_zero_offset{};

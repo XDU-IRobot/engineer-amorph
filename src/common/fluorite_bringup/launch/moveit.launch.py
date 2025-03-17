@@ -61,6 +61,8 @@ def generate_launch_description():
     joint_state_publisher_node = Node(
         package="joint_state_publisher",
         executable="joint_state_publisher",
+        parameters=[{"source_list": ["/fluorite/arm/joint_states", ],
+                     "rate": 50,}],
         output="both",
     )
     robot_state_publisher_node = Node(

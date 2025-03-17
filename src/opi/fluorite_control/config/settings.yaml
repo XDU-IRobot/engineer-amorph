@@ -72,34 +72,45 @@ fluorite_control_arm:
     # pid param
     pid_base_yaw_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_yaw_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_pitch_1_speed: [4.2, 0.0, 0.0, 10.0, 10.0]
-    pid_pitch_2_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_end_yaw_1_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_end_pitch_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_1_speed: [3.5, 0.0, 0.0, 17.0, 17.0]
+    pid_pitch_2_speed: [-2.5, 0.0, 0.0, 7.0, 7.0]
+    pid_end_yaw_1_speed: [-0.6, 0.0, 0.0, 3.0, 3.0]
+    pid_end_pitch_speed: [0.4, 0.0, 0.0, 3.0, 3.0]
     pid_end_yaw_2_speed: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_base_yaw_position: [0.0, 0.0, 0.0, 0.0, 0.0]
     pid_yaw_position: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_pitch_1_position: [60.0, 0.0, 0.0, 3.0, 3.0]
-    pid_pitch_2_position: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_end_yaw_1_position: [0.0, 0.0, 0.0, 0.0, 0.0]
-    pid_end_pitch_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+    pid_pitch_1_position: [60.0, 0.0, 1.0, 4.0, 4.0]
+    pid_pitch_2_position: [30.0, 0.0, 0.0, 4.0, 4.0]
+    pid_end_yaw_1_position: [30.0, 0.0, 0.0, 2.5, 2.5]
+    pid_end_pitch_position: [45.0, 0.0, 30.0, 2.0, 2.0]
     pid_end_yaw_2_position: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+    # low-pass filter settings
+    ## 截止频率应该小于采样频率的一半！(anti-aliasing)
+    ## 调参过程中发现滤波器的相位延迟会导致震荡，所以实际上没有用滤波器，这几个参数无效
+    lpf_sample_rate: 400
+    lpf_cutoff_freq_yaw: 200
+    lpf_cutoff_freq_pitch_1: 200
+    lpf_cutoff_freq_pitch_2: 200
+    lpf_cutoff_freq_end_yaw_1: 200
+    lpf_cutoff_freq_end_pitch: 200
+    lpf_cutoff_freq_end_yaw_2: 200
 
     # encoder offsets
     base_yaw_encoder_zero_offset: 0.0
-    yaw_encoder_zero_offset: 0.0
+    yaw_encoder_zero_offset: -0.5258636474609375
     pitch_1_encoder_zero_offset: -1.5756845474243164
-    pitch_2_encoder_zero_offset: 0.0
-    end_yaw_1_encoder_zero_offset: 0.0
-    end_pitch_encoder_zero_offset: 0.0
-    end_yaw_2_encoder_zero_offset: 0.0
+    pitch_2_encoder_zero_offset: -2.723163604736328
+    end_yaw_1_encoder_zero_offset: -2.0185775756835938
+    end_pitch_encoder_zero_offset: 0.6269550323486328
+    end_yaw_2_encoder_zero_offset: 2.892673969268799
 
     # motor settings
     base_yaw_reverse: false
-    yaw_reverse: false
+    yaw_reverse: true
     pitch_1_reverse: false
     pitch_2_reverse: true
-    end_yaw_1_reverse: false
+    end_yaw_1_reverse: true
     end_pitch_reverse: false
     end_yaw_2_reverse: false
 
