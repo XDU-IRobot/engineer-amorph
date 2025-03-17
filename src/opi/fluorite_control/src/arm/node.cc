@@ -208,8 +208,9 @@ void FluoriteArm::Ins() {
   ins_sub_ = create_subscription<sensor_msgs::msg::Imu>(
       "/imu", rclcpp::SensorDataQoS(), [&](const sensor_msgs::msg::Imu::SharedPtr msg) {
         mahony_.Update(rm::modules::algorithm::ImuData6Dof{
-            (float)msg->angular_velocity.y / 360 * 2 * M_PIf, (float)msg->angular_velocity.z / 360 * 2 * M_PIf, (float)msg->angular_velocity.x / 360 * 2 * M_PIf,
-            (float)msg->linear_acceleration.y, (float)msg->linear_acceleration.z, (float)msg->linear_acceleration.x});
+            (float)msg->angular_velocity.y / 360 * 2 * M_PIf, (float)msg->angular_velocity.z / 360 * 2 * M_PIf,
+            (float)msg->angular_velocity.x / 360 * 2 * M_PIf, (float)msg->linear_acceleration.y,
+            (float)msg->linear_acceleration.z, (float)msg->linear_acceleration.x});
         fluorite::state.imu_yaw = mahony_.euler_angle().roll;
         fluorite::state.imu_pitch = mahony_.euler_angle().yaw;
         fluorite::state.imu_roll = mahony_.euler_angle().pitch;
@@ -306,19 +307,25 @@ void FluoriteArm::DeviceMonitor() {
  * @brief 从电机对象里拿数据，做单位换算、范围处理、滤波器处理等等，最后更新fluorite::state
  */
 void FluoriteArm::ProcessSensorData() {
-  fluorite::state.base_yaw_encoder = fluorite::actuator->base_yaw.pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset;
+  fluorite::state.base_yaw_encoder =
+      fluorite::actuator->base_yaw.pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset;
   fluorite::state.base_yaw_encoder_speed = fluorite::actuator->base_yaw.rpm();
   fluorite::state.yaw_encoder = fluorite::actuator->yaw.pos() - ros_params_manager_.data().yaw_encoder_zero_offset;
   fluorite::state.yaw_encoder_speed = fluorite::actuator->yaw.vel();
-  fluorite::state.pitch_1_encoder = fluorite::actuator->pitch_1.pos() - ros_params_manager_.data().pitch_1_encoder_zero_offset;
+  fluorite::state.pitch_1_encoder =
+      fluorite::actuator->pitch_1.pos() - ros_params_manager_.data().pitch_1_encoder_zero_offset;
   fluorite::state.pitch_1_encoder_speed = fluorite::actuator->pitch_1.vel();
-  fluorite::state.pitch_2_encoder = fluorite::actuator->pitch_2.pos() - ros_params_manager_.data().pitch_2_encoder_zero_offset;
+  fluorite::state.pitch_2_encoder =
+      fluorite::actuator->pitch_2.pos() - ros_params_manager_.data().pitch_2_encoder_zero_offset;
   fluorite::state.pitch_2_encoder_speed = fluorite::actuator->pitch_2.vel();
-  fluorite::state.end_yaw_1_encoder = fluorite::actuator->end_yaw_1.pos() - ros_params_manager_.data().end_yaw_1_encoder_zero_offset;
+  fluorite::state.end_yaw_1_encoder =
+      fluorite::actuator->end_yaw_1.pos() - ros_params_manager_.data().end_yaw_1_encoder_zero_offset;
   fluorite::state.end_yaw_1_encoder_speed = fluorite::actuator->end_yaw_1.vel();
-  fluorite::state.end_pitch_encoder = fluorite::actuator->end_pitch.pos() - ros_params_manager_.data().end_pitch_encoder_zero_offset;
+  fluorite::state.end_pitch_encoder =
+      fluorite::actuator->end_pitch.pos() - ros_params_manager_.data().end_pitch_encoder_zero_offset;
   fluorite::state.end_pitch_encoder_speed = fluorite::actuator->end_pitch.vel();
-  fluorite::state.end_yaw_2_encoder = fluorite::actuator->end_yaw_2.pos_rad() - ros_params_manager_.data().end_yaw_2_encoder_zero_offset;
+  fluorite::state.end_yaw_2_encoder =
+      fluorite::actuator->end_yaw_2.pos_rad() - ros_params_manager_.data().end_yaw_2_encoder_zero_offset;
   fluorite::state.end_yaw_2_encoder_speed = fluorite::actuator->end_yaw_2.rpm();
 }
 
