@@ -7,7 +7,7 @@ float32 imu_roll
 
 float32 imu_yaw_target
 
-geometry_msgs/PoseStamped target_end_effector_pose
+geometry_msgs/Pose target_end_effector_pose
 
 float32 base_yaw_encoder
 float32 base_yaw_encoder_speed

@@ -2,11 +2,14 @@
 #ifndef ARM_PID_TRAJECTORY_TRACKER_HPP
 #define ARM_PID_TRAJECTORY_TRACKER_HPP
 
+#include <initializer_list>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
+#include <array>
 #include <limits>
 #include <vector>
 #include <chrono>
+#include <utility>
 
 #include <librm.hpp>
 
@@ -19,13 +22,18 @@ class PidTrajectoryTracker {
 
  public:
   PidTrajectoryTracker(
-      std::initializer_list<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>> pids)
-      : pids_(pids) {
+      std::initializer_list<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>> pids,
+      std::initializer_list<std::pair<double, double>> joint_limits)
+      : pids_(pids), joint_limits_(joint_limits) {
     if (pids_.size() != 2 * NJoints) {
-      error("trajectory tracker: PID number mismatch!");
+      error("trajectory tracker: PID number mismatch! expected %d, got %ld", 2 * NJoints, pids_.size());
       throw std::invalid_argument("PID number mismatch!");
     }
-    output_torque_.resize(NJoints);
+    if (joint_limits_.size() != NJoints) {
+      error("trajectory tracker: number of pairs of joint limit mismatch! expected %d, got %ld", NJoints,
+            joint_limits_.size());
+      throw std::invalid_argument("number of pairs of joint limit mismatch!");
+    }
 
     std::printf("=======================================================\n");
     std::printf("trajectory tracker:\n");
@@ -70,6 +78,14 @@ class PidTrajectoryTracker {
     }
 
     current_trajectory_ = traj.points;
+
+    // 限制关节位置
+    for (auto &point : current_trajectory_) {
+      for (size_t i = 0; i < NJoints; ++i) {
+        point.positions[i] = std::clamp(point.positions[i], joint_limits_[i].first, joint_limits_[i].second);
+      }
+    }
+
     playback_speed = std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max());
     const auto time_ratio = 1.0 / playback_speed;
     for (auto &point : current_trajectory_) {
@@ -95,6 +111,11 @@ class PidTrajectoryTracker {
     }
     current_trajectory_.clear();
     current_trajectory_.push_back(point);
+    // 限制关节位置
+    for (size_t i = 0; i < NJoints; ++i) {
+      current_trajectory_[0].positions[i] =
+          std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);
+    }
     ResetReferenceTrajectory();
   }
 
@@ -209,9 +230,10 @@ class PidTrajectoryTracker {
   size_t current_point_index_{};
   std::vector<Point> current_trajectory_{};
   std::chrono::steady_clock::time_point traj_start_time_{};
-  std::vector<double> output_torque_{};
+  std::array<double, NJoints> output_torque_{};
   std::vector<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>>
-      pids_;  ///< outer0, inner0, outer1, inner1, ...
+      pids_;                                             ///< outer0, inner0, outer1, inner1, ...
+  std::vector<std::pair<double, double>> joint_limits_;  ///< <lower bound, upper bound>
 };
 
 #endif

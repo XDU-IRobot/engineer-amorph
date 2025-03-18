@@ -65,74 +65,85 @@ void FluoriteArm::InitializeShit() {
   using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
   robot_model_loader::RobotModelLoader robot_model_loader{rclcpp::Node::SharedPtr{this}};
-  const auto kinematic_model = robot_model_loader.getModel();
+  auto kinematic_model = robot_model_loader.getModel();
   auto robot_state = std::make_shared<moveit::core::RobotState>(kinematic_model);
 
   // 这个can对象的生命周期和程序一样长，所以new一个就不管他了，不用delete
   auto arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
   fluorite::controller = std::make_unique<fluorite::Controller>(
       PidTrajectoryTracker<6>{
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_speed[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_speed[4])},  // yaw 速度环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_position[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_yaw_position[4])},  // yaw 位置环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[4])},  // pitch_1 速度环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[4])},  // pitch_1 位置环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[4])},  // pitch_1 速度环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[4])},  // pitch_1 位置环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[4])},  // end_yaw_1 速度环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[4])},  // end_yaw_1 位置环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[4])},  // end_pitch 速度环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[4])},  // end_pitch 位置环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[4])},  // end_yaw_2 速度环
-          PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[0]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[1]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[2]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[3]),
-                 static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[4])},  // end_yaw_2 位置环
-      },
+          // pid controllers
+          {
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_speed[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_speed[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_speed[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_speed[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_speed[4])},  // yaw 速度环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_yaw_position[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_position[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_position[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_position[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_yaw_position[4])},  // yaw 位置环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_speed[4])},  // pitch_1 速度环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_1_position[4])},  // pitch_1 位置环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_speed[4])},  // pitch_1 速度环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_pitch_2_position[4])},  // pitch_1 位置环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_speed[4])},  // end_yaw_1 速度环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_1_position[4])},  // end_yaw_1 位置环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_speed[4])},  // end_pitch 速度环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_pitch_position[4])},  // end_pitch 位置环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_speed[4])},  // end_yaw_2 速度环
+              PosPID{static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[0]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[1]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[2]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[3]),
+                     static_cast<float>(ros_params_manager_.data().pid_end_yaw_2_position[4])},  // end_yaw_2 位置环
+          },
+          // joint limits
+          {
+              std::make_pair(-2.355, 2.355),
+              std::make_pair(0.0, 2.7911),
+              std::make_pair(0.0, 2.7911),
+              std::make_pair(-2.6167, 2.6167),
+              std::make_pair(-1.57, 1.57),
+              std::make_pair(-3.14, 3.14),
+          }},
       PosPID{static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[0]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[1]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[2]),

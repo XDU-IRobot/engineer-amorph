@@ -167,6 +167,9 @@ class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
   }
 };
 
+/**
+ * @brief 机械臂的各种运行模式
+ */
 namespace state {
 
 #define DeclareState(state_name, fsm)                                                                 \
@@ -181,22 +184,22 @@ namespace state {
 namespace arm {
 
 /**
- * @brief 单关节调试
+ * @brief 单关节调试模式
  */
 DeclareState(Debug, Arm);
 
 /**
- * @brief 键盘手动控制
+ * @brief 键鼠手动控制模式
  */
 DeclareState(KeyboardManual, Arm);
 
 /**
- * @brief 自定义控制器手动控制
+ * @brief 自定义控制器手动控制模式
  */
 DeclareState(CustomCtrlManual, Arm);
 
 /**
- * @brief 跟随参考轨迹
+ * @brief 跟随Action Server输入的参考轨迹
  */
 DeclareState(FollowExternalTrajectory, Arm);
 

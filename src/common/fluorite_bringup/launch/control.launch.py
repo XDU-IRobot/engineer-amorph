@@ -15,7 +15,8 @@ def generate_launch_description():
                 executable="witmotion_ros2_driver",
                 name="witmotion_ros2_driver",
                 parameters=[{"serial_port": "/dev/ttyS4",
-                             "baud_rate": 921600, }],
+                             "baud_rate": 921600,
+                             "broadcast_tf": False, }],
                 output="screen"),
             Node(
                 package="sbus_bridge",

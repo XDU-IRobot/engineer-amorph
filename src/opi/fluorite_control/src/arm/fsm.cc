@@ -5,6 +5,7 @@
 
 #include "arm/fsm.hpp"
 
+#include <geometry_msgs/msg/detail/pose_stamped__struct.hpp>
 #include <iostream>
 #include <unordered_map>
 
@@ -12,11 +13,16 @@
 
 #include "keyboard_msgs/msg/key.hpp"
 
-#include "librm.hpp"
-
 constexpr int kRcSwitchUp = 1;
 constexpr int kRcSwitchMiddle = 0;
 constexpr int kRcSwitchDown = -1;
+
+static auto RemovePoseTimestamp(const geometry_msgs::msg::PoseStamped &p) {
+  geometry_msgs::msg::Pose ret;
+  ret.position = p.pose.position;
+  ret.orientation = p.pose.orientation;
+  return ret;
+}
 
 namespace fluorite {
 
@@ -89,7 +95,7 @@ void KeyboardManual::entry() {
   fluorite::controller->move_group_request_mutex.try_lock();
   fluorite::controller->move_group_request_thread_pool_.enqueue([&] {
     // 获取当前机械臂末端的位姿，设置为目标位姿
-    fluorite::state.target_end_effector_pose = fluorite::controller->move_group.getCurrentPose();
+    fluorite::state.target_end_effector_pose = RemovePoseTimestamp(fluorite::controller->move_group.getCurrentPose());
     fluorite::controller->move_group_request_mutex.unlock();
   });
 }
@@ -97,7 +103,7 @@ void CustomCtrlManual::entry() {
   Arm::EnableActuators(true);
   fluorite::controller->move_group_request_thread_pool_.enqueue([&] {
     // 获取当前机械臂末端的位姿，设置为目标位姿
-    fluorite::state.target_end_effector_pose = fluorite::controller->move_group.getCurrentPose();
+    fluorite::state.target_end_effector_pose = RemovePoseTimestamp(fluorite::controller->move_group.getCurrentPose());
     fluorite::controller->move_group_request_mutex.unlock();
   });
 }
@@ -204,10 +210,10 @@ void KeyboardManual::react(event::Control const &control) {
                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) * 0.02;
             }
 
-            const Eigen::Quaterniond q(fluorite::state.target_end_effector_pose.pose.orientation.w,
-                                       fluorite::state.target_end_effector_pose.pose.orientation.x,
-                                       fluorite::state.target_end_effector_pose.pose.orientation.y,
-                                       fluorite::state.target_end_effector_pose.pose.orientation.z);
+            const Eigen::Quaterniond q(fluorite::state.target_end_effector_pose.orientation.w,
+                                       fluorite::state.target_end_effector_pose.orientation.x,
+                                       fluorite::state.target_end_effector_pose.orientation.y,
+                                       fluorite::state.target_end_effector_pose.orientation.z);
             Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(0, 1, 2);
             euler.x() += delta_roll * 0.01;
             euler.y() += delta_pitch * 0.01;
@@ -220,23 +226,31 @@ void KeyboardManual::react(event::Control const &control) {
             return ret;
           }();
 
-          // 向move_group提交规划请求
-          fluorite::controller->move_group.setNumPlanningAttempts(10);
-          fluorite::controller->move_group.setPlanningTime(0.5);
-          fluorite::controller->move_group.setPoseTarget(target_pose);
-          const auto [success, plan] = [&] {
-            moveit::planning_interface::MoveGroupInterface::Plan plan;
-            return std::make_pair(fluorite::controller->move_group.plan(plan), plan);
-          }();
+          // print target pose
+          info("====================================================");
+          info("target pose: x=%f, y=%f, z=%f, qx=%f, qy=%f, qz=%f, qw=%f", target_pose.pose.position.x,
+               target_pose.pose.position.y, target_pose.pose.position.z, target_pose.pose.orientation.x,
+               target_pose.pose.orientation.y, target_pose.pose.orientation.z, target_pose.pose.orientation.w);
+          info("====================================================");
 
-          // 如果规划成功，更新规划结果到PID轨迹追踪器中
-          if (success) {
-            fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(plan.trajectory_.joint_trajectory);
+          fluorite::state.target_end_effector_pose = RemovePoseTimestamp(target_pose);
+          const auto joint_model_group = fluorite::controller->kinematic_model->getJointModelGroup("fluorite_arm");
+          const bool ik_solved =
+              fluorite::controller->kinematic_model->setFromIK(joint_model_group, RemovePoseTimestamp(target_pose));
+          if (ik_solved) {
+            std::vector<double> joint_values;
+            fluorite::controller->kinematic_model->copyJointGroupPositions(joint_model_group, joint_values);
+            info("====================================================");
+            info("ik solved!");
+            for (std::size_t i = 0; i < joint_values.size(); ++i) {
+              info("Joint %lu: %f", i, joint_values[i]);
+            }
+            info("====================================================");
           } else {
-            warn("failed to plan trajectory: invalid target position");
+            error("failed to solve ik");
           }
         } catch (const std::exception &e) {
-          error("failed to plan trajectory: %s", e.what());
+          error("failed to solve ik: %s", e.what());
           fluorite::controller->move_group_request_mutex.unlock();
         }
 
@@ -246,14 +260,18 @@ void KeyboardManual::react(event::Control const &control) {
     }
   }
 
+  Arm::EnableActuators(false);
+  fluorite::actuator->end_yaw_2.SetCurrent(0);
   Arm::CalcPidAndExecute();
+
+  // Arm::CalcPidAndExecute();
   UpdateState();
 }
 void CustomCtrlManual::react(event::Control const &control) {
   // TODO
 }
 void FollowExternalTrajectory::react(event::Control const &control) {
-  Arm::CalcPidAndExecute();
+  // Arm::CalcPidAndExecute();
 
   UpdateState();
 }
@@ -261,7 +279,7 @@ void Retracted::react(event::Control const &control) {
   fluorite::state.imu_yaw_target += control.left_x;
   const auto kReferenceTraj = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
-    p.positions = {fluorite::state.imu_yaw_target, 0, 0, 0, 0, 0};
+    p.positions = {fluorite::state.imu_yaw_target, 0.1, 0.1, 0, 0, 0};
     p.velocities = {0, 0, 0, 0, 0, 0};
     return p;
   }();
