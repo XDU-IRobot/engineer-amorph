@@ -1,8 +1,8 @@
 /**:
   ros__parameters:
     # can net interface names
-    chassis_can_port: "can0"
-    arm_can_port: "can1"
+    chassis_can_port: "vcan0"
+    arm_can_port: "vcan1"
 
 fluorite_control_chassis:
   ros__parameters:

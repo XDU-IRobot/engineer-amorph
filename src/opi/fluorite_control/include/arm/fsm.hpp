@@ -15,14 +15,14 @@
 #include <tinyfsm.hpp>
 #include <librm.hpp>
 
+// ros
+#include <tf2_ros/transform_listener.h>
 #include <moveit/move_group_interface/move_group_interface.h>
-
 #include "keyboard_msgs/msg/key.hpp"
 
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
-#include "common/thread_pool.hpp"
 #include "common/logger.hpp"
 
 // 使用tinyfsm之后，就没办法再使用oop的各种编程范式来写代码了，因为状态机类没有对象
@@ -69,19 +69,23 @@ struct Controller {
   using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
 
   Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosPID &&base_yaw_position_pid,
-             moveit::core::RobotStatePtr &&kinematic_model, moveit::planning_interface::MoveGroupInterface &&move_group)
+             std::unique_ptr<tf2_ros::Buffer> &&tf_buffer, moveit::core::RobotStatePtr &&kinematic_model,
+             moveit::planning_interface::MoveGroupInterface &&move_group)
       : trajectory_tracker{std::move(ptt)},
         base_yaw_speed_pid{std::move(base_yaw_speed_pid)},
         base_yaw_position_pid{std::move(base_yaw_position_pid)},
+        tf_buffer(std::move(tf_buffer)),
         kinematic_model(std::move(kinematic_model)),
         move_group(std::move(move_group)) {}
   PidTrajectoryTracker<6> trajectory_tracker;
   PosPID base_yaw_speed_pid, base_yaw_position_pid;
 
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer;
   moveit::core::RobotStatePtr kinematic_model;
+  std::mutex ik_calculation_mutex;
+  rm::core::ThreadPool ik_calculation_thread_pool_{1};
+
   moveit::planning_interface::MoveGroupInterface move_group;
-  std::mutex move_group_request_mutex;
-  ThreadPool move_group_request_thread_pool_{1};
 };
 extern std::unique_ptr<Controller> controller;
 

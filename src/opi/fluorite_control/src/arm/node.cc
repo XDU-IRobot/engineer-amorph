@@ -68,6 +68,9 @@ void FluoriteArm::InitializeShit() {
   auto kinematic_model = robot_model_loader.getModel();
   auto robot_state = std::make_shared<moveit::core::RobotState>(kinematic_model);
 
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
   // 这个can对象的生命周期和程序一样长，所以new一个就不管他了，不用delete
   auto arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
   fluorite::controller = std::make_unique<fluorite::Controller>(
@@ -154,7 +157,7 @@ void FluoriteArm::InitializeShit() {
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
              static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4])},  // base_yaw 位置环
-      std::move(robot_state),
+      std::move(tf_buffer_), std::move(robot_state),
       moveit::planning_interface::MoveGroupInterface{rclcpp::Node::SharedPtr{this}, "fluorite_arm"});
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
@@ -274,7 +277,7 @@ void FluoriteArm::Referee() { info("referee ok"); }
 
 /**
  * @brief
- * 把fluorite::state广播出去，方便调试的时候看数据，没有实质性作用，不需要debug或者记录log的时候可以把这个timer关掉
+ * 发布一些调试信息，比如关节角度、速度、末端目标位置等等。没有实质性作用，不需要debug或者记录log的时候可以把这个timer关掉
  */
 void FluoriteArm::Blackbox() {
   static auto PopulatePidMsg = [](fluorite_msgs::msg::Pid &msg, const fluorite::Controller::PosPID &pid) {
@@ -291,12 +294,46 @@ void FluoriteArm::Blackbox() {
   };
   blackbox_state_pub_ =
       create_publisher<fluorite_msgs::msg::ArmState>("fluorite/blackbox/arm_state", rclcpp::SystemDefaultsQoS());
+  end_eff_target_pose_visual_pub_ = create_publisher<visualization_msgs::msg::Marker>(
+      "fluorite/blackbox/end_effector_target_pose", rclcpp::SystemDefaultsQoS());
   blackbox_timer_ = create_wall_timer(20ms, [this] {
     fluorite::state.header.stamp = now();
     for (size_t i = 0; i < 12; ++i) {
       PopulatePidMsg(fluorite::state.pids[i], fluorite::controller->trajectory_tracker.pids()[i]);
     }
     blackbox_state_pub_->publish(fluorite::state);
+
+    const auto marker = [&] {
+      visualization_msgs::msg::Marker marker;
+      marker.header.frame_id = "base_yaw_link";
+      marker.header.stamp = now();
+      marker.ns = "end_effector";
+      marker.id = 0;
+      marker.type = visualization_msgs::msg::Marker::ARROW;
+      marker.action = visualization_msgs::msg::Marker::ADD;
+      marker.pose.position.x = fluorite::state.target_end_effector_pose.position.x;
+      marker.pose.position.y = fluorite::state.target_end_effector_pose.position.y;
+      marker.pose.position.z = fluorite::state.target_end_effector_pose.position.z;
+      marker.pose.orientation.x = 0.0;
+      marker.pose.orientation.y = 0.0;
+      marker.pose.orientation.z = 0.0;
+      marker.pose.orientation.w = 1.0;
+      marker.scale.x = 0.05;
+      marker.scale.y = 0.05;
+      marker.scale.z = 0.3;
+      marker.color.a = 1.0;
+      if (fluorite::state.last_ik_success) {
+        marker.color.r = 0.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+      } else {
+        marker.color.r = 1.0;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
+      }
+      return marker;
+    }();
+    end_eff_target_pose_visual_pub_->publish(marker);
   });
   info("blackbox ok");
 }

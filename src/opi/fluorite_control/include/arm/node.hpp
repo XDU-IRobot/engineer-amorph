@@ -2,8 +2,10 @@
 #ifndef ARM_NODE_HPP
 #define ARM_NODE_HPP
 
+// std
 #include <memory>
 
+// ros
 #include <rclcpp/rclcpp.hpp>
 #include <sbus_interface/msg/sbus.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
@@ -15,13 +17,16 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
+#include <visualization_msgs/msg/marker.hpp>
+
+// 3rd party libs
 #include <librm.hpp>
 
+// project headers
 #include "arm/fsm.hpp"
 #include "arm/ros_params.hpp"
 #include "common/device_monitor.hpp"
 #include "common/ros_params_manager.hpp"
-#include "librm/modules/algorithm/ahrs/mahony.h"
 
 /**
  * @brief    控制节点
@@ -57,6 +62,11 @@ class FluoriteArm final : public rclcpp::Node {
   RosParamsManager<RosParams> ros_params_manager_{reinterpret_cast<rclcpp::Node *>(this)};
   /** </parameters> **/
 
+  /** <tf listener> **/
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+  /** </tf listener> **/
+
   /** <tf publishers> **/
   std::unique_ptr<tf2_ros::TransformBroadcaster> world_to_base_yaw_tf_broadcaster_{nullptr};
   rclcpp::TimerBase::SharedPtr world_to_base_yaw_tf_broadcaster_timer_{nullptr};
@@ -82,6 +92,7 @@ class FluoriteArm final : public rclcpp::Node {
   /** <blackbox> **/
   rclcpp::TimerBase::SharedPtr blackbox_timer_{nullptr};
   rclcpp::Publisher<fluorite_msgs::msg::ArmState>::SharedPtr blackbox_state_pub_{nullptr};
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr end_eff_target_pose_visual_pub_{nullptr};
   /** </blackbox> **/
 
   /** <device monitor> **/

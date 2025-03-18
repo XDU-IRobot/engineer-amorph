@@ -17,6 +17,7 @@ constexpr int kRcSwitchUp = 1;
 constexpr int kRcSwitchMiddle = 0;
 constexpr int kRcSwitchDown = -1;
 
+// TODO: return rvalue ref/unique_ptr to avoid copy
 static auto RemovePoseTimestamp(const geometry_msgs::msg::PoseStamped &p) {
   geometry_msgs::msg::Pose ret;
   ret.position = p.pose.position;
@@ -92,20 +93,37 @@ void Debug::entry() {
 }
 void KeyboardManual::entry() {
   Arm::EnableActuators(true);
-  fluorite::controller->move_group_request_mutex.try_lock();
-  fluorite::controller->move_group_request_thread_pool_.enqueue([&] {
-    // 获取当前机械臂末端的位姿，设置为目标位姿
-    fluorite::state.target_end_effector_pose = RemovePoseTimestamp(fluorite::controller->move_group.getCurrentPose());
-    fluorite::controller->move_group_request_mutex.unlock();
-  });
+  // 查询tf树获取当前末端位姿
+  try {
+    const auto t =
+        fluorite::controller->tf_buffer->lookupTransform("base_yaw_link", "end_yaw_2_link", tf2::TimePointZero);
+    fluorite::state.target_end_effector_pose.position.x = t.transform.translation.x;
+    fluorite::state.target_end_effector_pose.position.y = t.transform.translation.y;
+    fluorite::state.target_end_effector_pose.position.z = t.transform.translation.z;
+    fluorite::state.target_end_effector_pose.orientation.x = t.transform.rotation.x;
+    fluorite::state.target_end_effector_pose.orientation.y = t.transform.rotation.y;
+    fluorite::state.target_end_effector_pose.orientation.z = t.transform.rotation.z;
+    fluorite::state.target_end_effector_pose.orientation.w = t.transform.rotation.w;
+  } catch (tf2::TransformException &ex) {
+    error("%s", ex.what());
+  }
 }
 void CustomCtrlManual::entry() {
   Arm::EnableActuators(true);
-  fluorite::controller->move_group_request_thread_pool_.enqueue([&] {
-    // 获取当前机械臂末端的位姿，设置为目标位姿
-    fluorite::state.target_end_effector_pose = RemovePoseTimestamp(fluorite::controller->move_group.getCurrentPose());
-    fluorite::controller->move_group_request_mutex.unlock();
-  });
+  // 查询tf树获取当前末端位姿
+  try {
+    const auto t =
+        fluorite::controller->tf_buffer->lookupTransform("base_yaw_link", "end_yaw_2_link", tf2::TimePointZero);
+    fluorite::state.target_end_effector_pose.position.x = t.transform.translation.x;
+    fluorite::state.target_end_effector_pose.position.y = t.transform.translation.y;
+    fluorite::state.target_end_effector_pose.position.z = t.transform.translation.z;
+    fluorite::state.target_end_effector_pose.orientation.x = t.transform.rotation.x;
+    fluorite::state.target_end_effector_pose.orientation.y = t.transform.rotation.y;
+    fluorite::state.target_end_effector_pose.orientation.z = t.transform.rotation.z;
+    fluorite::state.target_end_effector_pose.orientation.w = t.transform.rotation.w;
+  } catch (tf2::TransformException &ex) {
+    error("%s", ex.what());
+  }
 }
 void FollowExternalTrajectory::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
@@ -187,58 +205,53 @@ void KeyboardManual::react(event::Control const &control) {
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O))) {
-    // 并且上一轮计算结束（锁被释放），才计算一次新的目标关节位置，否则还是按TrajectoryTracker中的参考轨迹继续运动
-    if (fluorite::controller->move_group_request_mutex.try_lock()) {
-      fluorite::controller->move_group_request_thread_pool_.enqueue([&] {  // 异步计算ik，防止阻塞控制循环
+    // 根据键盘输入设置目标末端位姿
+    const double delta_x = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) -
+                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D)) *
+                           0.001;
+    const double delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) -
+                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W)) *
+                           0.001;
+    const double delta_z = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
+                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F)) *
+                           0.001;
+    const double delta_yaw = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
+                              control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O)) *
+                             0.001;
+    double delta_pitch{0}, delta_roll{0};
+    if (control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
+      delta_pitch = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
+                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K)) *
+                    0.02;
+      delta_roll = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
+                    control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
+                   0.02;
+    }
+
+    const Eigen::Quaterniond q(
+        fluorite::state.target_end_effector_pose.orientation.w, fluorite::state.target_end_effector_pose.orientation.x,
+        fluorite::state.target_end_effector_pose.orientation.y, fluorite::state.target_end_effector_pose.orientation.z);
+    Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(0, 1, 2);
+    euler.x() += delta_roll * 0.01;
+    euler.y() += delta_pitch * 0.01;
+    euler.z() += delta_yaw * 0.01;
+
+    fluorite::state.target_end_effector_pose.position.x += delta_x;
+    fluorite::state.target_end_effector_pose.position.y += delta_y;
+    fluorite::state.target_end_effector_pose.position.z += delta_z;
+
+    // 如果上一轮计算结束（锁被释放），才计算一次新的目标关节位置，否则还是按TrajectoryTracker中的参考轨迹继续运动
+    if (fluorite::controller->ik_calculation_mutex.try_lock()) {
+      fluorite::controller->ik_calculation_thread_pool_.enqueue([&] {  // 异步计算ik，不阻塞控制循环
         try {
-          const auto target_pose = [&] {                                   // 根据键盘输入设置目标位置
-            auto ret = fluorite::controller->move_group.getCurrentPose();  // 获取当前机械臂末端的位姿
-
-            const double delta_x = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
-                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) * 0.02;
-            const double delta_y = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) -
-                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) * 0.02;
-            const double delta_z = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
-                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) * 0.02;
-            const double delta_yaw = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
-                                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O) * 0.02;
-            double delta_pitch{0}, delta_roll{0};
-            if (control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
-              delta_pitch = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
-                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K) * 0.02;
-              delta_roll = control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
-                           control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) * 0.02;
-            }
-
-            const Eigen::Quaterniond q(fluorite::state.target_end_effector_pose.orientation.w,
-                                       fluorite::state.target_end_effector_pose.orientation.x,
-                                       fluorite::state.target_end_effector_pose.orientation.y,
-                                       fluorite::state.target_end_effector_pose.orientation.z);
-            Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(0, 1, 2);
-            euler.x() += delta_roll * 0.01;
-            euler.y() += delta_pitch * 0.01;
-            euler.z() += delta_yaw * 0.01;
-
-            ret.pose.position.x += delta_x;
-            ret.pose.position.y += delta_y;
-            ret.pose.position.z += delta_z;
-
-            return ret;
-          }();
-
-          // print target pose
-          info("====================================================");
-          info("target pose: x=%f, y=%f, z=%f, qx=%f, qy=%f, qz=%f, qw=%f", target_pose.pose.position.x,
-               target_pose.pose.position.y, target_pose.pose.position.z, target_pose.pose.orientation.x,
-               target_pose.pose.orientation.y, target_pose.pose.orientation.z, target_pose.pose.orientation.w);
-          info("====================================================");
-
-          fluorite::state.target_end_effector_pose = RemovePoseTimestamp(target_pose);
+          // 尝试逆解，成功的话就把解出来的关节位置送进轨迹跟踪器
           const auto joint_model_group = fluorite::controller->kinematic_model->getJointModelGroup("fluorite_arm");
-          const bool ik_solved =
-              fluorite::controller->kinematic_model->setFromIK(joint_model_group, RemovePoseTimestamp(target_pose));
-          if (ik_solved) {
+          const bool ik_solved = fluorite::controller->kinematic_model->setFromIK(
+              joint_model_group, fluorite::state.target_end_effector_pose, 0.1);
+          fluorite::controller->kinematic_model->enforceBounds();
+          if (ik_solved && fluorite::controller->kinematic_model->satisfiesBounds()) {
             std::vector<double> joint_values;
+            fluorite::state.last_ik_success = true;
             fluorite::controller->kinematic_model->copyJointGroupPositions(joint_model_group, joint_values);
             info("====================================================");
             info("ik solved!");
@@ -247,15 +260,16 @@ void KeyboardManual::react(event::Control const &control) {
             }
             info("====================================================");
           } else {
-            error("failed to solve ik");
+            fluorite::state.last_ik_success = false;
+            warn("failed to solve ik");
           }
         } catch (const std::exception &e) {
           error("failed to solve ik: %s", e.what());
-          fluorite::controller->move_group_request_mutex.unlock();
+          fluorite::controller->ik_calculation_mutex.unlock();
         }
 
-        // 解锁move_group
-        fluorite::controller->move_group_request_mutex.unlock();
+        // 计算完毕，解锁
+        fluorite::controller->ik_calculation_mutex.unlock();
       });
     }
   }
@@ -263,9 +277,7 @@ void KeyboardManual::react(event::Control const &control) {
   Arm::EnableActuators(false);
   fluorite::actuator->end_yaw_2.SetCurrent(0);
   Arm::CalcPidAndExecute();
-
-  // Arm::CalcPidAndExecute();
-  UpdateState();
+  // UpdateState();
 }
 void CustomCtrlManual::react(event::Control const &control) {
   // TODO
@@ -369,5 +381,5 @@ void NoForce::react(event::Control const &control) {
 
 }  // namespace fluorite
 
-FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::NoForce);
+FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::KeyboardManual);
 FSM_INITIAL_STATE(fluorite::fsm::GimbalBase, fluorite::fsm::state::gimbal_base::NoForce);

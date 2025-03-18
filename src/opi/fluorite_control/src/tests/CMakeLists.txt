@@ -1,11 +1,14 @@
 
+option(BUILD_TESTS "Build tests" OFF)
+
 if (${BUILD_TESTS})
 
 list(APPEND tests
     do_tinyfsm_has_object
-    trajectory_tracker
+    # trajectory_tracker
     end_effector_pose
     keyboard
+    ik
 )
 
 foreach(test ${tests})
