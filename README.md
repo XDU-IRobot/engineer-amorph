@@ -35,6 +35,8 @@
 
 工程车所有功能的开发工作在本仓库进行（控制、决策 AI、机械臂运动规划、导航、自动兑换视觉和自定义控制器）。
 
+这篇 README 提供了一些这辆工程最基础的使用和复现指引，如果需要更详细的信息，请去阅读它的技术报告(wip)。
+
 ## 操作方法
 
 > [!CAUTION]  
@@ -42,26 +44,26 @@
 
 ![](assets/remote_layout.jpg)
 
-### 拨杆
+### 遥控器拨杆
 
 使用遥控器拨杆可以切换不同模式：
 
-|     | 上/外                                   | 中                                           | 下/内          |
-| --- | --------------------------------------- | -------------------------------------------- | -------------- |
-| SA  | 底盘手动模式（遥控器/键鼠控制）         | 底盘自动模式（接收决策树指令）               | 底盘无力       |
-| SB  | 大 yaw 轴严格跟随机械臂                 | 大 yaw 轴只在小 yaw 轴快碰到限位时小范围调整 | 大 yaw 轴无力  |
-| SC  | 机械臂手动模式（键盘/自定义控制器控制） | 机械臂自动模式（接收决策树指令）             | 机械臂保持收回 |
-| SD  | 机械臂有力                              | 机械臂无力                                   | 机械臂无力     |
-| SF  | 机械臂单关节调试模式                    | /                                            | 机械臂正常     |
-| SE  | 选择小 yaw                              | 选择 pitch1                                  | 无效           |
-| SG  | 选择 pitch2                             | 选择末端 yaw1                                | 无效           |
-| SH  | 选择 末端 pitch                         | /                                            | 选择末端 yaw2  |
+|     | 上/外                                   | 中                                           | 下/内                                        |
+| --- | --------------------------------------- | -------------------------------------------- | -------------------------------------------- |
+| SA  | 底盘手动模式（遥控器/键鼠控制）         | 底盘自动模式（接收决策树指令）               | 底盘无力                                     |
+| SB  | 大 yaw 轴严格跟随机械臂                 | 大 yaw 轴只在小 yaw 轴快碰到限位时小范围调整 | 大 yaw 轴只在小 yaw 轴快碰到限位时小范围调整 |
+| SC  | 机械臂手动模式（键盘/自定义控制器控制） | 机械臂自动模式（接收决策树指令）             | 机械臂保持收回                               |
+| SD  | 机械臂有力                              | 机械臂无力                                   | 机械臂无力                                   |
+| SF  | 机械臂单关节调试模式                    | /                                            | 机械臂正常                                   |
+| SE  | 选择小 yaw                              | 选择 pitch1                                  | 无效                                         |
+| SG  | 选择 pitch2                             | 选择末端 yaw1                                | 无效                                         |
+| SH  | 选择 末端 pitch                         | /                                            | 选择末端 yaw2                                |
 
 优先级：`SD` > `SF` > `SE > SG > SH` > `SC`
 
 人话：SD 优先级最高，只有 SD 置于有力状态时，机械臂才会动；SF 优先级次之，一旦 SF 置于单关节调试模式，机械臂就会进入单关节调试模式，SC 会被忽略；SE、SG、SH 用于选择单关节调试模式下的关节，优先级递减，且只有在 SF 置于单关节调试模式时才有效。SC 优先级最低。
 
-### 轴
+### 遥控器摇杆、旋钮
 
 | axis     | 说明                                                                                                 |
 | -------- | ---------------------------------------------------------------------------------------------------- |
@@ -80,10 +82,7 @@
 
 | 键位      | 说明                             |
 | --------- | -------------------------------- |
-| W         | 底盘前进                         |
-| S         | 底盘后退                         |
-| A         | 底盘左移                         |
-| D         | 底盘右移                         |
+| WSAD      | 控制车辆移动                     |
 | Q         | 底盘左旋/打断锁定                |
 | Shift + Q | 底盘锁定左旋                     |
 | E         | 底盘右旋/打断锁定                |
@@ -102,19 +101,37 @@
 | Shift + L | 机械臂末端 yaw 向右              |
 | G（按住） | 启用自定义控制器                 |
 
-## 硬件
+## 主要硬件
+
+- 电机
+
+  - 底盘：6020 x4, 3508 x4
+
+  - 机械臂：本末 p1010a_111 x1, DM-J8009-2EC x3, DM-J4310-2EC x2, 6020 x1
 
 - IMU `维特智能 HWT606` `->` `uart4@orange pi`。
 
 - 遥控器/接收机 `天地飞ET16S/RF209S` `->` `uart0@orange pi`。
 
-- 主控
+- 计算设备
 
-  - 视觉 `Jetson xavier nx 8gb` `ip = 10.0.3.101`
+  - 视觉 `Jetson xavier nx 8gb` `ip = 192.168.1.202`
 
-  - 控制/机械臂规划/导航 `orangepi 5 8gb` `ip = 10.0.3.102`
+  - 控制/机械臂规划/导航 `orangepi 5 8gb` `ip = 192.168.1.201`
 
-- 相机 `大恒水星 MER2-230` `->` `Jetson`。
+- 主相机 `大恒水星 MER2-230` `->` `Jetson`。
+
+- 副相机 `OV5640` `->` `Jetson`。
+
+- 激光雷达 `Livox Mid-360` `ip = 待定`。
+
+- 自定义控制器
+
+  - 主控 `树莓派 4b 8gb`
+
+  - Realsense t265 运动追踪相机
+
+- 真空泵 x2 `VN-C4`
 
 ### PCB
 
@@ -126,7 +143,7 @@
 
 - 位于云台设备舱的电磁阀驱动器/分电板 [`pcb/engineer_2025.eprj`](pcb/engineer_2025.eprj)
 
-## 软件包架构
+## 软件架构
 
 ### 手动模式
 
@@ -136,23 +153,27 @@
 
 ![](assets/auto_flowchart.png)
 
-## 程序使用方法
+## 软件开发/部署指引
 
 ### 环境配置
 
-#### 若需要开发调试，在开发/调试电脑上：
-
-安装以下软件：
+#### 开发本仓库需要在电脑上安装：
 
 - ROS2 `>= humble`
 
-- moveit `apt install ros-rolling-moveit*`
+- moveit `apt install ros-humble-moveit*`
 
 - SDL 1.2 `apt install libsdl1.2-dev`
 
-- behaviortree_cpp_v3 `apt install ros-rolling-behaviortree-cpp-v3`
+- behaviortree_cpp_v3 `apt install ros-humble-behaviortree-cpp-v3`
 
 - NLopt `apt install libnlopt-dev libnlopt-cxx-dev`
+
+- camera_info_manager `apt install ros-humble-camera-info-manager`
+
+- cv_bridge `apt install ros-humble-cv-bridge`
+
+- [大恒相机驱动 `Galaxy Linux-x86-Gige-U3 SDK_CN-EN`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=9&sylx=23&syxj=#mmd)
 
 #### 在香橙派(`ubuntu 22.04, RT Kernel`)上：
 
@@ -180,15 +201,20 @@
 
    - Jetpack `apt install nvidia-jetpack`
 
+     > [!TIP]  
+     > 如果 apt 提示找不到这个包，参考[这篇文章](https://blog.csdn.net/pleasescanf/article/details/133189245)添加一下 l4t 的 apt repo。
+
    - OpenCV `apt install libopencv-dev libopencv-contrib-dev`
 
    - ROS2 `>= galactic`
 
    - cv_bridge `apt install ros-galactic-cv-bridge`
 
+   - camera_info_manager `apt install ros-galactic-camera-info-manager`
+
    - [大恒相机驱动 `Galaxy Linux-armhf-Gige-U3 SDK`](https://www.daheng-imaging.com/index.php?m=content&c=index&a=lists&catid=59&czxt=30&sylx=23&syxj=#mmd)
 
-2. 按指引配 mrc-net 的环境，被折磨一个周（祝你好运:)))))）
+2. 按指引配好 [mrc-net](https://github.com/amzn/mrc-net-6d-pose) 的运行环境，被折磨一个周（祝你好运:)))))）
 
 3. 执行初始化脚本：
 
@@ -199,35 +225,48 @@
 ### 编译
 
 ```bash
-# 按情况，在哪台电脑上编译就选哪个
+# 按情况
 python3 scripts/build.py -j     # 编译jetson上运行的包
 python3 scripts/build.py -o     # 编译香橙派上运行的包
+python3 scripts/build.py -c     # 编译自定义控制器上运行的程序
+
+# 也可以在你的电脑上编译
+python3 scripts/build.py -d     # 编译所有东西，一般只有开发的时候才需要
 ```
 
-### 运行
+### 手动运行
 
 ```bash
 source install/setup.bash
 # 同上
 chrt -f 99 ros2 launch fluorite_bringup opi.launch.py
-ros2 launch fluorite_bringup jetson.launch.py
+# or
+# ros2 launch fluorite_bringup jetson.launch.py
 ```
 
-### [可选] 注册 systemd 服务（开机自启）
+### [可选] 开机自启
 
-车目前的状态应该已经注册过，如果板子重新装过系统需要重新配置，执行：
+通过向 systemd 注册服务的方法实现程序开机自启：
 
 ```bash
 ./scripts/install_service.sh
+
+sudo systemctl enable fluorite_opi.service
+# or:
+# sudo systemctl enable fluorite_jetson.service
 ```
 
-如果不想开机自启，取消注册服务或者暂时 disable 服务均可：
+如果不想开机自启，取消注册服务或者暂时 disable/mask 服务均可：
 
 ```bash
 ./scripts/uninstall_service.sh
-# or
+# 暂时禁用：
 sudo systemctl disable fluorite_opi.service
 sudo systemctl disable fluorite_jetson.service
+# 重新启用：
+sudo systemctl enable fluorite_opi.service
+# or:
+# sudo systemctl enable fluorite_jetson.service
 ```
 
 ## CAN 总线 设备列表
