@@ -264,7 +264,7 @@ void FluoriteArm::Keyboard() {
         control_msg_.keyboard_modifier |= msg->modifiers;
       });
   keyboard_keyup_sub_ = create_subscription<keyboard_msgs::msg::Key>(
-      "/keyup", rclcpp::QoS(10).reliable(),[&](const keyboard_msgs::msg::Key::SharedPtr msg) {
+      "/keyup", rclcpp::QoS(10).reliable(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
         if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
           control_msg_.keyboard_key[msg->code] = false;
         }
