@@ -257,14 +257,14 @@ void FluoriteArm::Remote() {
 
 void FluoriteArm::Keyboard() {
   keyboard_keydown_sub_ = create_subscription<keyboard_msgs::msg::Key>(
-      "/keydown", rclcpp::SensorDataQoS(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
+      "/keydown", rclcpp::QoS(10).reliable(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
         if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
           control_msg_.keyboard_key[msg->code] = true;
         }
         control_msg_.keyboard_modifier |= msg->modifiers;
       });
   keyboard_keyup_sub_ = create_subscription<keyboard_msgs::msg::Key>(
-      "/keyup", rclcpp::SensorDataQoS(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
+      "/keyup", rclcpp::QoS(10).reliable(),[&](const keyboard_msgs::msg::Key::SharedPtr msg) {
         if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
           control_msg_.keyboard_key[msg->code] = false;
         }

@@ -107,6 +107,19 @@ void KeyboardManual::entry() {
   } catch (tf2::TransformException &ex) {
     error("%s", ex.what());
   }
+  const auto kCurrentJointPositions = [&] {
+    trajectory_msgs::msg::JointTrajectoryPoint p;
+    p.positions.resize(6);
+    p.velocities.resize(6);
+    p.positions[0] = fluorite::state.imu_yaw;
+    p.positions[1] = fluorite::state.pitch_1_encoder;
+    p.positions[2] = fluorite::state.pitch_2_encoder;
+    p.positions[3] = fluorite::state.end_yaw_1_encoder;
+    p.positions[4] = fluorite::state.end_pitch_encoder;
+    p.positions[5] = fluorite::state.end_yaw_2_encoder;
+    return p;
+  }();
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
 }
 void CustomCtrlManual::entry() {
   Arm::EnableActuators(true);
@@ -124,6 +137,19 @@ void CustomCtrlManual::entry() {
   } catch (tf2::TransformException &ex) {
     error("%s", ex.what());
   }
+  const auto kCurrentJointPositions = [&] {
+    trajectory_msgs::msg::JointTrajectoryPoint p;
+    p.positions.resize(6);
+    p.velocities.resize(6);
+    p.positions[0] = fluorite::state.imu_yaw;
+    p.positions[1] = fluorite::state.pitch_1_encoder;
+    p.positions[2] = fluorite::state.pitch_2_encoder;
+    p.positions[3] = fluorite::state.end_yaw_1_encoder;
+    p.positions[4] = fluorite::state.end_pitch_encoder;
+    p.positions[5] = fluorite::state.end_yaw_2_encoder;
+    return p;
+  }();
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
 }
 void FollowExternalTrajectory::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
@@ -264,6 +290,13 @@ void KeyboardManual::react(event::Control const &control) {
               info("Joint %lu: %f", i, joint_values[i]);
             }
             info("====================================================");
+            const auto kReferenceTraj = [&] {
+              trajectory_msgs::msg::JointTrajectoryPoint p;
+              p.positions = joint_values;
+              p.velocities.resize(6);
+              return p;
+            }();
+            fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kReferenceTraj);
           } else {
             fluorite::state.last_ik_success = false;
             warn("failed to solve ik");
@@ -279,8 +312,6 @@ void KeyboardManual::react(event::Control const &control) {
     }
   }
 
-  Arm::EnableActuators(false);
-  fluorite::actuator->end_yaw_2.SetCurrent(0);
   Arm::CalcPidAndExecute();
   UpdateState();
 }
