@@ -9,6 +9,7 @@
 #include <limits>
 #include <vector>
 #include <chrono>
+#include <mutex>
 #include <utility>
 
 #include <librm.hpp>
@@ -77,23 +78,27 @@ class PidTrajectoryTracker {
       }
     }
 
-    current_trajectory_ = traj.points;
+    {
+      std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
 
-    // 限制关节位置
-    for (auto &point : current_trajectory_) {
-      for (size_t i = 0; i < NJoints; ++i) {
-        point.positions[i] = std::clamp(point.positions[i], joint_limits_[i].first, joint_limits_[i].second);
+      current_trajectory_ = traj.points;
+
+      // 限制关节位置
+      for (auto &point : current_trajectory_) {
+        for (size_t i = 0; i < NJoints; ++i) {
+          point.positions[i] = std::clamp(point.positions[i], joint_limits_[i].first, joint_limits_[i].second);
+        }
       }
-    }
 
-    playback_speed = std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max());
-    const auto time_ratio = 1.0 / playback_speed;
-    for (auto &point : current_trajectory_) {
-      point.time_from_start.sec *= time_ratio;
-      point.time_from_start.nanosec *= time_ratio;
-      while (point.time_from_start.nanosec >= 1e9) {
-        point.time_from_start.sec += 1;
-        point.time_from_start.nanosec -= 1e9;
+      playback_speed = std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max());
+      const auto time_ratio = 1.0 / playback_speed;
+      for (auto &point : current_trajectory_) {
+        point.time_from_start.sec *= time_ratio;
+        point.time_from_start.nanosec *= time_ratio;
+        while (point.time_from_start.nanosec >= 1e9) {
+          point.time_from_start.sec += 1;
+          point.time_from_start.nanosec -= 1e9;
+        }
       }
     }
     ResetReferenceTrajectory();
@@ -109,12 +114,16 @@ class PidTrajectoryTracker {
       warn("trajectory tracker: joint number mismatch, rejecting!");
       return;
     }
-    current_trajectory_.clear();
-    current_trajectory_.push_back(point);
-    // 限制关节位置
-    for (size_t i = 0; i < NJoints; ++i) {
-      current_trajectory_[0].positions[i] =
-          std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);
+    {
+      std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
+
+      current_trajectory_.clear();
+      current_trajectory_.push_back(point);
+      // 限制关节位置
+      for (size_t i = 0; i < NJoints; ++i) {
+        current_trajectory_[0].positions[i] =
+            std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);
+      }
     }
     ResetReferenceTrajectory();
   }
@@ -137,6 +146,8 @@ class PidTrajectoryTracker {
    * @brief 更新一步参考点，但不计算PID
    */
   void Update() {
+    std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
+
     // corner case 1: 对象刚刚创建，没有轨迹，直接返回
     if (current_trajectory_.empty()) {
       return;
@@ -229,6 +240,7 @@ class PidTrajectoryTracker {
  private:
   size_t current_point_index_{};
   std::vector<Point> current_trajectory_{};
+  std::mutex current_trajectory_mutex_{};
   std::chrono::steady_clock::time_point traj_start_time_{};
   std::array<double, NJoints> output_torque_{};
   std::vector<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>>
