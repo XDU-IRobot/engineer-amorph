@@ -197,48 +197,53 @@ void Debug::react(event::Control const &control) {
 }
 void KeyboardManual::react(event::Control const &control) {
   // 如果键盘有输入，
-  if ((control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) ||
+  if ((control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K) ||
+       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) ||
        control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O))) {
     // 根据键盘输入设置目标末端位姿
-    const double delta_x = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A) -
-                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D)) *
-                           0.001;
-    const double delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S) -
-                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W)) *
-                           0.001;
+    double delta_x{0}, delta_y{0}, delta_pitch{0}, delta_roll{0};
+    if (control.keyboard_modifier.load() & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
+      delta_roll = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
+                    control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K)) *
+                   0.002;
+      delta_pitch = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
+                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
+                    0.002;
+    } else {
+      delta_x = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
+                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
+                0.001;
+      delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K) -
+                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I)) *
+                0.001;
+    }
     const double delta_z = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
                             control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F)) *
                            0.001;
     const double delta_yaw = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
                               control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O)) *
-                             0.001;
-    double delta_pitch{0}, delta_roll{0};
-    if (control.keyboard_modifier & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
-      delta_pitch = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
-                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K)) *
-                    0.02;
-      delta_roll = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
-                    control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
-                   0.02;
-    }
+                             0.002;
 
-    const Eigen::Quaterniond q(
+    Eigen::Quaterniond q(
         fluorite::state.target_end_effector_pose.orientation.w, fluorite::state.target_end_effector_pose.orientation.x,
         fluorite::state.target_end_effector_pose.orientation.y, fluorite::state.target_end_effector_pose.orientation.z);
-    Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(0, 1, 2);
-    euler.x() += delta_roll * 0.01;
-    euler.y() += delta_pitch * 0.01;
-    euler.z() += delta_yaw * 0.01;
+    const Eigen::AngleAxisd yaw_angle(delta_yaw, Eigen::Vector3d::UnitZ());
+    const Eigen::AngleAxisd pitch_angle(delta_pitch, Eigen::Vector3d::UnitY());
+    const Eigen::AngleAxisd roll_angle(delta_roll, Eigen::Vector3d::UnitX());
+    q = q * yaw_angle * pitch_angle * roll_angle;
 
     fluorite::state.target_end_effector_pose.position.x += delta_x;
     fluorite::state.target_end_effector_pose.position.y += delta_y;
     fluorite::state.target_end_effector_pose.position.z += delta_z;
+    fluorite::state.target_end_effector_pose.orientation.x = q.x();
+    fluorite::state.target_end_effector_pose.orientation.y = q.y();
+    fluorite::state.target_end_effector_pose.orientation.z = q.z();
+    fluorite::state.target_end_effector_pose.orientation.w = q.w();
 
     // 如果上一轮计算结束（锁被释放），才计算一次新的目标关节位置，否则还是按TrajectoryTracker中的参考轨迹继续运动
     if (fluorite::controller->ik_calculation_mutex.try_lock()) {
@@ -277,7 +282,7 @@ void KeyboardManual::react(event::Control const &control) {
   Arm::EnableActuators(false);
   fluorite::actuator->end_yaw_2.SetCurrent(0);
   Arm::CalcPidAndExecute();
-  // UpdateState();
+  UpdateState();
 }
 void CustomCtrlManual::react(event::Control const &control) {
   // TODO
@@ -381,5 +386,5 @@ void NoForce::react(event::Control const &control) {
 
 }  // namespace fluorite
 
-FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::KeyboardManual);
+FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::NoForce);
 FSM_INITIAL_STATE(fluorite::fsm::GimbalBase, fluorite::fsm::state::gimbal_base::NoForce);

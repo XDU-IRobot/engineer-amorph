@@ -311,16 +311,24 @@ void FluoriteArm::Blackbox() {
       marker.id = 0;
       marker.type = visualization_msgs::msg::Marker::ARROW;
       marker.action = visualization_msgs::msg::Marker::ADD;
-      marker.pose.position.x = fluorite::state.target_end_effector_pose.position.x;
-      marker.pose.position.y = fluorite::state.target_end_effector_pose.position.y;
-      marker.pose.position.z = fluorite::state.target_end_effector_pose.position.z;
-      marker.pose.orientation.x = 0.0;
-      marker.pose.orientation.y = 0.0;
-      marker.pose.orientation.z = 0.0;
-      marker.pose.orientation.w = 1.0;
-      marker.scale.x = 0.05;
+      marker.pose.position = fluorite::state.target_end_effector_pose.position;
+      const auto orientation = [&] {
+        Eigen::Quaterniond q(fluorite::state.target_end_effector_pose.orientation.w,
+                             fluorite::state.target_end_effector_pose.orientation.x,
+                             fluorite::state.target_end_effector_pose.orientation.y,
+                             fluorite::state.target_end_effector_pose.orientation.z);
+        q = q * Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitY());
+        geometry_msgs::msg::Quaternion o;
+        o.x = q.x();
+        o.y = q.y();
+        o.z = q.z();
+        o.w = q.w();
+        return o;
+      }();
+      marker.pose.orientation = orientation;
+      marker.scale.x = 0.3;
       marker.scale.y = 0.05;
-      marker.scale.z = 0.3;
+      marker.scale.z = 0.05;
       marker.color.a = 1.0;
       if (fluorite::state.last_ik_success) {
         marker.color.r = 0.0;
