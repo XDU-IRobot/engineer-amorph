@@ -25,17 +25,15 @@
 #include <librm.hpp>
 
 class PacketBuilder {
-public:
+ public:
   auto Build(const std::vector<uint8_t> &data) {
     assert(data.size() < 31);
 
     std::memcpy(tx_buffer_.data, data.data(), data.size());
     tx_buffer_.header_crc8 =
-        rm::modules::algorithm::Crc8(reinterpret_cast<uint8_t *>(&tx_buffer_),
-                                     4, rm::modules::algorithm::CRC8_INIT);
-    tx_buffer_.tail_crc16 = rm::modules::algorithm::Crc16(
-        reinterpret_cast<uint8_t *>(&tx_buffer_), sizeof(tx_buffer_) - 2,
-        rm::modules::algorithm::CRC16_INIT);
+        rm::modules::algorithm::Crc8(reinterpret_cast<uint8_t *>(&tx_buffer_), 4, rm::modules::algorithm::CRC8_INIT);
+    tx_buffer_.tail_crc16 = rm::modules::algorithm::Crc16(reinterpret_cast<uint8_t *>(&tx_buffer_),
+                                                          sizeof(tx_buffer_) - 2, rm::modules::algorithm::CRC16_INIT);
 
     const auto ret = [this] {
       auto v = std::make_shared<std::vector<uint8_t>>(sizeof(tx_buffer_));
@@ -46,7 +44,7 @@ public:
     return ret;
   }
 
-private:
+ private:
   struct __attribute__((__packed__)) {
     // header
     const uint8_t kSof{0xa5};
