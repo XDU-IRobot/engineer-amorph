@@ -1,45 +1,39 @@
-// License: Apache 2.0. See LICENSE file in root directory.
-// Copyright(c) 2019 Intel Corporation. All Rights Reserved.
-#include <librealsense2/rs.hpp>
-#include <iostream>
-#include <iomanip>
-#include "utils.hpp"
 
-int main(int argc, char* argv[]) try {
-  std::string serial;
-  if (!device_with_streams({RS2_STREAM_POSE}, serial)) return EXIT_SUCCESS;
+#include <cstring>
 
-  // Declare RealSense pipeline, encapsulating the actual device and sensors
-  rs2::pipeline pipe;
-  // Create a configuration for configuring the pipeline with a non default profile
-  rs2::config cfg;
-  if (!serial.empty()) cfg.enable_device(serial);
-  // Add pose stream
-  cfg.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
-  // Start pipeline with chosen configuration
-  pipe.start(cfg);
+#include "packet_builder.hpp"
+#include "serial.hpp"
+#include "t265.hpp"
 
-  // Main loop
+int main(int argc, char *argv[]) {
   while (true) {
-    // Wait for the next set of frames from the camera
-    auto frames = pipe.wait_for_frames();
-    // Get a frame from the pose stream
-    auto f = frames.first_or_default(RS2_STREAM_POSE);
-    // Cast the frame to pose_frame and get its data
-    auto pose_data = f.as<rs2::pose_frame>().get_pose_data();
+    try {
+      PacketBuilder packet_builder{};
+      Serial ser{"/dev/ttyAMA3", 115200};
+      T265 t265{};
 
-    // Print the x, y, z values of the translation, relative to initial position
-    std::cout << "\r"
-              << "Device Position: " << std::setprecision(3) << std::fixed << pose_data.translation.x << " "
-              << pose_data.translation.y << " " << pose_data.translation.z << " (meters)";
+      while (true) {
+        const auto pose = t265.GetPoseData();
+        const auto tx_data = [&pose] {
+          std::vector<uint8_t> tx_data{30};
+          std::memcpy(tx_data.data(), &pose.translation.x, sizeof(float));
+          std::memcpy(tx_data.data() + 4, &pose.translation.y, sizeof(float));
+          std::memcpy(tx_data.data() + 8, &pose.translation.z, sizeof(float));
+          std::memcpy(tx_data.data() + 12, &pose.rotation.w, sizeof(float));
+          std::memcpy(tx_data.data() + 16, &pose.rotation.x, sizeof(float));
+          std::memcpy(tx_data.data() + 20, &pose.rotation.y, sizeof(float));
+          std::memcpy(tx_data.data() + 24, &pose.rotation.z, sizeof(float));
+          return tx_data;
+        }();
+        const auto tx_packet = packet_builder.Build(tx_data);
+        ser.Write(tx_packet);
+      }
+
+    } catch (const rs2::error &e) {
+      std::cerr << "RealSense error calling " << e.get_failed_function() << "("
+                << e.get_failed_args() << "):\n    " << e.what() << std::endl;
+    } catch (const std::exception &e) {
+      std::cerr << e.what() << std::endl;
+    }
   }
-
-  return EXIT_SUCCESS;
-} catch (const rs2::error& e) {
-  std::cerr << "RealSense error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    "
-            << e.what() << std::endl;
-  return EXIT_FAILURE;
-} catch (const std::exception& e) {
-  std::cerr << e.what() << std::endl;
-  return EXIT_FAILURE;
 }

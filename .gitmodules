@@ -36,3 +36,6 @@
 	path = src/common/backward_ros
 	url = https://github.com/pal-robotics/backward_ros.git
 	branch = foxy-devel
+[submodule "src/custom_controller/t265/libs/librm"]
+	path = src/custom_controller/t265/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
