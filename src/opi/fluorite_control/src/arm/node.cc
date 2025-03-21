@@ -392,7 +392,7 @@ void FluoriteArm::ProcessSensorData() {
   fluorite::state.yaw_encoder = fluorite::actuator->yaw.pos() - ros_params_manager_.data().yaw_encoder_zero_offset;
   fluorite::state.yaw_encoder_speed = fluorite::actuator->yaw.vel();
   fluorite::state.pitch_1_encoder =
-      fluorite::actuator->pitch_1.pos() - ros_params_manager_.data().pitch_1_encoder_zero_offset;
+      fluorite::actuator->pitch_1.pos() * (2.0 / 3.0) - ros_params_manager_.data().pitch_1_encoder_zero_offset;
   fluorite::state.pitch_1_encoder_speed = fluorite::actuator->pitch_1.vel();
   fluorite::state.pitch_2_encoder =
       fluorite::actuator->pitch_2.pos() - ros_params_manager_.data().pitch_2_encoder_zero_offset;
