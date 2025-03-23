@@ -1,10 +1,12 @@
 
 std_msgs/Header header
 
+float32 base_yaw_encoder
 float32 lf_steer_position
 float32 rf_steer_position
 float32 lr_steer_position
 float32 rr_steer_position
+float32 base_yaw_encoder_speed
 float32 lf_steer_speed
 float32 rf_steer_speed
 float32 lr_steer_speed

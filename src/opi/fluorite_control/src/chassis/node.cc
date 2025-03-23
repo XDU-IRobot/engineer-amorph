@@ -15,6 +15,7 @@
 
 #include "chassis/fsm.hpp"
 #include "common/logger.hpp"
+#include "librm/device/actuator/directdrive_motor.hpp"
 #include "librm/modules/algorithm/utils.hpp"
 
 using namespace std::chrono_literals;
@@ -46,8 +47,10 @@ FluoriteChassis::~FluoriteChassis() { fsm::DispatchEvent(event::chassis::SwitchM
 
 void FluoriteChassis::InitFsm() {
   auto chassis_can = new hal::Can(ros_params_manager_.data().chassis_can_port.c_str());
+  auto arm_can = new hal::Can(ros_params_manager_.data().arm_can_port.c_str());
 
   // clang-format off
+  fsm::Chassis::actuator.base_yaw = std::make_unique<device::DirectDriveMotor>(*arm_can, 1);
   fsm::Chassis::actuator.lf_wheel = std::make_unique<device::M3508>(
       *chassis_can, 
       ros_params_manager_.data().lf_wheel_id, 
@@ -160,11 +163,18 @@ void FluoriteChassis::InitFsm() {
       ros_params_manager_.data().pid_rr_steer_position[3],
       ros_params_manager_.data().pid_rr_steer_position[4],
       2 * M_PI);
+  fsm::Chassis::controller.chassis_orientation_position = std::make_unique<PosRingPid>(
+      ros_params_manager_.data().pid_chassis_orientation_position[0], 
+      ros_params_manager_.data().pid_chassis_orientation_position[1],
+      ros_params_manager_.data().pid_chassis_orientation_position[2],
+      ros_params_manager_.data().pid_chassis_orientation_position[3],
+      ros_params_manager_.data().pid_chassis_orientation_position[4],
+      2 * M_PI);
   // clang-format on
 
-  chassis_can->SetFilter(0, 0);  // 设置can过滤器
-  chassis_can->Begin();          // 开启can总线
-  fsm::fsm_list::start();        // 状态机开始监听事件
+  chassis_can->Begin();  // 开启can总线
+  arm_can->Begin();
+  fsm::fsm_list::start();  // 状态机开始监听事件
   info("fsm init ok");
 }
 
@@ -231,6 +241,9 @@ void FluoriteChassis::DeviceMonitor() {
  * @brief 把电机对象里的保存的电机状态复制到控制事件里
  */
 void FluoriteChassis::UpdateFsmState() {
+  fsm::Chassis::state.base_yaw_encoder = rm::modules::algorithm::utils::LoopConstrain(
+      fsm::Chassis::actuator.base_yaw->pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset, 0.0,
+      M_PI * 2.0);
   fsm::Chassis::state.lf_wheel_speed = fsm::Chassis::actuator.lf_wheel->rpm();
   fsm::Chassis::state.rf_wheel_speed = fsm::Chassis::actuator.rf_wheel->rpm();
   fsm::Chassis::state.lr_wheel_speed = fsm::Chassis::actuator.lr_wheel->rpm();

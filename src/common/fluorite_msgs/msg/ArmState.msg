@@ -26,5 +26,6 @@ float32 end_yaw_2_encoder_speed
 
 ##### 以下是调试信息，不用于实际控制 #####
 
-fluorite_msgs/Pid[12] pids
+fluorite_msgs/Pid[14] pids
+geometry_msgs/Pose custom_controller_pose
 bool last_ik_success

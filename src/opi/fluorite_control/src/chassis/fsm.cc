@@ -7,6 +7,8 @@
 #include <iostream>
 #include <unordered_map>
 
+#include <Eigen/Dense>
+
 #include "common/logger.hpp"
 
 using namespace rm::modules::algorithm::utils;
@@ -19,10 +21,17 @@ namespace fsm {
 
 // default behaviours
 void Chassis::react(tinyfsm::Event const &event) {}  // 忽略不关心的event
-void Chassis::react(event::chassis::Control const &event) {
-  const auto result =
-      controller.chassis_solver.Forward(event.vx, event.vy, event.vw, state.lf_steer_position, state.rf_steer_position,
-                                        state.lr_steer_position, state.rr_steer_position);
+void Chassis::react(event::chassis::Control const &control) {
+  const Eigen::Rotation2Dd gimbal_heading(-Chassis::state.base_yaw_encoder);
+  Eigen::Vector2d control_xy(control.vx, control.vy);
+  control_xy = gimbal_heading * control_xy;
+
+  controller.chassis_orientation_position->Update(0, Chassis::state.base_yaw_encoder);
+  info("or pid output: %f", controller.chassis_orientation_position->value());
+
+  const auto result = controller.chassis_solver.Forward(
+      control_xy.x(), control_xy.y(), controller.chassis_orientation_position->value(), state.lf_steer_position,
+      state.rf_steer_position, state.lr_steer_position, state.rr_steer_position);
   controller.lf_wheel_speed->Update(result.lf_wheel_speed * 1.f, state.lf_wheel_speed);
   controller.rf_wheel_speed->Update(result.rf_wheel_speed * 1.f, state.rf_wheel_speed);
   controller.lr_wheel_speed->Update(result.lr_wheel_speed * 1.f, state.lr_wheel_speed);
