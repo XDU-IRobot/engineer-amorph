@@ -33,6 +33,7 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
   Remote();                // 启动遥控器接收
   Keyboard();              // 启动键盘接收
   Referee();               // 启动裁判系统接收
+  CustomController();      // 启动自定义控制器接收
   Blackbox();              // 启动黑匣子（广播state和control）
   JointStatesPublisher();  // 启动关节状态发布
   TFBroadcaster();         // 启动imu到base_yaw_link的tf广播
@@ -274,6 +275,33 @@ void FluoriteArm::Keyboard() {
 }
 
 void FluoriteArm::Referee() { info("referee ok"); }
+
+void FluoriteArm::CustomController() {
+  custom_controller_sub_ = create_subscription<rm2_referee_msgs::msg::CustomRobotData>(
+      "/rm2_referee/custom_robot_data", rclcpp::SensorDataQoS(), [&](const rm2_referee_msgs::msg::CustomRobotData msg) {
+        const auto deserialized_pose = [&msg] {
+          geometry_msgs::msg::Pose ret;
+          float pos_x, pos_y, pos_z, ori_x, ori_y, ori_z, ori_w;
+          std::memcpy(&pos_x, &msg.data[0], sizeof(float));
+          std::memcpy(&pos_y, &msg.data[4], sizeof(float));
+          std::memcpy(&pos_z, &msg.data[8], sizeof(float));
+          std::memcpy(&ori_w, &msg.data[12], sizeof(float));
+          std::memcpy(&ori_x, &msg.data[16], sizeof(float));
+          std::memcpy(&ori_y, &msg.data[20], sizeof(float));
+          std::memcpy(&ori_z, &msg.data[24], sizeof(float));
+          ret.position.x = pos_x;
+          ret.position.y = pos_y;
+          ret.position.z = pos_z;
+          ret.orientation.w = ori_w;
+          ret.orientation.x = ori_x;
+          ret.orientation.y = ori_y;
+          ret.orientation.z = ori_z;
+          return ret;
+        }();
+        fluorite::state.custom_controller_pose = std::move(deserialized_pose);
+      });
+  info("custom controller ok");
+}
 
 /**
  * @brief
