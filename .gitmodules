@@ -39,3 +39,6 @@
 [submodule "src/custom_controller/t265/libs/librm"]
 	path = src/custom_controller/t265/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
+[submodule "src/custom_controller/t265/libs/spdlog"]
+	path = src/custom_controller/t265/libs/spdlog
+	url = https://github.com/gabime/spdlog.git

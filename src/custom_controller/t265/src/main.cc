@@ -4,6 +4,9 @@
 #include <cstring>
 #include <thread>
 
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/bundled/ranges.h>
+
 #include "packet_builder.hpp"
 #include "serial.hpp"
 #include "t265.hpp"
@@ -16,6 +19,8 @@ int main(int argc, char *argv[]) {
       PacketBuilder packet_builder{};
       Serial ser{"/dev/ttyAMA3", 115200};
       T265 t265{};
+
+      spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
 
       while (true) {
         const auto this_loop_start_time = std::chrono::steady_clock::now();
@@ -31,21 +36,16 @@ int main(int argc, char *argv[]) {
           std::memcpy(tx_data.data() + 24, &pose.rotation.z, sizeof(float));
           return tx_data;
         }();
-        std::printf("raw data: ");
         const auto tx_packet = packet_builder.Build(tx_data);
-        for (const auto c : tx_data) {
-          std::printf("%2x ", c);
-        }
-        std::printf("\n");
+        spdlog::info("{}", fmt::join(*tx_packet, ", "));
         ser.Write(tx_packet);
         std::this_thread::sleep_until(this_loop_start_time + 40ms);
       }
 
     } catch (const rs2::error &e) {
-      std::cerr << "RealSense error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    "
-                << e.what() << std::endl;
+      spdlog::error("RealSense error calling {}({}):\n    {}", e.get_failed_function(), e.get_failed_args(), e.what());
     } catch (const std::exception &e) {
-      std::cerr << e.what() << std::endl;
+      spdlog::error("Exception: {}", e.what());
     }
   }
 }
