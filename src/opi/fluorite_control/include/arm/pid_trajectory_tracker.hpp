@@ -45,7 +45,14 @@ class PidTrajectoryTracker {
     std::printf("=======================================================\n");
   }
   PidTrajectoryTracker(const PidTrajectoryTracker &) = default;
-  PidTrajectoryTracker(PidTrajectoryTracker &&) noexcept = default;
+  PidTrajectoryTracker(PidTrajectoryTracker &&other) noexcept : current_trajectory_mutex_{}, pids_{}, joint_limits_{} {
+    std::lock_guard<std::mutex> lock(other.current_trajectory_mutex_);
+    current_trajectory_ = std::move(other.current_trajectory_);
+    traj_start_time_ = other.traj_start_time_;
+    current_point_index_ = other.current_point_index_;
+    pids_ = std::move(other.pids_);
+    joint_limits_ = std::move(other.joint_limits_);
+  }
 
   /**
    * @brief 更新参考轨迹

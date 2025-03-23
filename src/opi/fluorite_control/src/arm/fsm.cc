@@ -236,24 +236,24 @@ void KeyboardManual::react(event::Control const &control) {
     if (control.keyboard_modifier.load() & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
       delta_roll = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K)) *
-                   0.002;
+                   0.0013;
       delta_pitch = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
                      control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
-                    0.002;
+                    0.0013;
     } else {
       delta_x = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
                  control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
-                0.001;
+                0.0005;
       delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K) -
                  control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I)) *
-                0.001;
+                0.0005;
     }
     const double delta_z = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
                             control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F)) *
-                           0.001;
+                           0.0005;
     const double delta_yaw = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
                               control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O)) *
-                             0.002;
+                             0.0013;
 
     Eigen::Quaterniond q(
         fluorite::state.target_end_effector_pose.orientation.w, fluorite::state.target_end_effector_pose.orientation.x,

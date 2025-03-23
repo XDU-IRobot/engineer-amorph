@@ -9,22 +9,19 @@
 #include <boost/asio.hpp>
 
 class Serial {
-public:
+ public:
   Serial(const std::string &port, size_t baud_rate) {
     serial_port_.open(port);
-    serial_port_.set_option(
-        boost::asio::serial_port_base::baud_rate(baud_rate));
+    serial_port_.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
   }
 
-  ~Serial() {
-    serial_port_.close();
-  }
+  ~Serial() { serial_port_.close(); }
 
   void Write(std::shared_ptr<std::vector<uint8_t>> data) {
     boost::asio::write(serial_port_, boost::asio::buffer(*data));
   }
 
-private:
+ private:
   boost::asio::io_service io_service_;
   boost::asio::serial_port serial_port_{io_service_};
 };

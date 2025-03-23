@@ -1,0 +1,10 @@
+[Unit]
+After=multi-user.target
+ 
+[Service]
+Type=oneshot
+ExecStart={PROJECT_PATH}/scripts/vaccum_pump_shut_the_fuck_up.sh
+User=root
+
+[Install]
+WantedBy=multi-user.target

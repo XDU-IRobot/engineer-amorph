@@ -1,0 +1,27 @@
+import os
+import sys
+from launch import LaunchDescription
+from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+
+CONFIG_FILES_REQUIREMENT = [
+    'settings.yaml',
+]
+
+def generate_launch_description():
+    return LaunchDescription(
+        [
+            Node(
+                package='referee_node',
+                executable='referee_node',
+                name='referee_node',
+                output='screen',
+                parameters=[{
+                    "enable_normal": True,
+                    "enable_fpv": True,
+                    "normal_tty_device": "/dev/ttyS1",
+                    "fpv_tty_device": "/dev/ttyUSB0",
+                }],
+            )
+        ]
+    )

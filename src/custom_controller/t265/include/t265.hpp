@@ -11,8 +11,7 @@
 
 #include <librealsense2/rs.hpp>
 
-static bool device_with_streams(std::vector<rs2_stream> stream_requests,
-                                std::string &out_serial) {
+static bool device_with_streams(std::vector<rs2_stream> stream_requests, std::string &out_serial) {
   rs2::context ctx;
   auto devs = ctx.query_devices();
   std::vector<rs2_stream> unavailable_streams = stream_requests;
@@ -24,12 +23,9 @@ static bool device_with_streams(std::vector<rs2_stream> stream_requests,
         for (auto &profile : sensor.get_stream_profiles()) {
           if (profile.stream_type() == type) {
             found_streams[type] = true;
-            unavailable_streams.erase(std::remove(unavailable_streams.begin(),
-                                                  unavailable_streams.end(),
-                                                  type),
+            unavailable_streams.erase(std::remove(unavailable_streams.begin(), unavailable_streams.end(), type),
                                       unavailable_streams.end());
-            if (dev.supports(RS2_CAMERA_INFO_SERIAL_NUMBER))
-              out_serial = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+            if (dev.supports(RS2_CAMERA_INFO_SERIAL_NUMBER)) out_serial = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
           }
         }
       }
@@ -42,41 +38,35 @@ static bool device_with_streams(std::vector<rs2_stream> stream_requests,
         break;
       }
     }
-    if (found_all_streams)
-      return true;
+    if (found_all_streams) return true;
   }
   // After scanning all devices, not all requested streams were found
   for (auto &type : unavailable_streams) {
     switch (type) {
-    case RS2_STREAM_POSE:
-    case RS2_STREAM_FISHEYE:
-      std::cerr << "Connect T26X and rerun the demo" << std::endl;
-      break;
-    case RS2_STREAM_DEPTH:
-      std::cerr << "The demo requires Realsense camera with DEPTH sensor"
-                << std::endl;
-      break;
-    case RS2_STREAM_COLOR:
-      std::cerr << "The demo requires Realsense camera with RGB sensor"
-                << std::endl;
-      break;
-    default:
-      throw std::runtime_error(
-          "The requested stream: " + std::to_string(type) +
-          ", for the demo is not supported by connected devices!"); // stream
-                                                                    // type
+      case RS2_STREAM_POSE:
+      case RS2_STREAM_FISHEYE:
+        std::cerr << "Connect T26X and rerun the demo" << std::endl;
+        break;
+      case RS2_STREAM_DEPTH:
+        std::cerr << "The demo requires Realsense camera with DEPTH sensor" << std::endl;
+        break;
+      case RS2_STREAM_COLOR:
+        std::cerr << "The demo requires Realsense camera with RGB sensor" << std::endl;
+        break;
+      default:
+        throw std::runtime_error("The requested stream: " + std::to_string(type) +
+                                 ", for the demo is not supported by connected devices!");  // stream
+                                                                                            // type
     }
   }
   return false;
 }
 
 class T265 {
-public:
+ public:
   T265() {
     std::string serial;
-    if (!device_with_streams({RS2_STREAM_POSE}, serial))
-      throw std::runtime_error("No device with pose stream found");
-
+    if (!device_with_streams({RS2_STREAM_POSE}, serial)) throw std::runtime_error("No device with pose stream found");
 
     if (!serial.empty()) {
       cfg_.enable_device(serial);
@@ -93,9 +83,9 @@ public:
     return pose_data;
   }
 
-  private:
-    rs2::pipeline pipe_;
-    rs2::config cfg_;
+ private:
+  rs2::pipeline pipe_;
+  rs2::config cfg_;
 };
 
 #endif
