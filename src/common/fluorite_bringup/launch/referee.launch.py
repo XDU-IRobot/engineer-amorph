@@ -19,8 +19,8 @@ def generate_launch_description():
                 parameters=[{
                     "enable_normal": True,
                     "enable_fpv": True,
-                    "normal_tty_device": "/dev/ttyS1",
-                    "fpv_tty_device": "/dev/ttyUSB0",
+                    "normal_tty_device": "/dev/ttyUSB0",
+                    "fpv_tty_device": "/dev/ttyS1",
                 }],
             )
         ]

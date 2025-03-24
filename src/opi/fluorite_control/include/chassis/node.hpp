@@ -6,6 +6,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sbus_interface/msg/sbus.hpp>
+#include <rm2_referee_msgs/msg/remote_control.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>
 #include <librm.hpp>
@@ -47,6 +48,7 @@ class FluoriteChassis final : public rclcpp::Node {
 
   /** <remote> **/
   rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr remote_sub_{nullptr};
+  rclcpp::Subscription<rm2_referee_msgs::msg::RemoteControl>::SharedPtr fpv_remote_sub_{nullptr};
   /** </remote> **/
 
   /** <referee> **/

@@ -67,25 +67,23 @@ extern std::unique_ptr<Actuator> actuator;
  */
 struct Controller {
   using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
+  using PosRingPID = rm::modules::algorithm::RingPID<rm::modules::algorithm::PIDType::kPosition>;
 
-  Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosPID &&base_yaw_position_pid,
-             std::unique_ptr<tf2_ros::Buffer> &&tf_buffer, moveit::core::RobotStatePtr &&kinematic_model,
-             moveit::planning_interface::MoveGroupInterface &&move_group)
+  Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosRingPID &&base_yaw_position_pid,
+             std::unique_ptr<tf2_ros::Buffer> &&tf_buffer, moveit::core::RobotStatePtr &&kinematic_model)
       : trajectory_tracker{std::move(ptt)},
         base_yaw_speed_pid{std::move(base_yaw_speed_pid)},
         base_yaw_position_pid{std::move(base_yaw_position_pid)},
         tf_buffer(std::move(tf_buffer)),
-        kinematic_model(std::move(kinematic_model)),
-        move_group(std::move(move_group)) {}
+        kinematic_model(std::move(kinematic_model)) {}
   PidTrajectoryTracker<6> trajectory_tracker;
-  PosPID base_yaw_speed_pid, base_yaw_position_pid;
+  PosPID base_yaw_speed_pid;
+  PosRingPID base_yaw_position_pid;
 
   std::unique_ptr<tf2_ros::Buffer> tf_buffer;
   moveit::core::RobotStatePtr kinematic_model;
   std::mutex ik_calculation_mutex;
   rm::core::ThreadPool ik_calculation_thread_pool_{1};
-
-  moveit::planning_interface::MoveGroupInterface move_group;
 };
 extern std::unique_ptr<Controller> controller;
 
@@ -222,26 +220,10 @@ DeclareState(NoForce, Arm);
 namespace gimbal_base {
 
 /**
- * @brief 大yaw轴跟上层机械臂转
+ * @brief 大yaw轴有力
  *
  */
-DeclareState(FollowArm, GimbalBase);
-
-/**
- * @brief 大yaw轴跟上层机械臂转，但是只有小yaw轴快碰到转动限位的时候才跟
- */
-class FollowArmLazy : public fsm::GimbalBase {
- public:
-  void react(event::Control const &control);
-  void entry();
-
- private:
-  enum class LazyState { kStay, kFollow };
-
- private:
-  static double lazily_stay_at_;
-  static LazyState lazy_state_;
-};
+DeclareState(FollowImu, GimbalBase);
 
 /**
  * @brief 大yaw轴无力

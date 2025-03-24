@@ -62,6 +62,7 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
    * @brief   执行器（电机）
    */
   static struct Actuator {
+    std::unique_ptr<rm::device::DirectDriveMotor> base_yaw{nullptr};
     std::unique_ptr<rm::device::M3508> lf_wheel{nullptr}, rf_wheel{nullptr}, lr_wheel{nullptr}, rr_wheel{nullptr};
     std::unique_ptr<rm::device::GM6020> lf_steer{nullptr}, rf_steer{nullptr}, lr_steer{nullptr}, rr_steer{nullptr};
   } actuator;
@@ -79,7 +80,7 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
         rr_wheel_speed{nullptr}, lf_steer_speed{nullptr}, rf_steer_speed{nullptr}, lr_steer_speed{nullptr},
         rr_steer_speed{nullptr};
     std::unique_ptr<PosRingPid> lf_steer_position{nullptr}, rf_steer_position{nullptr}, lr_steer_position{nullptr},
-        rr_steer_position{nullptr};
+        rr_steer_position{nullptr}, chassis_orientation_position{nullptr};
     rm::modules::algorithm::SteeringChassis chassis_solver{0.5f};
   } controller;
 };

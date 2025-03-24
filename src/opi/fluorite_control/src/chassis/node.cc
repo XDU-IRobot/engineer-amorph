@@ -11,6 +11,8 @@
 
 #include <fo_lpf.h>
 #include <librm.hpp>
+#include <rclcpp/qos.hpp>
+#include <rm2_referee_msgs/msg/detail/remote_control__struct.hpp>
 #include <tinyfsm.hpp>
 
 #include "chassis/fsm.hpp"
@@ -199,14 +201,36 @@ void FluoriteChassis::Remote() {
 
         control_msg_.vx = msg->mapped_channels[1] * ros_params_manager_.data().control_sensitivity_vertical;
         control_msg_.vy = msg->mapped_channels[3] * ros_params_manager_.data().control_sensitivity_horizontal;
-        control_msg_.vw = -msg->mapped_channels[0] * ros_params_manager_.data().control_sensitivity_horizontal;
         if (ros_params_manager_.data().control_invert_vertical) {
           control_msg_.vx = -control_msg_.vx;
         }
         if (ros_params_manager_.data().control_invert_horizontal) {
           control_msg_.vy = -control_msg_.vy;
-          control_msg_.vw = -control_msg_.vw;
         }
+      });
+  fpv_remote_sub_ = this->create_subscription<rm2_referee_msgs::msg::RemoteControl>(
+      "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
+      [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
+
+        enum {
+          KEY_W = 1u << 0,
+          KEY_S = 1u << 1,
+          KEY_A = 1u << 2,
+          KEY_D = 1u << 3,
+          KEY_SHIFT = 1u << 4,
+          KEY_CTRL = 1u << 5,
+          KEY_Q = 1u << 6,
+          KEY_E = 1u << 7,
+          KEY_R = 1u << 8,
+          KEY_F = 1u << 9,
+          KEY_G = 1u << 10,
+          KEY_Z = 1u << 11,
+          KEY_X = 1u << 12,
+          KEY_C = 1u << 13,
+          KEY_V = 1u << 14,
+          KEY_B = 1u << 15,        
+        };
+        
       });
   info("remote ok");
 }

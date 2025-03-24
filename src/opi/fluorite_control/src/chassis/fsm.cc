@@ -27,7 +27,6 @@ void Chassis::react(event::chassis::Control const &control) {
   control_xy = gimbal_heading * control_xy;
 
   controller.chassis_orientation_position->Update(0, Chassis::state.base_yaw_encoder);
-  info("or pid output: %f", controller.chassis_orientation_position->value());
 
   const auto result = controller.chassis_solver.Forward(
       control_xy.x(), control_xy.y(), controller.chassis_orientation_position->value(), state.lf_steer_position,

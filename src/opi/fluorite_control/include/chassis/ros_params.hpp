@@ -11,7 +11,8 @@ struct RosParams {
   std::string chassis_can_port{};
   std::string arm_can_port{};
 
-  // dji motor ids
+  // motor ids
+  int base_yaw_id{};
   int lf_wheel_id{};
   int rf_wheel_id{};
   int lr_wheel_id{};
@@ -34,8 +35,10 @@ struct RosParams {
   std::vector<double> pid_rf_steer_position{};
   std::vector<double> pid_lr_steer_position{};
   std::vector<double> pid_rr_steer_position{};
+  std::vector<double> pid_chassis_orientation_position{};
 
   // motor settings
+  bool base_yaw_reverse{};
   bool lf_wheel_reverse{};
   bool rf_wheel_reverse{};
   bool lr_wheel_reverse{};
@@ -46,6 +49,7 @@ struct RosParams {
   bool rr_steer_reverse{};
 
   // configurations
+  double base_yaw_encoder_zero_offset{};
   double lf_steer_front_encoder{};
   double rf_steer_front_encoder{};
   double lr_steer_front_encoder{};

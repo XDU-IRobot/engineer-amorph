@@ -5,25 +5,17 @@
 
 #include "arm/fsm.hpp"
 
-#include <geometry_msgs/msg/detail/pose_stamped__struct.hpp>
 #include <iostream>
 #include <unordered_map>
 
 #include <Eigen/Dense>
 
 #include "keyboard_msgs/msg/key.hpp"
+#include "librm/modules/algorithm/utils.hpp"
 
 constexpr int kRcSwitchUp = 1;
 constexpr int kRcSwitchMiddle = 0;
 constexpr int kRcSwitchDown = -1;
-
-// TODO: return rvalue ref/unique_ptr to avoid copy
-static auto RemovePoseTimestamp(const geometry_msgs::msg::PoseStamped &p) {
-  geometry_msgs::msg::Pose ret;
-  ret.position = p.pose.position;
-  ret.orientation = p.pose.orientation;
-  return ret;
-}
 
 namespace fluorite {
 
@@ -41,7 +33,6 @@ void GimbalBase::react(tinyfsm::Event const &event) { error("wtf3"); }
 void GimbalBase::react(event::Control const &control) { error("wt4f"); }
 
 void Arm::EnableActuators(bool enable) {
-  fluorite::actuator->base_yaw.Enable(enable);
   const auto dm_enable = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
   fluorite::actuator->yaw.SendInstruction(dm_enable);
   fluorite::actuator->pitch_1.SendInstruction(dm_enable);
@@ -51,7 +42,7 @@ void Arm::EnableActuators(bool enable) {
 }
 
 void Arm::CalcPidAndExecute() {
-  const std::array<double, 6> kCurrentPosition = {fluorite::state.imu_yaw,           fluorite::state.pitch_1_encoder,
+  const std::array<double, 6> kCurrentPosition = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
                                                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
                                                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
   const std::array<double, 6> kCurrentSpeed = {
@@ -81,7 +72,7 @@ void Debug::entry() {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions.resize(6);
     p.velocities.resize(6);
-    p.positions[0] = fluorite::state.imu_yaw;
+    p.positions[0] = fluorite::state.yaw_encoder;
     p.positions[1] = fluorite::state.pitch_1_encoder;
     p.positions[2] = fluorite::state.pitch_2_encoder;
     p.positions[3] = fluorite::state.end_yaw_1_encoder;
@@ -111,7 +102,7 @@ void KeyboardManual::entry() {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions.resize(6);
     p.velocities.resize(6);
-    p.positions[0] = fluorite::state.imu_yaw;
+    p.positions[0] = fluorite::state.yaw_encoder;
     p.positions[1] = fluorite::state.pitch_1_encoder;
     p.positions[2] = fluorite::state.pitch_2_encoder;
     p.positions[3] = fluorite::state.end_yaw_1_encoder;
@@ -141,7 +132,7 @@ void CustomCtrlManual::entry() {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions.resize(6);
     p.velocities.resize(6);
-    p.positions[0] = fluorite::state.imu_yaw;
+    p.positions[0] = fluorite::state.yaw_encoder;
     p.positions[1] = fluorite::state.pitch_1_encoder;
     p.positions[2] = fluorite::state.pitch_2_encoder;
     p.positions[3] = fluorite::state.end_yaw_1_encoder;
@@ -324,22 +315,15 @@ void FollowExternalTrajectory::react(event::Control const &control) {
   UpdateState();
 }
 void Retracted::react(event::Control const &control) {
-  fluorite::state.imu_yaw_target += control.left_x;
   const auto kReferenceTraj = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
-    p.positions = {fluorite::state.imu_yaw_target, 0.1, 0.1, 0, 0, 0};
+    p.positions = {0.0, 0.1, 0.1, 0, 0, 0};
     p.velocities = {0, 0, 0, 0, 0, 0};
     return p;
   }();
 
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kReferenceTraj);
   Arm::CalcPidAndExecute();
-
-  // 状态机模式更新
-  if (control.sd != kRcSwitchUp) {
-    DispatchEvent(event::SwitchMode<NoForce>{});
-    return;
-  }
 
   UpdateState();
 }
@@ -359,55 +343,49 @@ void NoForce::react(event::Control const &control) {
 
 namespace gimbal_base {
 
-void FollowArm::entry() { fluorite::actuator->base_yaw.Enable(true); }
-void FollowArmLazy::entry() {
-  lazy_state_ = LazyState::kStay;
+#define UpdateState()                                \
+  switch (control.sb) {                              \
+    case kRcSwitchUp: {                              \
+      DispatchEvent(event::SwitchMode<FollowImu>{}); \
+      break;                                         \
+    }                                                \
+    case kRcSwitchMiddle: {                          \
+      DispatchEvent(event::SwitchMode<NoForce>{});   \
+      break;                                         \
+    }                                                \
+    case kRcSwitchDown: {                            \
+      DispatchEvent(event::SwitchMode<NoForce>{});   \
+      break;                                         \
+    }                                                \
+  }
+
+void FollowImu::entry() {
+  fluorite::state.imu_yaw_target = rm::modules::algorithm::utils::LoopConstrain(
+      fluorite::state.imu_yaw - fluorite::state.yaw_encoder, -M_PIf, M_PIf);
   fluorite::actuator->base_yaw.Enable(true);
 }
-void NoForce::entry() {}
+void NoForce::entry() { fluorite::actuator->base_yaw.Enable(false); }
 
-void FollowArm::react(event::Control const &control) {
-  fluorite::controller->base_yaw_position_pid.Update(0, fluorite::state.yaw_encoder);
-  fluorite::controller->base_yaw_speed_pid.Update(0, fluorite::state.base_yaw_encoder_speed);
-  fluorite::actuator->base_yaw.Set(fluorite::controller->base_yaw_position_pid.value());
-}
-double FollowArmLazy::lazily_stay_at_ = 0;
-FollowArmLazy::LazyState FollowArmLazy::lazy_state_ = LazyState::kStay;
-void FollowArmLazy::react(event::Control const &control) {
-  // 如果yaw轴编码器超过60度(1.0472rad)，就尝试把error控制到50度(0.8727rad)，误差小于55度(0.9599rad)之后大yaw轴进入lazy状态，大yaw轴停留在当前位置，直到小yaw轴编码器再次超过60度，lazy状态解除，再次把error控制到50度
-  // 体现出来的效果就是，大yaw轴只有在小yaw轴快碰到转动限位的时候才会跟随小yaw轴转动
-  switch (lazy_state_) {
-    case LazyState::kStay: {
-      fluorite::controller->base_yaw_position_pid.Update(lazily_stay_at_,
-                                                         fluorite::state.imu_yaw - fluorite::state.yaw_encoder);
-      if (std::abs(fluorite::state.yaw_encoder) > 1.0472) {
-        lazy_state_ = LazyState::kFollow;
-      }
-      break;
-    }
-    case LazyState::kFollow: {
-      fluorite::controller->base_yaw_position_pid.Update(std::copysign(0.8727, fluorite::state.yaw_encoder),
-                                                         fluorite::state.yaw_encoder);
-      lazily_stay_at_ = fluorite::state.imu_yaw -
-                        fluorite::state.yaw_encoder;  // 小yaw轴的imu_yaw减去小yaw轴的编码器=大yaw轴的imu_yaw
-      if (std::abs(fluorite::state.yaw_encoder) < 0.9599) {
-        lazy_state_ = LazyState::kStay;
-      }
-      break;
-    }
-    default: {
-      break;  // 不可能到这里
-    }
-  }
+void FollowImu::react(event::Control const &control) {
+  fluorite::state.imu_yaw_target = rm::modules::algorithm::utils::LoopConstrain(
+      fluorite::state.imu_yaw_target - control.right_x * 0.006, -M_PIf, M_PIf);
+
+  const auto base_yaw_imu = rm::modules::algorithm::utils::LoopConstrain(
+      fluorite::state.imu_yaw - fluorite::state.yaw_encoder, -M_PIf, M_PIf);
+  fluorite::controller->base_yaw_position_pid.Update(fluorite::state.imu_yaw_target, base_yaw_imu);
   fluorite::controller->base_yaw_speed_pid.Update(fluorite::controller->base_yaw_position_pid.value(),
                                                   fluorite::state.base_yaw_encoder_speed);
   fluorite::actuator->base_yaw.Set(fluorite::controller->base_yaw_speed_pid.value());
+  UpdateState();
 }
 void NoForce::react(event::Control const &control) {
   fluorite::actuator->base_yaw.Enable(false);
   fluorite::controller->base_yaw_position_pid.Clear();
   fluorite::controller->base_yaw_speed_pid.Clear();
+  UpdateState();
 }
+
+#undef UpdateState
 
 }  // namespace gimbal_base
 

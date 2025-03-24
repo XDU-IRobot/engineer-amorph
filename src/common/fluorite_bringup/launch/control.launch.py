@@ -34,6 +34,17 @@ def generate_launch_description():
                              "enableChannelProportionalMax": 1.0, }],
                 output="screen"),
             Node(
+                package='referee_node',
+                executable='referee_node',
+                name='referee_node',
+                output='screen',
+                parameters=[{
+                    "enable_normal": True,
+                    "enable_fpv": True,
+                    "normal_tty_device": "/dev/ttyUSB0",
+                    "fpv_tty_device": "/dev/ttyS1",
+                }],),
+            Node(
                 package="fluorite_control",
                 executable="fluorite_control_chassis",
                 name="fluorite_control_chassis",

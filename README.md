@@ -95,10 +95,10 @@
 | F         | 机械臂末端向下运动               |
 | U         | 机械臂末端逆时针旋转（图传视角） |
 | O         | 机械臂末端顺时针旋转（图传视角） |
-| Shift + I | 机械臂末端 pitch 向上            |
-| Shift + K | 机械臂末端 pitch 向下            |
-| Shift + J | 机械臂末端 yaw 向左              |
-| Shift + L | 机械臂末端 yaw 向右              |
+| Ctrl + I | 机械臂末端 pitch 向上            |
+| Ctrl + K | 机械臂末端 pitch 向下            |
+| Ctrl + J | 机械臂末端 yaw 向左              |
+| Ctrl + L | 机械臂末端 yaw 向右              |
 | G（按住） | 启用自定义控制器                 |
 
 ## 主要硬件

@@ -8,6 +8,7 @@
 // ros
 #include <rclcpp/rclcpp.hpp>
 #include <sbus_interface/msg/sbus.hpp>
+#include <rm2_referee_msgs/msg/custom_robot_data.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
@@ -48,6 +49,7 @@ class FluoriteArm final : public rclcpp::Node {
   void Remote();
   void Keyboard();
   void Referee();
+  void CustomController();
   void JointStatesPublisher();
   void TFBroadcaster();
 
@@ -105,6 +107,10 @@ class FluoriteArm final : public rclcpp::Node {
   rm2_referee_msgs::srv::Tx::Request referee_tx_data_{};
   rclcpp::Client<rm2_referee_msgs::srv::Tx>::SharedPtr referee_client_{nullptr};
   /** </referee tx> **/
+
+  /** <custom controller> **/
+  rclcpp::Subscription<rm2_referee_msgs::msg::CustomRobotData>::SharedPtr custom_controller_sub_{nullptr};
+  /** </custom controller> **/
 
   /** <control loop> **/
   rclcpp::TimerBase::SharedPtr control_loop_timer_{nullptr};
