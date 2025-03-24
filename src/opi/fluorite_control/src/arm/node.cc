@@ -304,8 +304,7 @@ void FluoriteArm::CustomController() {
           Eigen::Quaterniond q(ori_w, ori_x, ori_y, ori_z);
           const Eigen::Vector3d pry = q.toRotationMatrix().eulerAngles(2, 0, 1);
           q = Eigen::AngleAxisd(pry[0], Eigen::Vector3d::UnitX()) *
-              Eigen::AngleAxisd(pry[1], Eigen::Vector3d::UnitY()) *
-              Eigen::AngleAxisd(pry[2], Eigen::Vector3d::UnitZ());
+              Eigen::AngleAxisd(pry[1], Eigen::Vector3d::UnitY()) * Eigen::AngleAxisd(pry[2], Eigen::Vector3d::UnitZ());
           ret.orientation.x = q.x();
           ret.orientation.y = q.y();
           ret.orientation.z = q.z();
@@ -358,9 +357,10 @@ void FluoriteArm::Blackbox() {
       marker.action = visualization_msgs::msg::Marker::ADD;
       marker.pose.position = fluorite::state.target_end_effector_pose.position;
       const auto orientation = [&] {
-        Eigen::Quaterniond q(
-            fluorite::state.target_end_effector_pose.orientation.w, fluorite::state.target_end_effector_pose.orientation.x,
-            fluorite::state.target_end_effector_pose.orientation.y, fluorite::state.target_end_effector_pose.orientation.z);
+        Eigen::Quaterniond q(fluorite::state.target_end_effector_pose.orientation.w,
+                             fluorite::state.target_end_effector_pose.orientation.x,
+                             fluorite::state.target_end_effector_pose.orientation.y,
+                             fluorite::state.target_end_effector_pose.orientation.z);
         q = q * Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitY());
         geometry_msgs::msg::Quaternion o;
         o.x = q.x();

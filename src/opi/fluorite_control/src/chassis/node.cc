@@ -211,7 +211,6 @@ void FluoriteChassis::Remote() {
   fpv_remote_sub_ = this->create_subscription<rm2_referee_msgs::msg::RemoteControl>(
       "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
       [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
-
         enum {
           KEY_W = 1u << 0,
           KEY_S = 1u << 1,
@@ -228,9 +227,8 @@ void FluoriteChassis::Remote() {
           KEY_X = 1u << 12,
           KEY_C = 1u << 13,
           KEY_V = 1u << 14,
-          KEY_B = 1u << 15,        
+          KEY_B = 1u << 15,
         };
-        
       });
   info("remote ok");
 }
