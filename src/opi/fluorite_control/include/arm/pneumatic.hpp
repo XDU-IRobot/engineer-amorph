@@ -2,7 +2,7 @@
 #ifndef ARM_PNEUMATIC_HPP
 #define ARM_PNEUMATIC_HPP
 
-#include <arm/gpio.hpp>
+#include "arm/gpio.hpp"
 
 /**
  * @brief 机械臂末端吸盘
@@ -22,23 +22,19 @@ class SuckerSystem {
   }
 
   /**
-   * @brief 从吸盘吸气
-   * @param power 吸气功率，范围[0, 1]，一般给0.7就可以吸住矿
+   * @brief 从吸盘吸气/吹气
+   * @param power 真空泵功率，范围[-1, 1]，正数为吸气，负数为吹气，一般给0.7就可以吸住矿
    */
   void Suck(double power) {
-    in_valve_.Write(HIGH);
-    out_valve_.Write(HIGH);
-    vaccum_pump_.Write(power);
-  }
-
-  /**
-   * @brief 向吸盘吹气
-   * @param power 吹气功率，范围[0, 1]
-   */
-  void Blow(double power) {
-    in_valve_.Write(LOW);
-    out_valve_.Write(LOW);
-    vaccum_pump_.Write(power);
+    if (power > 0) {
+      in_valve_.Write(HIGH);
+      out_valve_.Write(HIGH);
+      vaccum_pump_.Write(power);
+    } else {
+      in_valve_.Write(LOW);
+      out_valve_.Write(LOW);
+      vaccum_pump_.Write(-power);
+    }
   }
 
  private:
@@ -56,7 +52,7 @@ class StorageSystem {
       : left_valve_{left_valve}, right_valve_{right_valve}, vaccum_pump_{vaccum_pump} {}
 
   /**
-   * @brief 两侧电磁阀均通向大气压，并关闭真空泵
+   * @brief 两侧电磁阀均封闭，并关闭真空泵
    */
   void Disable() {
     left_valve_.Write(HIGH);
@@ -71,13 +67,13 @@ class StorageSystem {
 
   /**
    * @brief 设置左侧吸盘
-   * @param state true将吸盘连接到真空泵，false将吸盘连接到大气压
+   * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
   void SetLeftValve(bool state) { left_valve_.Write(state); }
 
   /**
    * @brief 设置右侧吸盘
-   * @param state true将吸盘连接到真空泵，false将吸盘连接到大气压
+   * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
   void SetRightValve(bool state) { right_valve_.Write(state); }
 

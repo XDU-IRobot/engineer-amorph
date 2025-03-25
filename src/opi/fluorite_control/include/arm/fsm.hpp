@@ -7,106 +7,36 @@
 #ifndef ARM_FSM_HPP
 #define ARM_FSM_HPP
 
-#include <mutex>
-#include <atomic>
-#include <memory>
-#include <type_traits>
-
 #include <tinyfsm.hpp>
-#include <librm.hpp>
 
-// ros
-#include <tf2_ros/transform_listener.h>
-#include <moveit/move_group_interface/move_group_interface.h>
-#include "keyboard_msgs/msg/key.hpp"
+#include "arm/global.hpp"
 
-#include "fluorite_msgs/msg/arm_state.hpp"
-#include "arm/pneumatic.hpp"
-#include "arm/pid_trajectory_tracker.hpp"
-#include "common/logger.hpp"
-
-// 使用tinyfsm之后，就没办法再使用oop的各种编程范式来写代码了，因为状态机类没有对象
-// 这里被迫创建了几个全局变量（定义都在fsm.cc里），用来存储状态机的外部依赖
-// 如果以后找到了更好的实现方式，可以考虑重构
 namespace fluorite {
-
-/**
- * @brief   机器人状态向量，由节点的各个传感器数据回调函数更新
- */
-extern fluorite_msgs::msg::ArmState state;
-
-/**
- * @brief   执行器（电机、气泵、电磁阀）
- */
-struct Actuator {
-  Actuator(rm::device::DirectDriveMotor &&base_yaw, rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&yaw,
-           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&pitch_1,
-           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&pitch_2,
-           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&end_yaw_1,
-           rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> &&end_pitch, rm::device::GM6020 &&end_yaw_2,
-           SuckerSystem &&sucker_system, StorageSystem &&storage_system)
-      : base_yaw(std::move(base_yaw)),
-        yaw(std::move(yaw)),
-        pitch_1(std::move(pitch_1)),
-        pitch_2(std::move(pitch_2)),
-        end_yaw_1(std::move(end_yaw_1)),
-        end_pitch(std::move(end_pitch)),
-        end_yaw_2(std::move(end_yaw_2)),
-        sucker_system(std::move(sucker_system)),
-        storage_system(std::move(storage_system)) {}
-  rm::device::DirectDriveMotor base_yaw;
-  rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> yaw, pitch_1, pitch_2, end_yaw_1, end_pitch;
-  rm::device::GM6020 end_yaw_2;
-  SuckerSystem sucker_system;
-  StorageSystem storage_system;
-};
-extern std::unique_ptr<Actuator> actuator;
-
-/**
- * @brief   控制器（算法对象）
- */
-struct Controller {
-  using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
-  using PosRingPID = rm::modules::algorithm::RingPID<rm::modules::algorithm::PIDType::kPosition>;
-
-  Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosRingPID &&base_yaw_position_pid,
-             std::unique_ptr<tf2_ros::Buffer> &&tf_buffer, moveit::core::RobotStatePtr &&kinematic_model)
-      : trajectory_tracker{std::move(ptt)},
-        base_yaw_speed_pid{std::move(base_yaw_speed_pid)},
-        base_yaw_position_pid{std::move(base_yaw_position_pid)},
-        tf_buffer(std::move(tf_buffer)),
-        kinematic_model(std::move(kinematic_model)) {}
-  PidTrajectoryTracker<6> trajectory_tracker;
-  PosPID base_yaw_speed_pid;
-  PosRingPID base_yaw_position_pid;
-
-  std::unique_ptr<tf2_ros::Buffer> tf_buffer;
-  moveit::core::RobotStatePtr kinematic_model;
-  std::mutex ik_calculation_mutex;
-  rm::core::ThreadPool ik_calculation_thread_pool_{1};
-};
-extern std::unique_ptr<Controller> controller;
 
 namespace fsm {
 namespace event {
 
+/**
+ * @brief 所有链路的控制量全都在这里，数据由节点的各个subscriber回调函数负责更新
+ */
 struct Control : tinyfsm::Event {
-  Control() {
+  Control() : hotkeys{this} {
     // map里的std::atomic<bool>不能用std::initializer_list初始化，必须一个一个构造
     for (const auto &keyboard_map_k : {
              keyboard_msgs::msg::Key::KEY_W,
-             keyboard_msgs::msg::Key::KEY_A,
              keyboard_msgs::msg::Key::KEY_S,
+             keyboard_msgs::msg::Key::KEY_A,
              keyboard_msgs::msg::Key::KEY_D,
+             keyboard_msgs::msg::Key::KEY_Q,
+             keyboard_msgs::msg::Key::KEY_E,
              keyboard_msgs::msg::Key::KEY_R,
              keyboard_msgs::msg::Key::KEY_F,
-             keyboard_msgs::msg::Key::KEY_I,
-             keyboard_msgs::msg::Key::KEY_J,
-             keyboard_msgs::msg::Key::KEY_K,
-             keyboard_msgs::msg::Key::KEY_L,
-             keyboard_msgs::msg::Key::KEY_U,
-             keyboard_msgs::msg::Key::KEY_O,
              keyboard_msgs::msg::Key::KEY_G,
+             keyboard_msgs::msg::Key::KEY_Z,
+             keyboard_msgs::msg::Key::KEY_X,
+             keyboard_msgs::msg::Key::KEY_C,
+             keyboard_msgs::msg::Key::KEY_V,
+             keyboard_msgs::msg::Key::KEY_B,
          }) {
       keyboard_key.try_emplace(keyboard_map_k, false);
     }
@@ -118,9 +48,23 @@ struct Control : tinyfsm::Event {
   std::atomic<double> left_y;                       ///< 左摇杆上下，范围[-1, 1] * vertical_sensitivity
   std::atomic<double> right_x;                      ///< 右摇杆左右，范围[-1, 1] * horizontal_sensitivity
   std::atomic<double> right_y;                      ///< 右摇杆上下，范围[-1, 1] * vertical_sensitivity
+  std::atomic<double> ld, rd;                       ///< 左右旋钮，范围[-1, 1]，逆负顺正s
+  std::atomic<double> ls, rs;                       ///< 遥控器背面的左右滑块，范围[-1, 1]，下负上正
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
-  std::unordered_map<uint16_t, bool> keyboard_key;  ///< 键盘按键
-  std::atomic<uint16_t> keyboard_modifier;          ///< 键盘组合键modifier
+  std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
+  std::atomic<uint16_t> keyboard_modifier;                       ///< 键盘组合键modifier
+
+  KeypressHandler keypress_handler;
+  struct _ {
+    _(Control *this_) : this_(this_) {}
+    Hotkey switch_arm_pump{[&]() -> bool {
+      return this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) &&
+             this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT);
+    }};
+
+   private:
+    Control *this_;
+  } hotkeys;
 };
 template <typename T>
 struct SwitchMode : tinyfsm::Event {};
@@ -136,7 +80,7 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
 
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
-    if constexpr (std::is_base_of_v<Arm, Mode>) {  // 首先要判断这个模式属不属于这个状态机
+    if constexpr (std::is_base_of_v<Arm, Mode>) {  // 首先判断这个模式属不属于这个状态机
       if (this->is_in_state<Mode>()) {
         return;
       }
@@ -159,7 +103,26 @@ class GimbalBase : public tinyfsm::MooreMachine<GimbalBase> {
 
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
-    if constexpr (std::is_base_of_v<GimbalBase, Mode>) {  // 首先要判断这个模式属不属于这个状态机
+    if constexpr (std::is_base_of_v<GimbalBase, Mode>) {  // 首先判断这个模式属不属于这个状态机
+      if (this->is_in_state<Mode>()) {
+        return;
+      }
+      info("MODE SWITCH: %s", abi::__cxa_demangle(typeid(Mode).name(), nullptr, nullptr, nullptr));
+      transit<Mode>();
+    }
+  }
+};
+
+class PneumaticSystem : public tinyfsm::MooreMachine<PneumaticSystem> {
+ public:
+  virtual void entry() = 0;
+
+  void react(tinyfsm::Event const &event);
+  virtual void react(event::Control const &control) = 0;
+
+  template <typename Mode>
+  void react(event::SwitchMode<Mode> const &) {
+    if constexpr (std::is_base_of_v<PneumaticSystem, Mode>) {  // 首先判断这个模式属不属于这个状态机
       if (this->is_in_state<Mode>()) {
         return;
       }
@@ -185,58 +148,34 @@ namespace state {
 
 namespace arm {
 
-/**
- * @brief 单关节调试模式
- */
-DeclareState(Debug, Arm);
-
-/**
- * @brief 键鼠手动控制模式
- */
-DeclareState(KeyboardManual, Arm);
-
-/**
- * @brief 自定义控制器手动控制模式
- */
-DeclareState(CustomCtrlManual, Arm);
-
-/**
- * @brief 跟随Action Server输入的参考轨迹
- */
-DeclareState(FollowExternalTrajectory, Arm);
-
-/**
- * @brief 机械臂保持收回
- */
-DeclareState(Retracted, Arm);
-
-/**
- * @brief 机械臂无力
- */
-DeclareState(NoForce, Arm);
+DeclareState(Debug, Arm);                     ///< 单关节调试模式
+DeclareState(KeyboardManual, Arm);            ///< 键鼠手动控制模式
+DeclareState(CustomCtrlManual, Arm);          ///< 自定义控制器手动控制模式
+DeclareState(FollowExternalTrajectory, Arm);  ///< 跟随Action Server输入的参考轨迹
+DeclareState(Retracted, Arm);                 ///< 机械臂保持收回
+DeclareState(NoForce, Arm);                   ///< 机械臂无力
 
 }  // namespace arm
 
 namespace gimbal_base {
 
-/**
- * @brief 大yaw轴有力
- *
- */
-DeclareState(FollowImu, GimbalBase);
-
-/**
- * @brief 大yaw轴无力
- */
-DeclareState(NoForce, GimbalBase);
+DeclareState(FollowImu, GimbalBase);  ///< 大yaw轴有力
+DeclareState(NoForce, GimbalBase);    ///< 大yaw轴无力
 
 }  // namespace gimbal_base
+
+namespace pneumatic_system {
+
+DeclareState(On, PneumaticSystem);   ///< 气泵系统有力
+DeclareState(Off, PneumaticSystem);  ///< 气泵系统无力
+
+}  // namespace pneumatic_system
 
 #undef DeclareState
 
 }  // namespace state
 
-using fsm_list = tinyfsm::FsmList<Arm, GimbalBase>;
+using fsm_list = tinyfsm::FsmList<Arm, GimbalBase, PneumaticSystem>;
 
 template <typename Event>
 void DispatchEvent(Event const &event) {

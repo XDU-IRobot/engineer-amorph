@@ -1,6 +1,6 @@
 /**
- * @file  fluorite_chassis.cc
- * @brief 控制节点
+ * @file  chassis/node.cc
+ * @brief 底盘控制节点
  */
 
 #include "chassis/node.hpp"
@@ -11,8 +11,6 @@
 
 #include <fo_lpf.h>
 #include <librm.hpp>
-#include <rclcpp/qos.hpp>
-#include <rm2_referee_msgs/msg/detail/remote_control__struct.hpp>
 #include <tinyfsm.hpp>
 
 #include "chassis/fsm.hpp"

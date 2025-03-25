@@ -1,5 +1,5 @@
 /**
- * @file  fsm.cc
+ * @file  chassis/fsm.cc
  */
 
 #include "chassis/fsm.hpp"

@@ -1,5 +1,5 @@
 /**
- * @file  fsm.cc
+ * @file  arm/fsm.cc
  * @brief 状态机实现
  */
 
@@ -11,7 +11,7 @@
 #include <Eigen/Dense>
 
 #include "keyboard_msgs/msg/key.hpp"
-#include "librm/modules/algorithm/utils.hpp"
+#include "tinyfsm.hpp"
 
 constexpr int kRcSwitchUp = 1;
 constexpr int kRcSwitchMiddle = 0;
@@ -214,36 +214,38 @@ void Debug::react(event::Control const &control) {
 }
 void KeyboardManual::react(event::Control const &control) {
   // 如果键盘有输入，
-  if ((control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) ||
-       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O))) {
+  if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) ||
+      control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V) ||
+      control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_C) ||
+      control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_B) ||
+      control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_Z) ||
+      control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_X)) {
     // 根据键盘输入设置目标末端位姿
-    double delta_x{0}, delta_y{0}, delta_pitch{0}, delta_roll{0};
+    double delta_x{0}, delta_y{0}, delta_z{0}, delta_pitch{0}, delta_roll{0};
     if (control.keyboard_modifier.load() & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
-      delta_roll = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I) -
-                    control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K)) *
-                   0.0013;
-      delta_pitch = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
-                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
-                    0.0013;
-    } else {
-      delta_x = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_J) -
-                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_L)) *
+      delta_z = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) -
+                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V)) *
                 0.0005;
-      delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_K) -
-                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_I)) *
+    } else {
+      delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V) -
+                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F)) *
                 0.0005;
     }
-    const double delta_z = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_R) -
-                            control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F)) *
-                           0.0005;
-    const double delta_yaw = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_U) -
-                              control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_O)) *
+    if (control.keyboard_modifier.load() & keyboard_msgs::msg::Key::MODIFIER_LCTRL) {
+      delta_roll = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) -
+                    control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V)) *
+                   0.0013;
+      delta_pitch = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_C) -
+                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_B)) *
+                    0.0013;
+    } else {
+      delta_x = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_C) -
+                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_B)) *
+                0.0005;
+    }
+
+    const double delta_yaw = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_Z) -
+                              control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_X)) *
                              0.0013;
 
     Eigen::Quaterniond q(
@@ -389,6 +391,45 @@ void NoForce::react(event::Control const &control) {
 
 }  // namespace gimbal_base
 
+namespace pneumatic_system {
+
+#define UpdateState()                          \
+  switch (control.sd) {                        \
+    case kRcSwitchUp: {                        \
+      DispatchEvent(event::SwitchMode<On>{});  \
+      break;                                   \
+    }                                          \
+    case kRcSwitchMiddle: {                    \
+      DispatchEvent(event::SwitchMode<Off>{}); \
+      break;                                   \
+    }                                          \
+    case kRcSwitchDown: {                      \
+      DispatchEvent(event::SwitchMode<Off>{}); \
+      break;                                   \
+    }                                          \
+  }
+
+void On::entry() {}
+void Off::entry() {}
+
+void On::react(event::Control const &control) {
+  fluorite::actuator->sucker_system.Suck(control.ld);
+  fluorite::actuator->storage_system.SetPumpPower(control.rd);
+  fluorite::actuator->storage_system.SetLeftValve(control.ls > 0);
+  fluorite::actuator->storage_system.SetRightValve(control.rs > 0);
+  UpdateState();
+}
+
+void Off::react(event::Control const &control) {
+  fluorite::actuator->sucker_system.Disable();
+  fluorite::actuator->storage_system.Disable();
+  UpdateState();
+}
+
+#undef UpdateState
+
+}  // namespace pneumatic_system
+
 }  // namespace state
 
 }  // namespace fsm
@@ -397,3 +438,4 @@ void NoForce::react(event::Control const &control) {
 
 FSM_INITIAL_STATE(fluorite::fsm::Arm, fluorite::fsm::state::arm::NoForce);
 FSM_INITIAL_STATE(fluorite::fsm::GimbalBase, fluorite::fsm::state::gimbal_base::NoForce);
+FSM_INITIAL_STATE(fluorite::fsm::PneumaticSystem, fluorite::fsm::state::pneumatic_system::Off);

@@ -8,6 +8,7 @@
 // ros
 #include <rclcpp/rclcpp.hpp>
 #include <sbus_interface/msg/sbus.hpp>
+#include <rm2_referee_msgs/msg/remote_control.hpp>
 #include <rm2_referee_msgs/msg/custom_robot_data.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>
@@ -46,10 +47,8 @@ class FluoriteArm final : public rclcpp::Node {
   void Blackbox();
   void DeviceMonitor();
   void Ins();
-  void Remote();
-  void Keyboard();
+  void UserInput();
   void Referee();
-  void CustomController();
   void JointStatesPublisher();
   void TFBroadcaster();
 
@@ -82,9 +81,11 @@ class FluoriteArm final : public rclcpp::Node {
   /** </ins> **/
 
   /** <user input subscribers> **/
-  rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr remote_sub_{nullptr};
-  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr keyboard_keydown_sub_{nullptr};
-  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr keyboard_keyup_sub_{nullptr};
+  rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr sbus_sub_{nullptr};
+  rclcpp::Subscription<rm2_referee_msgs::msg::RemoteControl>::SharedPtr fpv_link_input_sub_{nullptr};
+  rclcpp::Subscription<rm2_referee_msgs::msg::CustomRobotData>::SharedPtr custom_controller_sub_{nullptr};
+  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr debug_keyboard_keydown_sub_{nullptr};
+  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr debug_keyboard_keyup_sub_{nullptr};
   /** </user input subscribers> **/
 
   /** <referee> **/
@@ -108,20 +109,16 @@ class FluoriteArm final : public rclcpp::Node {
   rclcpp::Client<rm2_referee_msgs::srv::Tx>::SharedPtr referee_client_{nullptr};
   /** </referee tx> **/
 
-  /** <custom controller> **/
-  rclcpp::Subscription<rm2_referee_msgs::msg::CustomRobotData>::SharedPtr custom_controller_sub_{nullptr};
-  /** </custom controller> **/
-
   /** <control loop> **/
   rclcpp::TimerBase::SharedPtr control_loop_timer_{nullptr};
   fluorite::fsm::event::Control control_msg_;
   /** </control loop> **/
 
-  /** <joint states publisher> **/
-  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_states_pub_{nullptr};
-  rclcpp::TimerBase::SharedPtr joint_states_pub_timer_{nullptr};
-  sensor_msgs::msg::JointState joint_states_msg_{};
-  /** </joint states publisher> **/
+  /** <joint state publisher> **/
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_{nullptr};
+  rclcpp::TimerBase::SharedPtr joint_state_pub_timer_{nullptr};
+  sensor_msgs::msg::JointState joint_state_msg_{};
+  /** </joint state publisher> **/
 };
 
 #endif

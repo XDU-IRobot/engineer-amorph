@@ -1,5 +1,5 @@
 /**
- * @file  fluorite_chassis.cc
+ * @file  arm/node.cc
  * @brief 大yaw轴基座+机械臂控制节点
  */
 
@@ -11,7 +11,6 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
 #include <fo_lpf.h>
-#include <cmath>
 #include <librm.hpp>
 #include <tinyfsm.hpp>
 #if __has_include("wiringPi.h")
@@ -31,16 +30,14 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
   InitializeShit();        // 初始化状态机
   DeviceMonitor();         // 设备在线状态监控
   Ins();                   // 启动IMU接收
-  Remote();                // 启动遥控器接收
-  Keyboard();              // 启动键盘接收
+  UserInput();             // 启动sbus、图传链路键鼠、自定义控制器和键盘调试输入接收
   Referee();               // 启动裁判系统接收
-  CustomController();      // 启动自定义控制器接收
-  Blackbox();              // 启动黑匣子（广播state和control）
+  Blackbox();              // 发布调试信息
   JointStatesPublisher();  // 启动关节状态发布
   TFBroadcaster();         // 启动imu到base_yaw_link的tf广播
 
   // 启动控制循环
-  info("control node initialize ok");
+  info("all initialization finished \033[32mmok\033[0m");
   control_loop_timer_ = create_wall_timer(3.0ms, [this] {
     ProcessSensorData();
     ParamHotUpdate();
@@ -48,7 +45,7 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
     rm::device::DjiMotor<>::SendCommand();
     rm::device::DirectDriveMotor::SendCommand();
   });
-  info("CONTROL UP");
+  info("\033[32mm==========CONTROL IS UP!==========\033[0m");
 }
 
 FluoriteArm::~FluoriteArm() {
@@ -217,7 +214,7 @@ void FluoriteArm::InitializeShit() {
 
   arm_can->Begin();                  // 启动can总线接收
   fluorite::fsm::fsm_list::start();  // 状态机开始监听事件
-  info("objects construction ok");
+  info("objects construction finished \033[32mmok\033[0m");
 }
 
 void FluoriteArm::Ins() {
@@ -231,14 +228,15 @@ void FluoriteArm::Ins() {
         fluorite::state.imu_pitch = mahony_.euler_angle().yaw;
         fluorite::state.imu_roll = mahony_.euler_angle().pitch;
       });
-  info("ins ok");
+  info("ins \033[32mmok\033[0m");
 }
 
-void FluoriteArm::Remote() {
-  static std::array<short, 16> last_channels{};
-  remote_sub_ = create_subscription<sbus_interface::msg::Sbus>(
+/**
+ * @brief 开始接收所有链路的用户输入：sbus、图传链路键鼠、自定义控制器和调试键盘节点（也就是初始化一堆subscriber）
+ */
+void FluoriteArm::UserInput() {
+  sbus_sub_ = create_subscription<sbus_interface::msg::Sbus>(
       "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
-        // remote_device_.IAmAlive();
         if (msg->failsafe) {
           fluorite::fsm::DispatchEvent(fluorite::fsm::event::SwitchMode<fluorite::fsm::state::arm::NoForce>{});
           fluorite::fsm::DispatchEvent(fluorite::fsm::event::SwitchMode<fluorite::fsm::state::gimbal_base::NoForce>{});
@@ -249,6 +247,10 @@ void FluoriteArm::Remote() {
         control_msg_.left_y = -(double)msg->mapped_channels[1] / 1000.0;
         control_msg_.right_x = (double)msg->mapped_channels[0] / 1000.0;
         control_msg_.right_y = (double)msg->mapped_channels[2] / 1000.0;
+        control_msg_.ld = -msg->mapped_channels[4] / 1000.0;
+        control_msg_.rd = -msg->mapped_channels[5] / 1000.0;
+        control_msg_.ls = -msg->mapped_channels[6] / 1000.0;
+        control_msg_.rs = -msg->mapped_channels[7] / 1000.0;
         control_msg_.sa = -msg->mapped_channels[8] / 1000;
         control_msg_.sb = -msg->mapped_channels[9] / 1000;
         control_msg_.sc = -msg->mapped_channels[10] / 1000;
@@ -257,33 +259,56 @@ void FluoriteArm::Remote() {
         control_msg_.sf = -msg->mapped_channels[13] / 1000;
         control_msg_.sg = -msg->mapped_channels[14] / 1000;
         control_msg_.sh = -msg->mapped_channels[15] / 1000;
-
-        last_channels = msg->mapped_channels;
       });
-  info("remote ok");
-}
-
-void FluoriteArm::Keyboard() {
-  keyboard_keydown_sub_ = create_subscription<keyboard_msgs::msg::Key>(
+  debug_keyboard_keydown_sub_ = create_subscription<keyboard_msgs::msg::Key>(
       "/keydown", rclcpp::QoS(10).reliable(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
         if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
           control_msg_.keyboard_key[msg->code] = true;
         }
         control_msg_.keyboard_modifier |= msg->modifiers;
       });
-  keyboard_keyup_sub_ = create_subscription<keyboard_msgs::msg::Key>(
+  debug_keyboard_keyup_sub_ = create_subscription<keyboard_msgs::msg::Key>(
       "/keyup", rclcpp::QoS(10).reliable(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
         if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
           control_msg_.keyboard_key[msg->code] = false;
         }
         control_msg_.keyboard_modifier &= (~msg->modifiers);
       });
-  info("keyboard ok");
-}
-
-void FluoriteArm::Referee() { info("referee ok"); }
-
-void FluoriteArm::CustomController() {
+  fpv_link_input_sub_ = create_subscription<rm2_referee_msgs::msg::RemoteControl>(
+      "/rm2_referee/remote_control", rclcpp::SensorDataQoS(), [&](const rm2_referee_msgs::msg::RemoteControl msg) {
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_W] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_W;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_S] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_S;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_A] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_A;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_D] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_D;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LSHIFT] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LSHIFT;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LCTRL] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_Q] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Q;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_E] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_E;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_R] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_R;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_F] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_F;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_G] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_G;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_Z] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Z;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_X] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_X;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_C] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_C;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_V] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_V;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_B] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_B;
+      });
   custom_controller_sub_ = create_subscription<rm2_referee_msgs::msg::CustomRobotData>(
       "/rm2_referee/custom_robot_data", rclcpp::SensorDataQoS(), [&](const rm2_referee_msgs::msg::CustomRobotData msg) {
         const auto deserialized_pose = [&msg] {
@@ -312,9 +337,13 @@ void FluoriteArm::CustomController() {
 
           return ret;
         }();
-        fluorite::state.custom_controller_pose = std::move(deserialized_pose);
+        // fluorite::state.custom_controller_pose = std::move(deserialized_pose);
       });
-  info("custom controller ok");
+
+  info("user input subscribers spawned \033[32mmok\033[0m");
+}
+
+void FluoriteArm::Referee() {  // info("referee \033[32mmok\033[0m");
 }
 
 /**
@@ -387,7 +416,7 @@ void FluoriteArm::Blackbox() {
     }();
     end_eff_target_pose_visual_pub_->publish(marker);
   });
-  info("blackbox ok");
+  info("blackbox \033[32mmok\033[0m");
 }
 
 /**
@@ -400,7 +429,7 @@ void FluoriteArm::DeviceMonitor() {
   //   //   fsm::DispatchEvent(event::arm::SwitchMode<state::arm::NoForce>{});
   //   // }
   // });
-  info("device monitor ok");
+  info("device monitor \033[32mmok\033[0m");
 }
 
 /**
@@ -462,29 +491,29 @@ void FluoriteArm::ParamHotUpdate() {}
  * @brief 把关节状态发布给joint_state_publisher节点，jsp节点再转发给moveit，频率50hz
  */
 void FluoriteArm::JointStatesPublisher() {
-  joint_states_pub_ =
+  joint_state_pub_ =
       create_publisher<sensor_msgs::msg::JointState>("fluorite/arm/joint_states", rclcpp::SystemDefaultsQoS());
-  joint_states_msg_.name = {"yaw_joint",       "pitch_1_joint",   "pitch_2_joint",
-                            "end_yaw_1_joint", "end_pitch_joint", "end_yaw_2_joint"};
-  joint_states_msg_.position.resize(6);
-  joint_states_msg_.velocity.resize(6);
-  joint_states_pub_timer_ = create_wall_timer(20ms, [this] {
-    joint_states_msg_.header.stamp = now();
-    joint_states_msg_.position[0] = fluorite::state.yaw_encoder;
-    joint_states_msg_.position[1] = fluorite::state.pitch_1_encoder;
-    joint_states_msg_.position[2] = fluorite::state.pitch_2_encoder;
-    joint_states_msg_.position[3] = fluorite::state.end_yaw_1_encoder;
-    joint_states_msg_.position[4] = fluorite::state.end_pitch_encoder;
-    joint_states_msg_.position[5] = fluorite::state.end_yaw_2_encoder;
-    joint_states_msg_.velocity[0] = fluorite::state.yaw_encoder_speed;
-    joint_states_msg_.velocity[1] = fluorite::state.pitch_1_encoder_speed;
-    joint_states_msg_.velocity[2] = fluorite::state.pitch_2_encoder_speed;
-    joint_states_msg_.velocity[3] = fluorite::state.end_yaw_1_encoder_speed;
-    joint_states_msg_.velocity[4] = fluorite::state.end_pitch_encoder_speed;
-    joint_states_msg_.velocity[5] = fluorite::state.end_yaw_2_encoder_speed;
-    joint_states_pub_->publish(joint_states_msg_);
+  joint_state_msg_.name = {"yaw_joint",       "pitch_1_joint",   "pitch_2_joint",
+                           "end_yaw_1_joint", "end_pitch_joint", "end_yaw_2_joint"};
+  joint_state_msg_.position.resize(6);
+  joint_state_msg_.velocity.resize(6);
+  joint_state_pub_timer_ = create_wall_timer(20ms, [this] {
+    joint_state_msg_.header.stamp = now();
+    joint_state_msg_.position[0] = fluorite::state.yaw_encoder;
+    joint_state_msg_.position[1] = fluorite::state.pitch_1_encoder;
+    joint_state_msg_.position[2] = fluorite::state.pitch_2_encoder;
+    joint_state_msg_.position[3] = fluorite::state.end_yaw_1_encoder;
+    joint_state_msg_.position[4] = fluorite::state.end_pitch_encoder;
+    joint_state_msg_.position[5] = fluorite::state.end_yaw_2_encoder;
+    joint_state_msg_.velocity[0] = fluorite::state.yaw_encoder_speed;
+    joint_state_msg_.velocity[1] = fluorite::state.pitch_1_encoder_speed;
+    joint_state_msg_.velocity[2] = fluorite::state.pitch_2_encoder_speed;
+    joint_state_msg_.velocity[3] = fluorite::state.end_yaw_1_encoder_speed;
+    joint_state_msg_.velocity[4] = fluorite::state.end_pitch_encoder_speed;
+    joint_state_msg_.velocity[5] = fluorite::state.end_yaw_2_encoder_speed;
+    joint_state_pub_->publish(joint_state_msg_);
   });
-  info("jsp ok");
+  info("jsp \033[32mmok\033[0m");
 }
 
 /**
@@ -503,7 +532,7 @@ void FluoriteArm::TFBroadcaster() {
     world_to_base_yaw_tf_.transform.rotation.w = world_to_base_yaw_tf_quat_.w();
     world_to_base_yaw_tf_broadcaster_->sendTransform(world_to_base_yaw_tf_);
   });
-  info("tf broadcaster ok");
+  info("tf broadcaster \033[32mmok\033[0m");
 }
 
 int main(int argc, char *argv[]) {

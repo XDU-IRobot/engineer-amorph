@@ -12,7 +12,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   ${${PROJECT_NAME}_msgs}
   ${${PROJECT_NAME}_srvs}
   ${${PROJECT_NAME}_actions}
-  DEPENDENCIES std_msgs trajectory_msgs geometry_msgs
+  DEPENDENCIES std_msgs sensor_msgs trajectory_msgs geometry_msgs
 )
 
 ament_package()
