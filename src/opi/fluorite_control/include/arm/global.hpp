@@ -14,12 +14,10 @@
 // ros
 #include <tf2_ros/transform_listener.h>
 #include <moveit/move_group_interface/move_group_interface.h>
-#include "keyboard_msgs/msg/key.hpp"
 
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
-#include "common/keypress_handler.hpp"
 #include "common/logger.hpp"
 
 namespace fluorite {

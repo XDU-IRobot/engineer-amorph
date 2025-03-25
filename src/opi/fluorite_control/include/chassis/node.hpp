@@ -33,7 +33,7 @@ class FluoriteChassis final : public rclcpp::Node {
   void Navigation();
   void Blackbox();
   void DeviceMonitor();
-  void Remote();
+  void UserInput();
   void Referee();
 
   void ParamHotUpdate();
@@ -46,10 +46,12 @@ class FluoriteChassis final : public rclcpp::Node {
   RosParamsManager<RosParams> ros_params_manager_{this};
   /** </parameters> **/
 
-  /** <remote> **/
-  rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr remote_sub_{nullptr};
-  rclcpp::Subscription<rm2_referee_msgs::msg::RemoteControl>::SharedPtr fpv_remote_sub_{nullptr};
-  /** </remote> **/
+  /** <user input subscribers> **/
+  rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr sbus_sub_{nullptr};
+  rclcpp::Subscription<rm2_referee_msgs::msg::RemoteControl>::SharedPtr fpv_link_input_sub_{nullptr};
+  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr debug_keyboard_keydown_sub_{nullptr};
+  rclcpp::Subscription<keyboard_msgs::msg::Key>::SharedPtr debug_keyboard_keyup_sub_{nullptr};
+  /** </user input subscribers> **/
 
   /** <referee> **/
   rclcpp::Subscription<rm2_referee_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_{nullptr};

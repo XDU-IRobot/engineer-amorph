@@ -9,6 +9,9 @@
 
 #include <tinyfsm.hpp>
 
+#include "keyboard_msgs/msg/key.hpp"
+
+#include "common/keypress_handler.hpp"
 #include "arm/global.hpp"
 
 namespace fluorite {

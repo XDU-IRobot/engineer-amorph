@@ -128,5 +128,5 @@ fluorite_control_arm:
     control_use_fpv_channel: false # 使用图传链路控制
     control_invert_vertical: true
     control_invert_horizontal: true
-    control_sensitivity_vertical: 4.3
-    control_sensitivity_horizontal: 4.3
+    control_sensitivity_vertical: 1.0
+    control_sensitivity_horizontal: 1.0

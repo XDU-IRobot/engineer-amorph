@@ -27,7 +27,7 @@ FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options)
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
   this->InitFsm();             // 初始化状态机
   this->DeviceMonitor();       // 设备在线状态监控
-  this->Remote();              // 启动遥控器接收
+  this->UserInput();           // 启动遥控器接收
   this->Referee();             // 启动裁判系统接收
   this->Navigation();          // 启动和导航节点的通信
   this->Blackbox();            // 启动黑匣子（广播state和control）
@@ -180,55 +180,85 @@ void FluoriteChassis::InitFsm() {
 
 void FluoriteChassis::Navigation() { info("navigation ok"); }
 
-void FluoriteChassis::Remote() {
-  static std::vector<short> last_channels(16, 0);
-  remote_sub_ = this->create_subscription<sbus_interface::msg::Sbus>(
+/**
+ * @brief 开始接收所有链路的用户输入：sbus、图传链路键鼠、自定义控制器和调试键盘节点（也就是初始化一堆subscriber）
+ */
+void FluoriteChassis::UserInput() {
+  sbus_sub_ = create_subscription<sbus_interface::msg::Sbus>(
       "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
-        // remote_device_.IAmAlive();
         if (msg->failsafe) {
           fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
           return;
         }
-        if (msg->mapped_channels[8] == -1000) {
-          if ((last_channels[8] != -1000)) {  // SA up
-            fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::FollowGimbal>{});
-          }
-        } else {
-          fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
-        }
 
-        control_msg_.vx = msg->mapped_channels[1] * ros_params_manager_.data().control_sensitivity_vertical;
-        control_msg_.vy = msg->mapped_channels[3] * ros_params_manager_.data().control_sensitivity_horizontal;
-        if (ros_params_manager_.data().control_invert_vertical) {
-          control_msg_.vx = -control_msg_.vx;
-        }
-        if (ros_params_manager_.data().control_invert_horizontal) {
-          control_msg_.vy = -control_msg_.vy;
-        }
+        control_msg_.left_x = -(double)msg->mapped_channels[3] / 1000.0;
+        control_msg_.left_y = -(double)msg->mapped_channels[1] / 1000.0;
+        control_msg_.right_x = (double)msg->mapped_channels[0] / 1000.0;
+        control_msg_.right_y = (double)msg->mapped_channels[2] / 1000.0;
+        control_msg_.ld = -msg->mapped_channels[4] / 1000.0;
+        control_msg_.rd = -msg->mapped_channels[5] / 1000.0;
+        control_msg_.ls = -msg->mapped_channels[6] / 1000.0;
+        control_msg_.rs = -msg->mapped_channels[7] / 1000.0;
+        control_msg_.sa = -msg->mapped_channels[8] / 1000;
+        control_msg_.sb = -msg->mapped_channels[9] / 1000;
+        control_msg_.sc = -msg->mapped_channels[10] / 1000;
+        control_msg_.sd = -msg->mapped_channels[11] / 1000;
+        control_msg_.se = -msg->mapped_channels[12] / 1000;
+        control_msg_.sf = -msg->mapped_channels[13] / 1000;
+        control_msg_.sg = -msg->mapped_channels[14] / 1000;
+        control_msg_.sh = -msg->mapped_channels[15] / 1000;
       });
-  fpv_remote_sub_ = this->create_subscription<rm2_referee_msgs::msg::RemoteControl>(
-      "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
-      [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
-        enum {
-          KEY_W = 1u << 0,
-          KEY_S = 1u << 1,
-          KEY_A = 1u << 2,
-          KEY_D = 1u << 3,
-          KEY_SHIFT = 1u << 4,
-          KEY_CTRL = 1u << 5,
-          KEY_Q = 1u << 6,
-          KEY_E = 1u << 7,
-          KEY_R = 1u << 8,
-          KEY_F = 1u << 9,
-          KEY_G = 1u << 10,
-          KEY_Z = 1u << 11,
-          KEY_X = 1u << 12,
-          KEY_C = 1u << 13,
-          KEY_V = 1u << 14,
-          KEY_B = 1u << 15,
-        };
+  debug_keyboard_keydown_sub_ = create_subscription<keyboard_msgs::msg::Key>(
+      "/keydown", rclcpp::QoS(10).reliable(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
+        if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
+          control_msg_.keyboard_key[msg->code] = true;
+        }
+        control_msg_.keyboard_modifier |= msg->modifiers;
       });
-  info("remote ok");
+  debug_keyboard_keyup_sub_ = create_subscription<keyboard_msgs::msg::Key>(
+      "/keyup", rclcpp::QoS(10).reliable(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
+        if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
+          control_msg_.keyboard_key[msg->code] = false;
+        }
+        control_msg_.keyboard_modifier &= (~msg->modifiers);
+      });
+  fpv_link_input_sub_ = create_subscription<rm2_referee_msgs::msg::RemoteControl>(
+      "/rm2_referee/remote_control", rclcpp::SensorDataQoS(), [&](const rm2_referee_msgs::msg::RemoteControl msg) {
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_W] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_W;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_S] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_S;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_A] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_A;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_D] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_D;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LSHIFT] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LSHIFT;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LCTRL] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_Q] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Q;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_E] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_E;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_R] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_R;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_F] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_F;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_G] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_G;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_Z] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Z;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_X] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_X;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_C] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_C;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_V] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_V;
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_B] =
+            msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_B;
+      });
+
+  info("user input subscribers spawned \033[32mmok\033[0m");
 }
 
 void FluoriteChassis::Referee() { info("referee ok"); }
