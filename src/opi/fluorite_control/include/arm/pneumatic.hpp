@@ -13,10 +13,10 @@ class SuckerSystem {
       : out_valve_{out_valve}, in_valve_{in_valve}, vaccum_pump_{vaccum_pump} {}
 
   /**
-   * @brief 把真空泵的进出两端都连接到大气压，并关闭真空泵
+   * @brief 两侧电磁阀不通电，并关闭真空泵
    */
   void Disable() {
-    in_valve_.Write(LOW);
+    in_valve_.Write(HIGH);
     out_valve_.Write(HIGH);
     vaccum_pump_.Write(0.0);
   }
@@ -29,12 +29,11 @@ class SuckerSystem {
     if (power > 0) {
       in_valve_.Write(HIGH);
       out_valve_.Write(HIGH);
-      vaccum_pump_.Write(power);
     } else {
       in_valve_.Write(LOW);
       out_valve_.Write(LOW);
-      vaccum_pump_.Write(-power);
     }
+    vaccum_pump_.Write(std::abs(power));
   }
 
  private:
@@ -52,7 +51,7 @@ class StorageSystem {
       : left_valve_{left_valve}, right_valve_{right_valve}, vaccum_pump_{vaccum_pump} {}
 
   /**
-   * @brief 两侧电磁阀均封闭，并关闭真空泵
+   * @brief 两侧电磁阀不通电，并关闭真空泵
    */
   void Disable() {
     left_valve_.Write(HIGH);
@@ -63,7 +62,7 @@ class StorageSystem {
   /**
    * @param power 真空泵功率，范围[0, 1]
    */
-  void SetPumpPower(double power) { vaccum_pump_.Write(power); }
+  void SetPumpPower(double power) { vaccum_pump_.Write(std::abs(power)); }
 
   /**
    * @brief 设置左侧吸盘

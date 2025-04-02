@@ -77,9 +77,9 @@ fluorite_control_arm:
     pid_base_yaw_speed: [0.20, 0.0, 0.0, 10.0, 10.0]
     pid_yaw_speed: [-3.5, 0.0, 0.0, 10.0, 10.0]
     pid_pitch_1_speed: [3.5, 0.0, 0.0, 17.0, 17.0]
-    pid_pitch_2_speed: [-2.5, 0.0, 0.0, 7.0, 7.0]
+    pid_pitch_2_speed: [-3.0, 0.0, 0.0, 10.0, 10.0]
     pid_end_yaw_1_speed: [-0.6, 0.0, 0.0, 3.0, 3.0]
-    pid_end_pitch_speed: [0.4, 0.0, 0.0, 3.0, 3.0]
+    pid_end_pitch_speed: [0.45, 0.0, 0.0, 3.0, 3.0]
     pid_end_yaw_2_speed: [78.0, 0.0, 0.0, 5000.0, 5000.0]
     pid_base_yaw_position: [425.0, 0.0, 24000.0, 130.0, 130.0]
     pid_yaw_position: [40.0, 0.0, 230.0, 3.4, 3.4]
@@ -101,7 +101,7 @@ fluorite_control_arm:
     lpf_cutoff_freq_end_yaw_2: 200
 
     # encoder offsets
-    yaw_encoder_zero_offset: -0.5369272232055664 # -0.5369272232055664 0.17223644256591797
+    yaw_encoder_zero_offset: 0.17223644256591797 # -0.5369272232055664 0.17223644256591797
     pitch_1_encoder_zero_offset: -1.0486761331558228
     pitch_2_encoder_zero_offset: -2.723163604736328
     end_yaw_1_encoder_zero_offset: -2.0185775756835938
@@ -117,11 +117,11 @@ fluorite_control_arm:
     end_yaw_2_reverse: false
 
     # gpio settings
-    sucker_out_valve_pin: 13
-    sucker_in_valve_pin: 14
+    sucker_out_valve_pin: 11
+    sucker_in_valve_pin: 12
     sucker_vaccum_pump_pin: 2 # pwm15_m2
-    storage_left_valve_pin: 11
-    storage_right_valve_pin: 12
+    storage_left_valve_pin: 14
+    storage_right_valve_pin: 15
     storage_vaccum_pump_pin: 16 # pwm1_m2
 
     # input settings

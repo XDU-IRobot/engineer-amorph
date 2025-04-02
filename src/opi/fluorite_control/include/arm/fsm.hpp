@@ -7,6 +7,7 @@
 #ifndef ARM_FSM_HPP
 #define ARM_FSM_HPP
 
+#include <keyboard_msgs/msg/detail/key__struct.hpp>
 #include <tinyfsm.hpp>
 
 #include "keyboard_msgs/msg/key.hpp"
@@ -40,6 +41,8 @@ struct Control : tinyfsm::Event {
              keyboard_msgs::msg::Key::KEY_C,
              keyboard_msgs::msg::Key::KEY_V,
              keyboard_msgs::msg::Key::KEY_B,
+             keyboard_msgs::msg::Key::KEY_LSHIFT,
+             keyboard_msgs::msg::Key::KEY_LCTRL,
          }) {
       keyboard_key.try_emplace(keyboard_map_k, false);
     }
@@ -55,15 +58,14 @@ struct Control : tinyfsm::Event {
   std::atomic<double> ls, rs;                       ///< 遥控器背面的左右滑块，范围[-1, 1]，下负上正
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
-  std::atomic<uint16_t> keyboard_modifier;                       ///< 键盘组合键modifier
 
   KeypressHandler keypress_handler;
   struct _ {
     _(Control *this_) : this_(this_) {}
-    Hotkey switch_arm_pump{[&]() -> bool {
-      return this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) &&
-             this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT);
-    }};
+    // Hotkey switch_arm_pump{[&]() -> bool {
+    //   return this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) &&
+    //          this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT);
+    // }};
 
    private:
     Control *this_;

@@ -222,16 +222,7 @@ void KeyboardManual::react(event::Control const &control) {
       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_X)) {
     // 根据键盘输入设置目标末端位姿
     double delta_x{0}, delta_y{0}, delta_z{0}, delta_pitch{0}, delta_roll{0};
-    if (control.keyboard_modifier.load() & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
-      delta_z = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) -
-                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V)) *
-                0.0005;
-    } else {
-      delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V) -
-                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F)) *
-                0.0005;
-    }
-    if (control.keyboard_modifier.load() & keyboard_msgs::msg::Key::MODIFIER_LCTRL) {
+    if (control.keyboard_key.at(keyboard_msgs::msg::Key::MODIFIER_LCTRL)) {
       delta_roll = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) -
                     control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V)) *
                    0.0013;
@@ -239,6 +230,15 @@ void KeyboardManual::react(event::Control const &control) {
                      control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_B)) *
                     0.0013;
     } else {
+      if (control.keyboard_key.at(keyboard_msgs::msg::Key::MODIFIER_LSHIFT)) {
+        delta_z = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F) -
+                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V)) *
+                  0.0005;
+      } else {
+        delta_y = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V) -
+                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_F)) *
+                  0.0005;
+      }
       delta_x = (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_C) -
                  control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_B)) *
                 0.0005;
@@ -370,7 +370,7 @@ void NoForce::entry() { fluorite::actuator->base_yaw.Enable(false); }
 
 void FollowImu::react(event::Control const &control) {
   fluorite::state.imu_yaw_target = rm::modules::algorithm::utils::LoopConstrain(
-      fluorite::state.imu_yaw_target - control.right_x * 0.006, -M_PIf, M_PIf);
+      fluorite::state.imu_yaw_target - control.right_x * 0.006 - control.mouse_x, -M_PIf, M_PIf);
 
   const auto base_yaw_imu = rm::modules::algorithm::utils::LoopConstrain(
       fluorite::state.imu_yaw - fluorite::state.yaw_encoder, -M_PIf, M_PIf);

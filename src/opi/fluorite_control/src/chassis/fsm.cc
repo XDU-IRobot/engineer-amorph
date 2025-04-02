@@ -51,14 +51,14 @@ namespace chassis {
 void FollowGimbal::entry() {}
 void NoForce::entry() {}
 void FollowGimbal::react(event::chassis::Control const &control) {
-  const double vx = std::clamp(control.left_x + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) -
-                                                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S)),
-                               -1.0, 1.0) *
-                    1000.0;
-  const double vy = std::clamp(control.left_y + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
+  const double vx = std::clamp(control.left_x + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
                                                  control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A)),
                                -1.0, 1.0) *
-                    1000.0;
+                    4000.0;
+  const double vy = std::clamp(control.left_y + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) -
+                                                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S)),
+                               -1.0, 1.0) *
+                    4000.0;
   const Eigen::Rotation2Dd gimbal_heading(-Chassis::state.base_yaw_encoder);
   Eigen::Vector2d control_xy(vx, vy);
   control_xy = gimbal_heading * control_xy;
@@ -66,7 +66,7 @@ void FollowGimbal::react(event::chassis::Control const &control) {
   controller.chassis_orientation_position->Update(0, Chassis::state.base_yaw_encoder);
 
   const auto result = controller.chassis_solver.Forward(
-      control_xy.x(), control_xy.y(), controller.chassis_orientation_position->value(), state.lf_steer_position,
+      control_xy.y(), control_xy.x(), controller.chassis_orientation_position->value(), state.lf_steer_position,
       state.rf_steer_position, state.lr_steer_position, state.rr_steer_position);
   controller.lf_wheel_speed->Update(result.lf_wheel_speed * 1.f, state.lf_wheel_speed);
   controller.rf_wheel_speed->Update(result.rf_wheel_speed * 1.f, state.rf_wheel_speed);

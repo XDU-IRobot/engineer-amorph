@@ -242,7 +242,6 @@ void FluoriteArm::UserInput() {
           fluorite::fsm::DispatchEvent(fluorite::fsm::event::SwitchMode<fluorite::fsm::state::gimbal_base::NoForce>{});
           return;
         }
-
         control_msg_.left_x = -(double)msg->mapped_channels[3] / 1000.0;
         control_msg_.left_y = -(double)msg->mapped_channels[1] / 1000.0;
         control_msg_.right_x = (double)msg->mapped_channels[0] / 1000.0;
@@ -265,17 +264,30 @@ void FluoriteArm::UserInput() {
         if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
           control_msg_.keyboard_key[msg->code] = true;
         }
-        control_msg_.keyboard_modifier |= msg->modifiers;
+        if (msg->modifiers & keyboard_msgs::msg::Key::MODIFIER_LCTRL) {
+          control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::MODIFIER_LCTRL) = true;
+        }
+        if (msg->modifiers & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
+          control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::MODIFIER_LSHIFT) = true;
+        }
       });
   debug_keyboard_keyup_sub_ = create_subscription<keyboard_msgs::msg::Key>(
       "/keyup", rclcpp::QoS(10).reliable(), [&](const keyboard_msgs::msg::Key::SharedPtr msg) {
         if (control_msg_.keyboard_key.find(msg->code) != control_msg_.keyboard_key.end()) {
           control_msg_.keyboard_key[msg->code] = false;
         }
-        control_msg_.keyboard_modifier &= (~msg->modifiers);
+        if (msg->modifiers & keyboard_msgs::msg::Key::MODIFIER_LCTRL) {
+          control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::MODIFIER_LCTRL) = false;
+        }
+        if (msg->modifiers & keyboard_msgs::msg::Key::MODIFIER_LSHIFT) {
+          control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::MODIFIER_LSHIFT) = false;
+        }
       });
   fpv_link_input_sub_ = create_subscription<rm2_referee_msgs::msg::RemoteControl>(
       "/rm2_referee/remote_control", rclcpp::SensorDataQoS(), [&](const rm2_referee_msgs::msg::RemoteControl msg) {
+        control_msg_.mouse_x = msg.mouse_x / 1000.0;
+        control_msg_.mouse_y = msg.mouse_y / 1000.0;
+        control_msg_.mouse_wheel = msg.mouse_z / 10.0;
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_W] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_W;
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_S] =
@@ -337,7 +349,7 @@ void FluoriteArm::UserInput() {
 
           return ret;
         }();
-        // fluorite::state.custom_controller_pose = std::move(deserialized_pose);
+        fluorite::state.custom_controller_pose = std::move(deserialized_pose);
       });
 
   info("user input subscribers spawned \033[32mmok\033[0m");

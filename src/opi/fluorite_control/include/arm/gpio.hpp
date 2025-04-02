@@ -23,23 +23,31 @@ class OutputPin {
   bool state_;
 };
 
+/**
+ * @brief wiringop的pwm有很严重的bug，所以这个pwm类暂时和outputpin一样，大于0.5就是HIGH，小于等于0.5就是LOW
+ *
+ */
 class PwmOutputPin {
  public:
   explicit PwmOutputPin(int pin_num) : pin_num_{pin_num} {
-    pinMode(pin_num, PWM_OUTPUT);
-    pwmSetRange(pin_num, kResolution);
-    pwmWrite(pin_num, 0);
+    pinMode(pin_num, OUTPUT);
+    // pwmSetRange(pin_num, kResolution);
+    // pwmWrite(pin_num, 0);
   }
 
   void Write(double duty) {
-    std::clamp(duty, 0.0, 1.0);
-    pwmWrite(pin_num_, duty * kResolution);
-    duty_ = duty;
+    // if (duty == duty_) {
+    //   return;
+    // }
+    // std::clamp(duty, 0.0, 1.0);
+    // pwmWrite(pin_num_, duty * kResolution);
+    // duty_ = duty;
+    digitalWrite(pin_num_, duty > 0.5);
   }
   double duty() const { return duty_; }
 
  private:
-  constexpr static int kResolution = 1024;
+  constexpr static int kResolution = 1000;
 
   int pin_num_;
   double duty_;
