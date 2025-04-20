@@ -8,6 +8,7 @@ CONFIG_FILES_REQUIREMENT = [
     'settings.yaml',
 ]
 
+
 def generate_launch_description():
     return LaunchDescription(
         [
@@ -19,6 +20,7 @@ def generate_launch_description():
                 parameters=[{
                     "enable_normal": True,
                     "enable_fpv": True,
+                    "new_vt": True,
                     "normal_tty_device": "/dev/ttyUSB0",
                     "fpv_tty_device": "/dev/ttyS1",
                 }],

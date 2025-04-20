@@ -314,7 +314,7 @@ void CustomCtrlManual::react(event::Control const &control) {
       const auto target_joint_positions = [&] {
         trajectory_msgs::msg::JointTrajectoryPoint p;
         p.positions.resize(6);
-        p.velocities.resize(6);
+        p.velocities = {0, 0, 0, 0, 0, 0};
         p.positions[0] = control.custom_controller_command.joint_positions[0];
         p.positions[1] = control.custom_controller_command.joint_positions[1];
         p.positions[2] = control.custom_controller_command.joint_positions[2];
