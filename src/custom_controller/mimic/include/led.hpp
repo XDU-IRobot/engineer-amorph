@@ -85,7 +85,7 @@ class RGBLed {
     current_tween_->b.add(bv_).init(0.0f);
     current_tween_->g.add(gv_)
         .init(0.0f)       //
-        .then(1.0f, 200)  //
+        .then(0.5f, 200)  //
         .hold(1300)       //
         .then(0.0f, 800)  //
         .hold(700);

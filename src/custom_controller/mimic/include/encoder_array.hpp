@@ -38,10 +38,6 @@ class EncoderArray {
       multiplexer_.selectChannel(chan);
       bool b = multiplexer_.isConnected(kAS5600Addr);
       encoders_ok_[chan] = b;
-      logger_->print("CHANNEL ");
-      logger_->print(chan);
-      logger_->print("\t");
-      logger_->println(b ? "ok" : "offline!");
     }
   }
 
