@@ -74,7 +74,7 @@ class StorageSystem {
    * @brief 设置右侧吸盘
    * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
-  void SetRightValve(bool state) { right_valve_.Write(state); }
+  void SetRightValve(bool state) { right_valve_.Write(!state); }
 
  private:
   OutputPin left_valve_;
