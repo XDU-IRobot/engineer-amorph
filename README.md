@@ -251,24 +251,16 @@ chrt -f 99 ros2 launch fluorite_bringup opi.launch.py
 通过向 systemd 注册服务的方法实现程序开机自启：
 
 ```bash
-./scripts/install_service.sh
-
-sudo systemctl enable fluorite_opi.service
-# or:
-# sudo systemctl enable fluorite_jetson.service
+sudo ./scripts/install_service.py -j  # jetson
+# or
+sudo ./scripts/install_service.py -o  # orange pi
+sudo ./scripts/install_service.py -c  # 自定义控制器
 ```
 
-如果不想开机自启，取消注册服务或者暂时 disable/mask 服务均可：
+如果不想开机自启，卸载服务即可：
 
 ```bash
-./scripts/uninstall_service.sh
-# 暂时禁用：
-sudo systemctl disable fluorite_opi.service
-sudo systemctl disable fluorite_jetson.service
-# 重新启用：
-sudo systemctl enable fluorite_opi.service
-# or:
-# sudo systemctl enable fluorite_jetson.service
+sudo ./scripts/install_service.py --uninstall
 ```
 
 ## CAN 总线 设备列表

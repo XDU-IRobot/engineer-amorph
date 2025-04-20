@@ -8,7 +8,8 @@ COMMON_ARGS = ["--merge-install", "--symlink-install", "--cmake-args",
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Build script')
+    parser = argparse.ArgumentParser(
+        description='Build script for fluorite robot')
     # -j --jetson/-o --orangepi/-c --customctrl/-d --development
     # if none of them is provided or both are provided, print help message
     group = parser.add_mutually_exclusive_group()
@@ -24,17 +25,17 @@ def main():
 
     if args.jetson:
         status = subprocess.run(["colcon", "build", "--base-paths", "src/common/**",
-                       "src/jetson/**", *COMMON_ARGS])
+                                 "src/jetson/**", *COMMON_ARGS])
         if status.returncode != 0:
             exit(1)
     elif args.orangepi:
         status = subprocess.run(["colcon", "build", "--base-paths",
-                       "src/common/**", "src/opi/**", "--packages-ignore", "keyboard", *COMMON_ARGS])
+                                 "src/common/**", "src/opi/**", "--packages-ignore", "keyboard", *COMMON_ARGS])
         if status.returncode != 0:
             exit(1)
     elif args.customctrl:
         status = subprocess.run(["cmake", "-B", "custom_ctrl_build", "-S",
-                       "src/custom_controller/t265", "-DCMAKE_BUILD_TYPE=Release"])
+                                 "src/custom_controller/t265", "-DCMAKE_BUILD_TYPE=Release"])
         if status.returncode != 0:
             exit(1)
         status = subprocess.run(["cmake", "--build", "custom_ctrl_build"])
@@ -42,7 +43,7 @@ def main():
             exit(1)
     elif args.development:
         status = subprocess.run(["colcon", "build", "--base-paths",
-                       "src/**", *COMMON_ARGS])
+                                 "src/**", *COMMON_ARGS])
         if status.returncode != 0:
             exit(1)
     else:
