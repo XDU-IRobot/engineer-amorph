@@ -50,6 +50,7 @@ void JointPosPostProcess(float jp_array[6]) {
     float joint_positions[6];
   } tx_message{};
 
+  TickType_t last_send_tick = xTaskGetTickCount();
   while (true) {
     debug_serial.println("===================================");
     encoders.RescanSensors();
@@ -70,8 +71,10 @@ void JointPosPostProcess(float jp_array[6]) {
       debug_serial.print("\t");
     }
     const auto packet = pb.Build(reinterpret_cast<uint8_t *>(&tx_message), sizeof(tx_message));
+
+    vTaskDelayUntil(&last_send_tick, pdMS_TO_TICKS(33));
+    last_send_tick = xTaskGetTickCount();
     rs232.write(packet->data(), packet->size());
-    vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
 
