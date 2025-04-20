@@ -1,54 +1,65 @@
 
 #include <Arduino.h>
-#include <freertos/FreeRTOS.h>
+#include <HardwareSerial.h>
 
-#include "AS5600.h"
+#include "led.hpp"
+#include "packet_builder.hpp"
+#include "encoder_array.hpp"
 
-AS5600 as5600;
+HardwareSerial debug_serial(1);
+EncoderArray encoders(debug_serial);
 
-void BlinkLedOnceTask(void *arg) {
-  pinMode(LED_BUILTIN, OUTPUT);
+[[noreturn]] void LedTask(void *arg) {
+  RGBLed led;
+  led.Begin();
+  led.StandBy();
   while (true) {
-    digitalWrite(LED_BUILTIN, HIGH);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    digitalWrite(LED_BUILTIN, LOW);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // if (encoders.ok()) {
+    //   led.GreenBreath();
+    // } else {
+    //   led.RedBreath();
+    // }
+    led.Update();
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
-void MainLoop(void *arg) {
+[[noreturn]] void MainTask(void *arg) {
+  HardwareSerial rs232(2);
+  PacketBuilder pb;
+  rs232.begin(115200, SERIAL_8N1, 39, 38);
+  encoders.Begin();
+
+  struct __attribute__((__packed__)) {
+    bool ok;
+    float joint_positions[6];
+  } tx_message{};
+
   while (true) {
-    Serial.print(millis());
-    Serial.print("\t");
-    Serial.print(as5600.readAngle());
-    Serial.print("\t");
-    // Serial.print(as5600.rawAngle());
-    // Serial.print("\t");
-    Serial.println(as5600.rawAngle() * AS5600_RAW_TO_DEGREES);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
+    debug_serial.println("===================================");
+    encoders.RescanSensors();
+    for (int i = 0; i < 6; ++i) {
+      auto encoder = encoders[i];
+      if (encoder == nullptr) {
+        debug_serial.println("sensor offline");
+        continue;
+      }
+      tx_message.joint_positions[i] = encoder->readAngle() * AS5600_RAW_TO_RADIANS;
+      debug_serial.println(tx_message.joint_positions[i]);
+    }
+    tx_message.ok = encoders.ok();
+    const auto packet = pb.Build(reinterpret_cast<uint8_t *>(&tx_message), sizeof(tx_message));
+    for (const auto c : *packet) {
+      rs232.write(c);
+    }
+    vTaskDelay(20 / portTICK_PERIOD_MS);
   }
 }
 
 void setup() {
-  Serial.begin(921600);
-  Wire.begin();
-
-  for (int i = 0; i < 127; i++) {
-    Wire.beginTransmission(i);
-    if (Wire.endTransmission() == 0) {
-      Serial.print("0x");
-      Serial.println(i, HEX);
-    }
-  }
-
-  as5600.begin(4);
-  as5600.setDirection(AS5600_CLOCK_WISE);  //  default, just be explicit.
-  Serial.print("Connect: ");
-  Serial.println(as5600.isConnected());
-  delay(1000);
-
-  xTaskCreate(MainLoop, "MainLoop", 2048, nullptr, 1, nullptr);
-  xTaskCreate(BlinkLedOnceTask, "BlinkLedOnceTask", 1024, nullptr, 1, nullptr);
+  debug_serial.begin(921600, SERIAL_8N1, 44, 43);
+  xTaskCreate(LedTask, "LedTask", 1024, nullptr, configMAX_PRIORITIES - 2, nullptr);
+  xTaskCreate(MainTask, "MainTask", 2048, nullptr, configMAX_PRIORITIES - 1, nullptr);
 }
 
-void loop() {}
+void loop() { vTaskDelay(portMAX_DELAY); }
