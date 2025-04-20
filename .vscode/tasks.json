@@ -4,7 +4,7 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "colcon build --parallel-workers 1 --merge-install --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_EXPORT_COMPILE_COMMANDS=Yes",
+      "command": "./scripts/build.py --development",
       "group": {
         "kind": "build",
         "isDefault": true

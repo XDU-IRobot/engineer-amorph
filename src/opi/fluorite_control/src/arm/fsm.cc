@@ -277,12 +277,12 @@ void KeyboardManual::react(event::Control const &control) {
             std::vector<double> joint_values;
             fluorite::state.last_ik_success = true;
             fluorite::controller->kinematic_model->copyJointGroupPositions(joint_model_group, joint_values);
-            info("====================================================");
-            info("ik solved!");
+            debug("====================================================");
+            debug("ik solved!");
             for (std::size_t i = 0; i < joint_values.size(); ++i) {
-              info("Joint %lu: %f", i, joint_values[i]);
+              debug("Joint %lu: %f", i, joint_values[i]);
             }
-            info("====================================================");
+            debug("====================================================");
             const auto kReferenceTraj = [&] {
               trajectory_msgs::msg::JointTrajectoryPoint p;
               p.positions = joint_values;
@@ -292,10 +292,10 @@ void KeyboardManual::react(event::Control const &control) {
             fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kReferenceTraj);
           } else {
             fluorite::state.last_ik_success = false;
-            warn("failed to solve ik");
+            warn("failed to solve ik");  // 无解
           }
         } catch (const std::exception &e) {
-          error("failed to solve ik: %s", e.what());
+          error("failed to solve ik: %s", e.what());  // 求解过程中有报错
           fluorite::controller->ik_calculation_mutex.unlock();
         }
 
@@ -309,11 +309,30 @@ void KeyboardManual::react(event::Control const &control) {
   UpdateState();
 }
 void CustomCtrlManual::react(event::Control const &control) {
-  // TODO
+  if constexpr (std::is_same_v<decltype(control), custom_controller::JointCommand>) {
+    if (control.custom_controller_command.ok) {  // 这里不ok说明自定义控制器那边有问题，那就不接受传来的命令
+      const auto target_joint_positions = [&] {
+        trajectory_msgs::msg::JointTrajectoryPoint p;
+        p.positions.resize(6);
+        p.velocities.resize(6);
+        p.positions[0] = control.custom_controller_command.joint_positions[0];
+        p.positions[1] = control.custom_controller_command.joint_positions[1];
+        p.positions[2] = control.custom_controller_command.joint_positions[2];
+        p.positions[3] = control.custom_controller_command.joint_positions[3];
+        p.positions[4] = control.custom_controller_command.joint_positions[4];
+        p.positions[5] = control.custom_controller_command.joint_positions[5];
+        return p;
+      }();
+      fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(target_joint_positions);
+    }
+  } else if constexpr (std::is_same_v<decltype(control), custom_controller::CartesianCommand>) {
+    // TODO: 对齐T265的坐标系，摄像头坐标系的xyzw顺序和机械臂的顺序不一样
+  }
+  Arm::CalcPidAndExecute();
+  UpdateState();
 }
 void FollowExternalTrajectory::react(event::Control const &control) {
   // Arm::CalcPidAndExecute();
-
   UpdateState();
 }
 void Retracted::react(event::Control const &control) {

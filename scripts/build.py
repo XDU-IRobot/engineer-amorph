@@ -9,7 +9,7 @@ COMMON_ARGS = ["--merge-install", "--symlink-install", "--cmake-args",
 
 def main():
     parser = argparse.ArgumentParser(description='Build script')
-    # -j --jetson/-o --orangepi/-c --customctrl/-d --debug
+    # -j --jetson/-o --orangepi/-c --customctrl/-d --development
     # if none of them is provided or both are provided, print help message
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-j', '--jetson', action='store_true',
@@ -18,7 +18,7 @@ def main():
                        help='Build for Orange Pi')
     group.add_argument('-c', '--customctrl', action='store_true',
                        help='Build for custom controller(on the raspberry pi)')
-    group.add_argument('-d', '--debug', action='store_true',
+    group.add_argument('-d', '--development', action='store_true',
                        help='Build all packages except for custom controller(for debug/development/ci)')
     args = parser.parse_args()
 
@@ -40,7 +40,7 @@ def main():
         status = subprocess.run(["cmake", "--build", "custom_ctrl_build"])
         if status.returncode != 0:
             exit(1)
-    elif args.debug:
+    elif args.development:
         status = subprocess.run(["colcon", "build", "--base-paths",
                        "src/**", *COMMON_ARGS])
         if status.returncode != 0:

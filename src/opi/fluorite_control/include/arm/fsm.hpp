@@ -13,6 +13,7 @@
 #include "keyboard_msgs/msg/key.hpp"
 
 #include "common/keypress_handler.hpp"
+#include "arm/custom_controller.hpp"
 #include "arm/global.hpp"
 
 namespace fluorite {
@@ -58,6 +59,8 @@ struct Control : tinyfsm::Event {
   std::atomic<double> ls, rs;                       ///< 遥控器背面的左右滑块，范围[-1, 1]，下负上正
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
+
+  custom_controller::JointCommand custom_controller_command;
 
   KeypressHandler keypress_handler;
   struct _ {

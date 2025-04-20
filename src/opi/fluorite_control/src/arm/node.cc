@@ -323,33 +323,7 @@ void FluoriteArm::UserInput() {
       });
   custom_controller_sub_ = create_subscription<rm2_referee_msgs::msg::CustomRobotData>(
       "/rm2_referee/custom_robot_data", rclcpp::SensorDataQoS(), [&](const rm2_referee_msgs::msg::CustomRobotData msg) {
-        const auto deserialized_pose = [&msg] {
-          geometry_msgs::msg::Pose ret;
-          float pos_x, pos_y, pos_z, ori_x, ori_y, ori_z, ori_w;
-          std::memcpy(&pos_x, &msg.data[0], sizeof(float));
-          std::memcpy(&pos_y, &msg.data[4], sizeof(float));
-          std::memcpy(&pos_z, &msg.data[8], sizeof(float));
-          std::memcpy(&ori_w, &msg.data[12], sizeof(float));
-          std::memcpy(&ori_x, &msg.data[16], sizeof(float));
-          std::memcpy(&ori_y, &msg.data[20], sizeof(float));
-          std::memcpy(&ori_z, &msg.data[24], sizeof(float));
-          ret.position.x = pos_x;
-          ret.position.y = pos_y;
-          ret.position.z = pos_z;
-
-          // pyr->rpy
-          Eigen::Quaterniond q(ori_w, ori_x, ori_y, ori_z);
-          const Eigen::Vector3d pry = q.toRotationMatrix().eulerAngles(2, 0, 1);
-          q = Eigen::AngleAxisd(pry[0], Eigen::Vector3d::UnitX()) *
-              Eigen::AngleAxisd(pry[1], Eigen::Vector3d::UnitY()) * Eigen::AngleAxisd(pry[2], Eigen::Vector3d::UnitZ());
-          ret.orientation.x = q.x();
-          ret.orientation.y = q.y();
-          ret.orientation.z = q.z();
-          ret.orientation.w = q.w();
-
-          return ret;
-        }();
-        fluorite::state.custom_controller_pose = std::move(deserialized_pose);
+        std::memcpy(&control_msg_.custom_controller_command, &msg.data, sizeof(control_msg_.custom_controller_command));
       });
 
   info("user input subscribers spawned \033[32mmok\033[0m");
@@ -450,25 +424,23 @@ void FluoriteArm::DeviceMonitor() {
 void FluoriteArm::ProcessSensorData() {
   // 初始化低通滤波器
   static auto lp_filter = [this] {
-    struct _ {
-      _(FluoriteArm *this_ptr) {
-        yaw_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_yaw,
-                                      this_ptr->ros_params_manager_.data().lpf_sample_rate);
-        pitch_1_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_pitch_1,
-                                          this_ptr->ros_params_manager_.data().lpf_sample_rate);
-        pitch_2_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_pitch_2,
-                                          this_ptr->ros_params_manager_.data().lpf_sample_rate);
-        end_yaw_1_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_end_yaw_1,
-                                            this_ptr->ros_params_manager_.data().lpf_sample_rate);
-        end_pitch_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_end_pitch,
-                                            this_ptr->ros_params_manager_.data().lpf_sample_rate);
-        end_yaw_2_position.calculate_coeffs(this_ptr->ros_params_manager_.data().lpf_cutoff_freq_end_yaw_2,
-                                            this_ptr->ros_params_manager_.data().lpf_sample_rate);
-      }
+    struct {
       FO_LPF yaw_position, pitch_1_position, pitch_2_position, end_yaw_1_position, end_pitch_position,
           end_yaw_2_position;
-    };
-    return _{this};
+    } ret;
+    ret.yaw_position.calculate_coeffs(ros_params_manager_.data().lpf_cutoff_freq_yaw,
+                                      ros_params_manager_.data().lpf_sample_rate);
+    ret.pitch_1_position.calculate_coeffs(ros_params_manager_.data().lpf_cutoff_freq_pitch_1,
+                                          ros_params_manager_.data().lpf_sample_rate);
+    ret.pitch_2_position.calculate_coeffs(ros_params_manager_.data().lpf_cutoff_freq_pitch_2,
+                                          ros_params_manager_.data().lpf_sample_rate);
+    ret.end_yaw_1_position.calculate_coeffs(ros_params_manager_.data().lpf_cutoff_freq_end_yaw_1,
+                                            ros_params_manager_.data().lpf_sample_rate);
+    ret.end_pitch_position.calculate_coeffs(ros_params_manager_.data().lpf_cutoff_freq_end_pitch,
+                                            ros_params_manager_.data().lpf_sample_rate);
+    ret.end_yaw_2_position.calculate_coeffs(ros_params_manager_.data().lpf_cutoff_freq_end_yaw_2,
+                                            ros_params_manager_.data().lpf_sample_rate);
+    return ret;
   }();
 
   fluorite::state.base_yaw_encoder = rm::modules::algorithm::utils::LoopConstrain(

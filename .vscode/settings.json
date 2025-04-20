@@ -21,9 +21,9 @@
   ],
   "terminal.integrated.profiles.linux": {
     "bash": {
-      "path": "bash",
+      "path": "zsh",
       "icon": "terminal-bash",
-      "args": ["-c", "source ${workspaceFolder}/install/setup.bash;exec bash"]
+      "args": ["-c", "source ${workspaceFolder}/install/setup.zsh;exec zsh"]
     }
   },
   "clangd.detectExtensionConflicts": true,
@@ -42,5 +42,6 @@
     "--clang-tidy",
     "--query-driver=clang++"
   ],
-  "ros.distro": "humble"
+  "ros.distro": "humble",
+  "cmake.sourceDirectory": "/home/soraha/engineer-2025/src/opi/fluorite_control/src"
 }
