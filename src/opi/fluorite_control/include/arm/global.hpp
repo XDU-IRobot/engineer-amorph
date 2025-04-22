@@ -17,6 +17,7 @@
 
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
+#include "arm/dynamics.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
 #include "common/logger.hpp"
 
@@ -70,6 +71,8 @@ struct Controller {
   PidTrajectoryTracker<6> trajectory_tracker;
   PosPID base_yaw_speed_pid;
   PosRingPID base_yaw_position_pid;
+
+  DynamicModel dynamic_model{};  ///< 逆动力学模型
 
   std::unique_ptr<tf2_ros::Buffer> tf_buffer;
   moveit::core::RobotStatePtr kinematic_model;

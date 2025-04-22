@@ -149,6 +149,10 @@ void Retracted::entry() {
 }
 void NoForce::entry() {
   Arm::EnableActuators(false);
+  const auto torques = fluorite::controller->dynamic_model(
+      {fluorite::state.yaw_encoder, fluorite::state.pitch_1_encoder, fluorite::state.pitch_2_encoder},
+      {fluorite::state.yaw_encoder_speed, fluorite::state.pitch_1_encoder_speed, fluorite::state.pitch_2_encoder_speed},
+      true);
   fluorite::controller->trajectory_tracker.ClearPid();
 }
 
