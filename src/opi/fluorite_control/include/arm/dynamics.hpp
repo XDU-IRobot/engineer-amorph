@@ -73,7 +73,7 @@ class DynamicModel {
     }
 
     // 计算关节力矩 tau
-    return m_ * qdd + n_ * qd + g_;
+    return -1 * (m_ * qdd + n_ * qd + g_);
   }
 
  private:

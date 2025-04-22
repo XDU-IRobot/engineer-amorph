@@ -52,14 +52,23 @@ void Arm::CalcPidAndExecute() {
 
   fluorite::controller->trajectory_tracker.Update(kCurrentPosition, kCurrentSpeed);
 
+  // 重力补偿
+  const auto kCompensateTorques = fluorite::controller->dynamic_model(
+      {fluorite::state.yaw_encoder, fluorite::state.pitch_1_encoder, fluorite::state.pitch_2_encoder},
+      {fluorite::state.yaw_encoder_speed, fluorite::state.pitch_1_encoder_speed, fluorite::state.pitch_2_encoder_speed},
+      {0.0, 0.0, 0.0}, false);
+
   // apply output torque
   const auto &kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
   fluorite::actuator->yaw.SetPosition(0, 0, kOutputTorque[0], 0, 0);
-  fluorite::actuator->pitch_1.SetPosition(0, 0, kOutputTorque[1], 0, 0);
-  fluorite::actuator->pitch_2.SetPosition(0, 0, kOutputTorque[2], 0, 0);
+  fluorite::actuator->pitch_1.SetPosition(0, 0, kOutputTorque[1] + 0.65 * kCompensateTorques[1], 0, 0);
+  fluorite::actuator->pitch_2.SetPosition(0, 0, kOutputTorque[2] + 0.65 * kCompensateTorques[2], 0, 0);
   fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
   fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
+  debug("arm: yaw: %.2f, pitch_1: %.2f, pitch_2: %.2f, end_yaw_1: %.2f, end_pitch: %.2f, end_yaw_2: %.2f",
+        kOutputTorque[0], kOutputTorque[1] + 0.65 * kCompensateTorques[1],
+        kOutputTorque[2] + 0.65 * kCompensateTorques[2], kOutputTorque[3], kOutputTorque[4], kOutputTorque[5]);
 }
 
 namespace state {
@@ -149,10 +158,6 @@ void Retracted::entry() {
 }
 void NoForce::entry() {
   Arm::EnableActuators(false);
-  const auto torques = fluorite::controller->dynamic_model(
-      {fluorite::state.yaw_encoder, fluorite::state.pitch_1_encoder, fluorite::state.pitch_2_encoder},
-      {fluorite::state.yaw_encoder_speed, fluorite::state.pitch_1_encoder_speed, fluorite::state.pitch_2_encoder_speed},
-      true);
   fluorite::controller->trajectory_tracker.ClearPid();
 }
 
@@ -313,7 +318,7 @@ void KeyboardManual::react(event::Control const &control) {
   UpdateState();
 }
 void CustomCtrlManual::react(event::Control const &control) {
-  if constexpr (std::is_same_v<decltype(control), custom_controller::JointCommand>) {
+  if constexpr (std::is_same_v<decltype(control.custom_controller_command), custom_controller::JointCommand>) {
     if (control.custom_controller_command.ok) {  // 这里不ok说明自定义控制器那边有问题，那就不接受传来的命令
       const auto target_joint_positions = [&] {
         trajectory_msgs::msg::JointTrajectoryPoint p;
@@ -329,7 +334,8 @@ void CustomCtrlManual::react(event::Control const &control) {
       }();
       fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(target_joint_positions);
     }
-  } else if constexpr (std::is_same_v<decltype(control), custom_controller::CartesianCommand>) {
+  } else if constexpr (std::is_same_v<decltype(control.custom_controller_command),
+                                      custom_controller::CartesianCommand>) {
     // TODO: 对齐T265的坐标系，摄像头坐标系的xyzw顺序和机械臂的顺序不一样
   }
   Arm::CalcPidAndExecute();
