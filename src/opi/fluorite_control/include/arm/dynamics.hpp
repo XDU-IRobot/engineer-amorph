@@ -78,7 +78,8 @@ class DynamicModel {
 
  private:
   std::pair<rclcpp::Time, Vec3> last_qd_{};
-  Mat3x3 m_, n_, g_;
+  Mat3x3 m_, n_;
+  Vec3 g_;
 
   static constexpr double l2 = 0.34;
   static constexpr double l3 = 0.37;
