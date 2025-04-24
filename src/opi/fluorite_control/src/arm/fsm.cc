@@ -59,12 +59,13 @@ void Arm::CalcPidAndExecute() {
       {0.0, 0.0, 0.0}, false);
 
   // apply output torque
-  const auto &kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
+  const auto kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
+  const auto kDesiredPosition = fluorite::controller->trajectory_tracker.current_point().positions;
   fluorite::actuator->yaw.SetPosition(0, 0, kOutputTorque[0], 0, 0);
   fluorite::actuator->pitch_1.SetPosition(0, 0, kOutputTorque[1] + 0.65 * kCompensateTorques[1], 0, 0);
   fluorite::actuator->pitch_2.SetPosition(0, 0, kOutputTorque[2] + 0.65 * kCompensateTorques[2], 0, 0);
-  fluorite::actuator->end_yaw_1.SetPosition(0, 0, kOutputTorque[3], 0, 0);
-  fluorite::actuator->end_pitch.SetPosition(0, 0, kOutputTorque[4], 0, 0);
+  fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 80, 30);
+  fluorite::actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 80, 30);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
   debug("arm: yaw: %.2f, pitch_1: %.2f, pitch_2: %.2f, end_yaw_1: %.2f, end_pitch: %.2f, end_yaw_2: %.2f",
         kOutputTorque[0], kOutputTorque[1] + 0.65 * kCompensateTorques[1],
@@ -93,20 +94,20 @@ void Debug::entry() {
 }
 void KeyboardManual::entry() {
   Arm::EnableActuators(true);
-  // 查询tf树获取当前末端位姿
-  try {
-    const auto t =
-        fluorite::controller->tf_buffer->lookupTransform("base_yaw_link", "end_yaw_2_link", tf2::TimePointZero);
-    fluorite::state.target_end_effector_pose.position.x = t.transform.translation.x;
-    fluorite::state.target_end_effector_pose.position.y = t.transform.translation.y;
-    fluorite::state.target_end_effector_pose.position.z = t.transform.translation.z;
-    fluorite::state.target_end_effector_pose.orientation.x = t.transform.rotation.x;
-    fluorite::state.target_end_effector_pose.orientation.y = t.transform.rotation.y;
-    fluorite::state.target_end_effector_pose.orientation.z = t.transform.rotation.z;
-    fluorite::state.target_end_effector_pose.orientation.w = t.transform.rotation.w;
-  } catch (tf2::TransformException &ex) {
-    error("%s", ex.what());
-  }
+  // // 查询tf树获取当前末端位姿
+  // try {
+  //   const auto t =
+  //       fluorite::controller->tf_buffer->lookupTransform("base_yaw_link", "end_yaw_2_link", tf2::TimePointZero);
+  //   fluorite::state.target_end_effector_pose.position.x = t.transform.translation.x;
+  //   fluorite::state.target_end_effector_pose.position.y = t.transform.translation.y;
+  //   fluorite::state.target_end_effector_pose.position.z = t.transform.translation.z;
+  //   fluorite::state.target_end_effector_pose.orientation.x = t.transform.rotation.x;
+  //   fluorite::state.target_end_effector_pose.orientation.y = t.transform.rotation.y;
+  //   fluorite::state.target_end_effector_pose.orientation.z = t.transform.rotation.z;
+  //   fluorite::state.target_end_effector_pose.orientation.w = t.transform.rotation.w;
+  // } catch (tf2::TransformException &ex) {
+  //   error("%s", ex.what());
+  // }
   const auto kCurrentJointPositions = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions.resize(6);
@@ -123,20 +124,20 @@ void KeyboardManual::entry() {
 }
 void CustomCtrlManual::entry() {
   Arm::EnableActuators(true);
-  // 查询tf树获取当前末端位姿
-  try {
-    const auto t =
-        fluorite::controller->tf_buffer->lookupTransform("base_yaw_link", "end_yaw_2_link", tf2::TimePointZero);
-    fluorite::state.target_end_effector_pose.position.x = t.transform.translation.x;
-    fluorite::state.target_end_effector_pose.position.y = t.transform.translation.y;
-    fluorite::state.target_end_effector_pose.position.z = t.transform.translation.z;
-    fluorite::state.target_end_effector_pose.orientation.x = t.transform.rotation.x;
-    fluorite::state.target_end_effector_pose.orientation.y = t.transform.rotation.y;
-    fluorite::state.target_end_effector_pose.orientation.z = t.transform.rotation.z;
-    fluorite::state.target_end_effector_pose.orientation.w = t.transform.rotation.w;
-  } catch (tf2::TransformException &ex) {
-    error("%s", ex.what());
-  }
+  // // 查询tf树获取当前末端位姿
+  // try {
+  //   const auto t =
+  //       fluorite::controller->tf_buffer->lookupTransform("base_yaw_link", "end_yaw_2_link", tf2::TimePointZero);
+  //   fluorite::state.target_end_effector_pose.position.x = t.transform.translation.x;
+  //   fluorite::state.target_end_effector_pose.position.y = t.transform.translation.y;
+  //   fluorite::state.target_end_effector_pose.position.z = t.transform.translation.z;
+  //   fluorite::state.target_end_effector_pose.orientation.x = t.transform.rotation.x;
+  //   fluorite::state.target_end_effector_pose.orientation.y = t.transform.rotation.y;
+  //   fluorite::state.target_end_effector_pose.orientation.z = t.transform.rotation.z;
+  //   fluorite::state.target_end_effector_pose.orientation.w = t.transform.rotation.w;
+  // } catch (tf2::TransformException &ex) {
+  //   error("%s", ex.what());
+  // }
   const auto kCurrentJointPositions = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions.resize(6);
