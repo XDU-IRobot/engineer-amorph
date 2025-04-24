@@ -1,39 +1,46 @@
 #!/usr/bin/env python3
 
-from string import Template
 import subprocess
 import argparse
 import sys
 import os
 
 
-SCRIPTS_PATH = os.path.dirname(
+PROJECT_ROOT = os.path.dirname(
     os.path.abspath(os.path.join(__file__, "..")))
 
-OPI_SERVICE = Template(
-    """[Unit]
+OPI_SERVICE = f"""[Unit]
 After=systemd-networkd.service
 Requires=systemd-networkd.service
 
 [Service]
 Type=simple
-ExecStartPre=/lib/systemd/systemd-networkd-wait-online --interface=can0 --interface=can1
-ExecStart=$PROJECT_PATH/scripts/opi_up.sh
+ExecStartPre={PROJECT_ROOT}/scripts/wait_for_can_up.sh
+ExecStart={PROJECT_ROOT}/scripts/opi_up.sh
 User=root
 
 [Install]
 WantedBy=multi-user.target
-""").substitute(
-    PROJECT_PATH=SCRIPTS_PATH
-)
+"""
 
-CUSTOM_CTRL_SERVICE = Template(
-    """[Unit]
+OPI_VACCUM_PUMP_STFU_SERVICE = f"""[Unit]
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart={PROJECT_ROOT}/scripts/vaccum_pump_stfu.sh
+User=root
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+CUSTOM_CTRL_SERVICE = f"""[Unit]
 After=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=$PROJECT_PATH/custom_ctrl_build/fluorite_custom_controller
+ExecStart={PROJECT_ROOT}/custom_ctrl_build/fluorite_custom_controller
 User=root
 StartLimitIntervalSec=0
 Restart=always
@@ -41,9 +48,7 @@ RestartSec=1
 
 [Install]
 WantedBy=multi-user.target
-""").substitute(
-    PROJECT_PATH=SCRIPTS_PATH
-)
+"""
 
 
 def install_service(service_name, service_content, start=False):
@@ -98,11 +103,14 @@ def main():
         pass  # WIP ;DDDDDD
     elif args.orangepi:
         install_service("fluorite_opi", OPI_SERVICE)
+        install_service("fluorite_vaccum_pump_stfu",
+                        OPI_VACCUM_PUMP_STFU_SERVICE)
     elif args.customctrl:
         install_service("fluorite_custom_controller",
                         CUSTOM_CTRL_SERVICE, start=True)
     elif args.uninstall:
         uninstall_service("fluorite_opi")
+        uninstall_service("fluorite_vaccum_pump_stfu")
         uninstall_service("fluorite_jetson")
         uninstall_service("fluorite_custom_controller")
     else:
