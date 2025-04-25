@@ -21,6 +21,7 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 include_directories(include)
+add_subdirectory(libs)
 add_subdirectory(src)
 
 install(TARGETS model_exporter bt_executor

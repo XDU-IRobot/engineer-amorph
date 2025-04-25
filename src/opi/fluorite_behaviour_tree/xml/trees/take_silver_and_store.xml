@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="BehaviorTree">
+    <!-- ////////// -->
+    <BehaviorTree ID="BehaviorTree">
+        <Sequence>
+            <RetryUntilSuccessful num_attempts="5">
+                <Action ID="ActionPlanToLiftEndEffector" lift_distance="0.3" trajectory="{trajectory}"/>
+            </RetryUntilSuccessful>
+            <Action ID="ActionCommandArmJointTrajectory" trajectory="{trajectory}"/>
+            <Delay delay_msec="6000">
+                <RetryUntilSuccessful num_attempts="5">
+                    <Action ID="ActionPlanToJointPosition" joint_positions="[0.1, 0.1, 0.1, 0.1, 0.1, 0.1]" trajectory="{trajectory}"/>
+                </RetryUntilSuccessful>
+            </Delay>
+            <Action ID="ActionCommandArmJointTrajectory" trajectory="{trajectory}"/>
+        </Sequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <TreeNodesModel>
+        <Action ID="ActionCommandArmEndEffectorPose">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="std::string"/>
+        </Action>
+        <Action ID="ActionCommandArmJointPosition">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="std::string"/>
+        </Action>
+        <Action ID="ActionCommandArmJointTrajectory">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="std::string"/>
+        </Action>
+        <Action ID="ActionCommandChassis">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="std::string"/>
+        </Action>
+        <Action ID="ActionCommandStorageSystem"/>
+        <Action ID="ActionCommandSuckerSystem"/>
+        <Action ID="ActionPlanToEndEffectorPose">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
+        </Action>
+        <Action ID="ActionPlanToJointPosition">
+            <input_port name="joint_positions" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;"/>
+            <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
+        </Action>
+        <Action ID="ActionPlanToLiftEndEffector">
+            <input_port name="lift_distance" type="double"/>
+            <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
+        </Action>
+    </TreeNodesModel>
+    <!-- ////////// -->
+</root>

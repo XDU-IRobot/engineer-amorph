@@ -42,3 +42,6 @@
 [submodule "src/custom_controller/t265/libs/spdlog"]
 	path = src/custom_controller/t265/libs/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "src/opi/fluorite_behaviour_tree/libs/rapidjson"]
+	path = src/opi/fluorite_behaviour_tree/libs/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
