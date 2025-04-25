@@ -32,7 +32,7 @@ class ActionCommandArmJointPosition : public BT::StatefulActionNode {
     std::cout << "Robot says: " << msg.value() << std::endl;
     return BT::NodeStatus::SUCCESS;
   }
-  
+
   BT::NodeStatus onRunning() override { return BT::NodeStatus::RUNNING; }
   void onHalted() override {}
 };
