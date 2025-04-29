@@ -2,6 +2,7 @@
 #ifndef NODES_ACTION_PLAN_TO_JOINT_POSITION_HPP
 #define NODES_ACTION_PLAN_TO_JOINT_POSITION_HPP
 
+#include <rclcpp/logger.hpp>
 #include <utility>
 #include <thread>
 #include <future>
@@ -9,8 +10,10 @@
 #include "behaviortree_cpp_v3/action_node.h"
 
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <vector>
 
 #include "moveit.hpp"
+#include "ros_node.hpp"
 
 /**
  * @brief   Action Node: 尝试从当前位置规划一条轨迹到指定的关节位置
@@ -32,30 +35,34 @@ class ActionPlanToJointPosition : public BT::StatefulActionNode {
   }
 
   BT::NodeStatus onStart() override {
-    BT::Optional<std::vector<double>> msg = getInput<std::vector<double>>("joint_positions");
-    if (!msg) {
-      throw BT::RuntimeError("missing required input [message]: ", msg.error());
+    BT::Optional<std::vector<double>> joint_positions = getInput<std::vector<double>>("joint_positions");
+    if (!joint_positions) {
+      throw BT::RuntimeError("missing required input [message]: ", joint_positions.error());
     }
-    if (msg.value().size() != 6) {
+    if (joint_positions.value().size() != 6) {
       throw BT::RuntimeError("joint_positions size is not 6");
     }
-    std::cout << JsonBuilder::BuildJson(msg.value()) << std::endl;
+    RCLCPP_INFO(RosNodeSingleton::GetInstance().GetNode()->get_logger(), "Planning to joint positions: %s",
+                JsonBuilder::BuildJson(joint_positions.value()).c_str());
 
-    planning_future_ = std::async(std::launch::async, [&] {
-      auto& mgi = MoveGroupInterfaceSingleton::GetInstance().GetMoveGroupInterface();
-      try {
-        mgi.setJointValueTarget(msg.value());
-        moveit::planning_interface::MoveGroupInterface::Plan plan;
-        const auto kOk = mgi.plan(plan);
-        MoveGroupInterfaceSingleton::GetInstance().ReleaseMoveGroupInterface();
-        return std::make_pair(kOk, plan);
-      } catch (const std::exception& e) {
-        RCLCPP_ERROR(rclcpp::get_logger("fluorite_behaviour_tree"), "Error: %s", e.what());
-        MoveGroupInterfaceSingleton::GetInstance().ReleaseMoveGroupInterface();
-        return std::make_pair(moveit::core::MoveItErrorCode{moveit::core::MoveItErrorCode::FAILURE},
-                              moveit::planning_interface::MoveGroupInterface::Plan());
-      }
-    });
+    planning_future_ = std::async(
+        std::launch::async,
+        [&](std::vector<double> joint_positions_value) {
+          auto& mgi = MoveitHelper::GetInstance().GetMoveGroupInterface();
+          try {
+            mgi.setJointValueTarget(joint_positions_value);
+            moveit::planning_interface::MoveGroupInterface::Plan plan;
+            const auto kOk = mgi.plan(plan);
+            MoveitHelper::GetInstance().ReleaseMoveGroupInterface();
+            return std::make_pair(kOk, plan);
+          } catch (const std::exception& e) {
+            RCLCPP_ERROR(rclcpp::get_logger("fluorite_behaviour_tree"), "Error: %s", e.what());
+            MoveitHelper::GetInstance().ReleaseMoveGroupInterface();
+            return std::make_pair(moveit::core::MoveItErrorCode{moveit::core::MoveItErrorCode::FAILURE},
+                                  moveit::planning_interface::MoveGroupInterface::Plan());
+          }
+        },
+        joint_positions.value());
     return BT::NodeStatus::RUNNING;
   }
 
@@ -67,6 +74,7 @@ class ActionPlanToJointPosition : public BT::StatefulActionNode {
           if (ok != moveit::core::MoveItErrorCode::SUCCESS) {
             return BT::NodeStatus::FAILURE;
           }
+          MoveitHelper::GetInstance().DrawTrajectory(plan.trajectory_);
           setOutput("trajectory", plan.trajectory_.joint_trajectory);
           return BT::NodeStatus::SUCCESS;
         } catch (const std::exception& e) {

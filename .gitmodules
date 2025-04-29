@@ -45,3 +45,6 @@
 [submodule "src/opi/fluorite_behaviour_tree/libs/rapidjson"]
 	path = src/opi/fluorite_behaviour_tree/libs/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
+[submodule "src/opi/fluorite_behaviour_tree/libs/tweeny"]
+	path = src/opi/fluorite_behaviour_tree/libs/tweeny
+	url = https://github.com/mobius3/tweeny.git

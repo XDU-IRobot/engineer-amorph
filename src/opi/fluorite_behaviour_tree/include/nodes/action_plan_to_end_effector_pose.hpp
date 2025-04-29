@@ -38,7 +38,7 @@ class ActionPlanToEndEffectorPose : public BT::StatefulActionNode {
     }
 
     planning_future_ = std::async(std::launch::async, [&] {
-      auto& mgi = MoveGroupInterfaceSingleton::GetInstance().GetMoveGroupInterface();
+      auto& mgi = MoveitHelper::GetInstance().GetMoveGroupInterface();
       auto const target_pose = [] {
         geometry_msgs::msg::Pose msg;
         msg.orientation.w = 1.0;

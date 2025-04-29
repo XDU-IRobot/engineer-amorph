@@ -7,12 +7,18 @@
 #ifndef ARM_FSM_HPP
 #define ARM_FSM_HPP
 
-#include <keyboard_msgs/msg/detail/key__struct.hpp>
+#include <cstddef>
 #include <tinyfsm.hpp>
 
 #include "keyboard_msgs/msg/key.hpp"
+#include "fluorite_msgs/action/arm_end_effector_cartesian_command.hpp"
+#include "fluorite_msgs/action/arm_joint_command.hpp"
+#include "fluorite_msgs/action/arm_trajectory_command.hpp"
+#include "fluorite_msgs/srv/storage_system_command.hpp"
+#include "fluorite_msgs/srv/sucker_command.hpp"
 
 #include "common/keypress_handler.hpp"
+#include "common/action_server.hpp"
 #include "arm/custom_controller.hpp"
 #include "arm/global.hpp"
 
@@ -22,9 +28,9 @@ namespace fsm {
 namespace event {
 
 /**
- * @brief 所有链路的控制量全都在这里，数据由节点的各个subscriber回调函数负责更新
+ * @brief 所有控制量全都在这里，其中的数据由ROS节点的各个回调函数负责更新
  */
-struct Control : tinyfsm::Event {
+struct Control : public tinyfsm::Event {
   Control() : hotkeys{this} {
     // map里的std::atomic<bool>不能用std::initializer_list初始化，必须一个一个构造
     for (const auto &keyboard_map_k : {
@@ -61,6 +67,29 @@ struct Control : tinyfsm::Event {
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
 
   custom_controller::JointCommand custom_controller_command;
+  /**
+   * @brief   Action Server和Service Server接收到的来自行为树的命令，
+              机械臂和气动系统在BehaviourTree模式下会且仅会采用这个控制量。
+   * @details 这些控制量以及各自的active状态会在ActionServer的回调函数中被赋值，
+   *          当有新的控制量到达时，active被置为true，执行完毕或者被取消后被置为false。
+   *          后来的控制量会覆盖之前的控制量。当所有控制量的active都为false时，机械臂会保持在最后的状态不动。
+   */
+  struct BehaviourTreeCommand {
+    using CommandType =
+        std::variant<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal,
+                     fluorite_msgs::action::ArmJointCommand::Goal, fluorite_msgs::action::ArmTrajectoryCommand::Goal,
+                     fluorite_msgs::srv::StorageSystemCommand::Request, fluorite_msgs::srv::SuckerCommand::Request,
+                     std::nullptr_t>;
+
+    using ActionGoalHandleType = std::variant<
+        std::shared_ptr<ActionServer<fluorite_msgs::action::ArmEndEffectorCartesianCommand>::GoalHandleType>,
+        std::shared_ptr<ActionServer<fluorite_msgs::action::ArmJointCommand>::GoalHandleType>,
+        std::shared_ptr<ActionServer<fluorite_msgs::action::ArmTrajectoryCommand>::GoalHandleType>,
+        std::nullptr_t>;  // 注意有两个命令不是action是service
+    CommandType command{nullptr};
+    ActionGoalHandleType action_goal_handle{nullptr};
+    bool active{false};
+  } behaviour_tree_command;
 
   KeypressHandler keypress_handler;
   struct _ {
@@ -156,12 +185,12 @@ namespace state {
 
 namespace arm {
 
-DeclareState(Debug, Arm);                     ///< 单关节调试模式
-DeclareState(KeyboardManual, Arm);            ///< 键鼠手动控制模式
-DeclareState(CustomCtrlManual, Arm);          ///< 自定义控制器手动控制模式
-DeclareState(FollowExternalTrajectory, Arm);  ///< 跟随Action Server输入的参考轨迹
-DeclareState(Retracted, Arm);                 ///< 机械臂保持收回
-DeclareState(NoForce, Arm);                   ///< 机械臂无力
+DeclareState(Debug, Arm);             ///< 单关节调试模式
+DeclareState(KeyboardManual, Arm);    ///< 键鼠手动控制模式
+DeclareState(CustomCtrlManual, Arm);  ///< 自定义控制器手动控制模式
+DeclareState(BehaviourTree, Arm);     ///< 行为树控制
+DeclareState(Retracted, Arm);         ///< 机械臂保持收回
+DeclareState(NoForce, Arm);           ///< 机械臂无力
 
 }  // namespace arm
 
@@ -174,8 +203,9 @@ DeclareState(NoForce, GimbalBase);    ///< 大yaw轴无力
 
 namespace pneumatic_system {
 
-DeclareState(On, PneumaticSystem);   ///< 气泵系统有力
-DeclareState(Off, PneumaticSystem);  ///< 气泵系统无力
+DeclareState(BehaviourTree, PneumaticSystem);  ///< 气动系统行为树控制
+DeclareState(Manual, PneumaticSystem);         ///< 气动系统手动控制
+DeclareState(Off, PneumaticSystem);            ///< 气动系统关闭
 
 }  // namespace pneumatic_system
 

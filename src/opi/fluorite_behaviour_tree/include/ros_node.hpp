@@ -17,45 +17,13 @@ class RosNodeSingleton {
 
   rclcpp::Node::SharedPtr GetNode() { return node_; }
 
-  static void Debug(const char *msg, ...) {
-    va_list args;
-    va_start(args, msg);
-    const auto logger = GetInstance().GetNode()->get_logger();
-    RCLCPP_DEBUG(logger, msg, args);
-    va_end(args);
-  }
-
-  static void Info(const char *msg, ...) {
-    va_list args;
-    va_start(args, msg);
-    const auto logger = GetInstance().GetNode()->get_logger();
-    RCLCPP_INFO(logger, msg, args);
-    va_end(args);
-  }
-
-  static void Warn(const char *msg, ...) {
-    va_list args;
-    va_start(args, msg);
-    const auto logger = GetInstance().GetNode()->get_logger();
-    RCLCPP_WARN(logger, msg, args);
-    va_end(args);
-  }
-
-  static void Error(const char *msg, ...) {
-    va_list args;
-    va_start(args, msg);
-    const auto logger = GetInstance().GetNode()->get_logger();
-    RCLCPP_ERROR(logger, msg, args);
-    va_end(args);
-  }
-
  private:
   RosNodeSingleton()
       : node_(rclcpp::Node::make_shared("fluorite_behaviour_tree")),
         executor_(std::make_shared<rclcpp::executors::SingleThreadedExecutor>()) {
     executor_->add_node(node_);
     executor_thread_ = std::thread([&] { executor_->spin(); });
-  };
+  }
   ~RosNodeSingleton() {
     executor_->cancel();
     executor_->remove_node(node_);

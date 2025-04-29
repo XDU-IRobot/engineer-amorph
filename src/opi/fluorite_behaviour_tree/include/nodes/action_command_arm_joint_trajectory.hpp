@@ -30,7 +30,11 @@ class ActionCommandArmJointTrajectory : public BT::StatefulActionNode {
     }
     return BT::NodeStatus::RUNNING;
   }
-  BT::NodeStatus onRunning() override { return BT::NodeStatus::SUCCESS; }
+  BT::NodeStatus onRunning() override {
+    const auto traj_str = JsonBuilder::BuildJson(getInput<trajectory_msgs::msg::JointTrajectory>("trajectory").value());
+    // RCLCPP_INFO(bt_node_->get_logger(), "Sending trajectory: %s", traj_str.c_str());
+    return BT::NodeStatus::SUCCESS;
+  }
   void onHalted() override {}
 
  private:

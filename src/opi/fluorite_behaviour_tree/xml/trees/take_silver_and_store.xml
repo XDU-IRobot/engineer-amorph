@@ -4,12 +4,22 @@
     <BehaviorTree ID="BehaviorTree">
         <Sequence>
             <RetryUntilSuccessful num_attempts="5">
-                <Action ID="ActionPlanToLiftEndEffector" lift_distance="0.3" trajectory="{trajectory}"/>
+                <Fallback>
+                    <Action ID="ActionPlanToLiftEndEffector" lift_distance="0.3" max_linear_speed="2.0" trajectory="{trajectory}"/>
+                    <Delay delay_msec="1000">
+                        <AlwaysFailure/>
+                    </Delay>
+                </Fallback>
             </RetryUntilSuccessful>
             <Action ID="ActionCommandArmJointTrajectory" trajectory="{trajectory}"/>
-            <Delay delay_msec="6000">
+            <Delay delay_msec="1000">
                 <RetryUntilSuccessful num_attempts="5">
-                    <Action ID="ActionPlanToJointPosition" joint_positions="[0.1, 0.1, 0.1, 0.1, 0.1, 0.1]" trajectory="{trajectory}"/>
+                    <Fallback>
+                        <Action ID="ActionPlanToJointPosition" joint_positions="[0.1, 0.6, 1.1, 0.1, 0.1, 0.1]" trajectory="{trajectory}"/>
+                        <Delay delay_msec="1000">
+                            <AlwaysFailure/>
+                        </Delay>
+                    </Fallback>
                 </RetryUntilSuccessful>
             </Delay>
             <Action ID="ActionCommandArmJointTrajectory" trajectory="{trajectory}"/>
@@ -47,6 +57,7 @@
             <input_port name="lift_distance" type="double"/>
             <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
         </Action>
+        <Action ID="ActionSetNavigationTarget"/>
     </TreeNodesModel>
     <!-- ////////// -->
 </root>

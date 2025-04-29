@@ -17,7 +17,7 @@ int main() {
 
   const auto xml_models = BT::writeTreeNodesModelXML(factory);
   try {
-    std::ofstream file("models.xml");
+    std::ofstream file("bt_models.xml");
     file << xml_models;
     file.close();
     std::cout << "Models exported to models.xml" << std::endl;

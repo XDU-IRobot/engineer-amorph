@@ -152,7 +152,7 @@ void CustomCtrlManual::entry() {
   }();
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
 }
-void FollowExternalTrajectory::entry() { Arm::EnableActuators(true); }
+void BehaviourTree::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
   Arm::EnableActuators(true);
   fluorite::controller->trajectory_tracker.ClearPid();
@@ -189,7 +189,7 @@ void NoForce::entry() {
         return;                                                                 \
       }                                                                         \
       case kRcSwitchMiddle: {                                                   \
-        DispatchEvent(event::SwitchMode<FollowExternalTrajectory>{});           \
+        DispatchEvent(event::SwitchMode<BehaviourTree>{});                      \
         return;                                                                 \
       }                                                                         \
       case kRcSwitchDown: {                                                     \
@@ -337,12 +337,12 @@ void CustomCtrlManual::react(event::Control const &control) {
     }
   } else if constexpr (std::is_same_v<decltype(control.custom_controller_command),
                                       custom_controller::CartesianCommand>) {
-    // TODO: 对齐T265的坐标系，摄像头坐标系的xyzw顺序和机械臂的顺序不一样
+    // TODO: 感觉T265自定义控制器不会再用了
   }
   Arm::CalcPidAndExecute();
   UpdateState();
 }
-void FollowExternalTrajectory::react(event::Control const &control) {
+void BehaviourTree::react(event::Control const &control) {
   // Arm::CalcPidAndExecute();
   UpdateState();
 }
@@ -423,26 +423,26 @@ void NoForce::react(event::Control const &control) {
 
 namespace pneumatic_system {
 
-#define UpdateState()                          \
-  switch (control.sd) {                        \
-    case kRcSwitchUp: {                        \
-      DispatchEvent(event::SwitchMode<On>{});  \
-      break;                                   \
-    }                                          \
-    case kRcSwitchMiddle: {                    \
-      DispatchEvent(event::SwitchMode<Off>{}); \
-      break;                                   \
-    }                                          \
-    case kRcSwitchDown: {                      \
-      DispatchEvent(event::SwitchMode<Off>{}); \
-      break;                                   \
-    }                                          \
+#define UpdateState()                             \
+  switch (control.sd) {                           \
+    case kRcSwitchUp: {                           \
+      DispatchEvent(event::SwitchMode<Manual>{}); \
+      break;                                      \
+    }                                             \
+    case kRcSwitchMiddle: {                       \
+      DispatchEvent(event::SwitchMode<Off>{});    \
+      break;                                      \
+    }                                             \
+    case kRcSwitchDown: {                         \
+      DispatchEvent(event::SwitchMode<Off>{});    \
+      break;                                      \
+    }                                             \
   }
 
-void On::entry() {}
+void Manual::entry() {}
 void Off::entry() {}
 
-void On::react(event::Control const &control) {
+void Manual::react(event::Control const &control) {
   fluorite::actuator->sucker_system.Suck(control.ld);
   fluorite::actuator->storage_system.SetPumpPower(control.rd);
   fluorite::actuator->storage_system.SetLeftValve(control.ls > 0);

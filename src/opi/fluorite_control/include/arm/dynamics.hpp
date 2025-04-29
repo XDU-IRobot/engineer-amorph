@@ -15,71 +15,30 @@
 
 namespace fluorite {
 
+/**
+ * @brief   机械臂的动力学模型，用于在pitch1、pitch2两个关节上叠加重力补偿，改善PID控制器的性能
+ * @details 建模和仿真见 仓库根目录/MATLAB/dynamic_model.m 和 仓库根目录/MATLAB/ss_model_validate.slx
+ */
 class DynamicModel {
  public:
-  // 定义类型别名
   using Vec3 = Eigen::Vector3d;
   using Mat3x3 = Eigen::Matrix3d;
-  Vec3 operator()(const Vec3& q, const Vec3& qd, bool logging = false) {
-    Vec3 ret;
-    Vec3 qdd_differential = (qd - last_qd_.second) / (rclcpp::Clock().now() - last_qd_.first).seconds();
+  Vec3 operator()(const Vec3& q, const Vec3& qd, bool logging = false);
 
-    ret = (*this)(q, qd, qdd_differential, logging);
-
-    last_qd_ = std::make_pair(rclcpp::Clock().now(), qd);
-    return ret;
-  }
-
-  // 动态模型计算
-  Vec3 operator()(const Vec3& q, const Vec3& qd, const Vec3& qdd, bool logging = false) {
-    using rm::modules::algorithm::utils::DegToRad;
-
-    double q2 = DegToRad(160) - q(1);
-    double q3 = q(2) - DegToRad(160);
-    double dq1 = qd(0), dq2 = -qd(1), dq3 = qd(2);
-
-    // 计算惯性矩阵 M
-    m_.setZero();
-    m_ << i1 + a1 * std::cos(q2) * std::cos(q2) + a2 * std::cos(q2 + q3) * std::cos(q2 + q3) +
-              2 * a3 * std::cos(q2) * std::cos(q2 + q3),
-        0, 0, 0, i2 + a1 + a2 + 2 * a3 * std::cos(q3), a2 + a3 * std::cos(q3), 0, a2 + a3 * std::cos(q3), i3 + a2;
-
-    // 计算科氏力和离心力矩阵 N
-    n_.setZero();
-    n_ << -0.5 * a1 * dq2 * std::sin(2 * q2) - 0.5 * a2 * (dq2 + dq3) * std::sin(2 * q2 + 2 * q3) -
-              a3 * dq2 * std::sin(2 * q2 + q3) - a3 * dq3 * std::cos(q2) * std::sin(q2 + q3),
-        -0.5 * a1 * dq1 * std::sin(2 * q2) - 0.5 * a2 * dq1 * std::sin(2 * q2 + 2 * q3) -
-            a3 * dq1 * std::sin(2 * q2 + q3),
-        -0.5 * a1 * dq1 * std::sin(2 * q2 + 2 * q3) - a3 * dq1 * std::cos(q2) * std::sin(q2 + q3),
-        0.5 * a1 * dq1 * std::sin(2 * q2) + 0.5 * a2 * dq1 * std::sin(2 * q2 + 2 * q3) +
-            a3 * dq1 * std::sin(2 * q2 + q3),
-        -a3 * dq3 * std::sin(q3), -a3 * (dq2 + dq3) * std::sin(q3),
-        0.5 * a1 * dq1 * std::sin(2 * q2 + 2 * q3) + a3 * dq1 * std::cos(q2) * std::sin(q2 + q3),
-        -a3 * dq2 * std::sin(q3), 0;
-
-    // 计算重力向量 g
-    g_.setZero();
-    g_ << 0, b1 * std::cos(q2) + b2 * std::cos(q2 + q3), b2 * std::cos(q2 + q3);
-
-    if (logging) {
-      std::ostringstream oss;
-      oss << "=================================================\n";
-      oss << "q: " << q.transpose() << "\n"
-          << "qd: " << qd.transpose() << "\n"
-          << "qdd: " << qdd.transpose() << "\n";
-      oss << "-------------------------------------------------\n";
-      oss << "M: " << m_ << "\nN: " << n_ << "\ng: " << g_;
-      info("%s", oss.str().c_str());
-    }
-
-    // 计算关节力矩 tau
-    return -1 * (m_ * qdd + n_ * qd + g_);
-  }
+  /**
+   * @brief 计算逆动力学,q的定义见 仓库根目录/assets/symdef.png
+   * @param q       关节角度
+   * @param qd      关节角速度
+   * @param qdd     关节加速度
+   * @param logging 是否打印日志
+   * @return Vec3   关节力矩
+   */
+  Vec3 operator()(const Vec3& q, const Vec3& qd, const Vec3& qdd, bool logging = false);
 
  private:
   std::pair<rclcpp::Time, Vec3> last_qd_{};
-  Mat3x3 m_, n_;
-  Vec3 g_;
+  Mat3x3 m_{}, n_{};
+  Vec3 g_{};
 
   static constexpr double l2 = 0.34;
   static constexpr double l3 = 0.37;

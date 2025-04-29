@@ -25,7 +25,7 @@ class TreeLoader {
     }
   }
 
-  auto operator[](const std::string& name) {
+  auto Load(const std::string& name) {
     if (std::find(xml_files_.begin(), xml_files_.end(), name) != xml_files_.end()) {
       return factory_.createTreeFromFile(kTreePath + name + ".xml");
     } else {

@@ -16,12 +16,7 @@ int main(int argc, char** argv) {
   bt_nodes::BtNodeRegisterArray::Register(factory);
   TreeLoader tree_loader(factory);
 
-  const std::string package_share_directory = ament_index_cpp::get_package_share_directory("fluorite_behaviour_tree");
-  const std::string tree_path = package_share_directory + "/xml/trees/take_silver_and_store.xml";
-
-  std::cout << "Loading tree from file: " << tree_path << std::endl;
-
-  auto tree = factory.createTreeFromFile(tree_path);
+  auto tree = tree_loader.Load("take_silver_and_store");
   BT::StdCoutLogger logger_cout(tree);
   BT::PublisherZMQ publisher_zmq(tree);
   tree.tickRootWhileRunning();

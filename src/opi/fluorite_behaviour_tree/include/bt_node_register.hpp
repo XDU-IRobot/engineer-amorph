@@ -13,6 +13,7 @@
 #include "nodes/action_plan_to_joint_position.hpp"
 #include "nodes/action_plan_to_end_effector_pose.hpp"
 #include "nodes/action_plan_to_lift_end_effector.hpp"
+#include "nodes/action_set_navigation_target.hpp"
 
 // NOTE: movegroup interface的setNamedTarget函数有一些奇怪的傻逼问题会segment fault，
 // 不能直接用srdf模型里面定义好的姿态，所以这个action做不了
@@ -33,7 +34,8 @@ using BtNodeRegisterArray = BtNodeRegister<ActionCommandArmEndEffectorPose,  //
                                            ActionCommandSuckerSystem,        //
                                            ActionPlanToJointPosition,        //
                                            ActionPlanToEndEffectorPose,      //
-                                           ActionPlanToLiftEndEffector>;
+                                           ActionPlanToLiftEndEffector,      //
+                                           ActionSetNavigationTarget>;
 
 }  // namespace bt_nodes
 

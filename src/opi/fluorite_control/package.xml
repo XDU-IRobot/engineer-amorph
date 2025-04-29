@@ -4,12 +4,14 @@
   <name>fluorite_control</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="messenger@lunariio.work">parallels</maintainer>
+  <maintainer email="messenger@lunariio.work">lunarifish</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp_components</depend>
   <depend>sensor_msgs</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>moveit_visual_tools</depend>

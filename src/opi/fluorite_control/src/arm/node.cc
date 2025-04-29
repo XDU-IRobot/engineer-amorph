@@ -27,14 +27,15 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
 #if __has_include("wiringPi.h")
   wiringPiSetup();  // 初始化wiringPi
 #endif
-  InitializeShit();        // 初始化状态机
-  DeviceMonitor();         // 设备在线状态监控
-  Ins();                   // 启动IMU接收
-  UserInput();             // 启动sbus、图传链路键鼠、自定义控制器和键盘调试输入接收
-  Referee();               // 启动裁判系统接收
-  Blackbox();              // 发布调试信息
-  JointStatesPublisher();  // 启动关节状态发布
-  TFBroadcaster();         // 启动imu到base_yaw_link的tf广播
+  InitializeShit();          // 初始化状态机
+  DeviceMonitor();           // 设备在线状态监控
+  Ins();                     // 启动IMU接收
+  UserInput();               // 启动sbus、图传链路键鼠、自定义控制器和键盘调试输入接收
+  Referee();                 // 启动裁判系统接收
+  Blackbox();                // 发布调试信息
+  JointStatesPublisher();    // 启动关节状态发布
+  TFBroadcaster();           // 启动imu到base_yaw_link的tf广播
+  BehaviourTreeInterface();  // 启动action和service服务器对接行为树节点
 
   // 启动控制循环
   info("all initialization finished \033[32mmok\033[0m");
@@ -501,11 +502,11 @@ void FluoriteArm::JointStatesPublisher() {
 }
 
 /**
- * @brief 发布从imu坐标系(world)到base_yaw_link坐标系的tf，频率50hz
+ * @brief 发布从imu坐标系(imu)到base_yaw_link坐标系的tf，频率50hz
  */
 void FluoriteArm::TFBroadcaster() {
   world_to_base_yaw_tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
-  world_to_base_yaw_tf_.header.frame_id = "world";
+  world_to_base_yaw_tf_.header.frame_id = "imu";
   world_to_base_yaw_tf_.child_frame_id = "base_yaw_link";
   world_to_base_yaw_tf_broadcaster_timer_ = create_wall_timer(20ms, [this] {
     world_to_base_yaw_tf_.header.stamp = now();
@@ -517,6 +518,52 @@ void FluoriteArm::TFBroadcaster() {
     world_to_base_yaw_tf_broadcaster_->sendTransform(world_to_base_yaw_tf_);
   });
   info("tf broadcaster \033[32mmok\033[0m");
+}
+
+/**
+ * @brief 启动对接行为树节点的action和service服务器，接收行为树节点的控制指令
+ */
+void FluoriteArm::BehaviourTreeInterface() {
+  arm_end_effector_cartesian_command_as_.goal_callback = [this](auto uuid, auto goal) {
+    control_msg_.behaviour_tree_command.active = true;
+    control_msg_.behaviour_tree_command.command = *goal;
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  };
+  arm_end_effector_cartesian_command_as_.cancel_callback = [this](auto goal_handle) {
+    control_msg_.behaviour_tree_command.active = false;
+    return rclcpp_action::CancelResponse::ACCEPT;
+  };
+  arm_end_effector_cartesian_command_as_.accepted_callback = [this](auto goal_handle) {
+    control_msg_.behaviour_tree_command.action_goal_handle = goal_handle;
+  };
+  arm_joint_command_as_.goal_callback = [this](auto uuid, auto goal) {
+    control_msg_.behaviour_tree_command.active = true;
+    control_msg_.behaviour_tree_command.command = *goal;
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  };
+  arm_joint_command_as_.cancel_callback = [this](auto goal_handle) {
+    control_msg_.behaviour_tree_command.active = false;
+    return rclcpp_action::CancelResponse::ACCEPT;
+  };
+  arm_joint_command_as_.accepted_callback = [this](auto goal_handle) {
+    control_msg_.behaviour_tree_command.action_goal_handle = goal_handle;
+  };
+  arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
+    control_msg_.behaviour_tree_command.active = true;
+    control_msg_.behaviour_tree_command.command = *goal;
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  };
+  arm_trajectory_command_as_.cancel_callback = [this](auto goal_handle) {
+    control_msg_.behaviour_tree_command.active = false;
+    return rclcpp_action::CancelResponse::ACCEPT;
+  };
+  arm_trajectory_command_as_.accepted_callback = [this](auto goal_handle) {
+    control_msg_.behaviour_tree_command.action_goal_handle = goal_handle;
+  };
+
+  arm_end_effector_cartesian_command_as_.Create(this, "fluorite/arm/end_effector_cartesian_command");
+  arm_joint_command_as_.Create(this, "fluorite/arm/joint_command");
+  arm_trajectory_command_as_.Create(this, "fluorite/arm/trajectory_command");
 }
 
 int main(int argc, char *argv[]) {

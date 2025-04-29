@@ -7,6 +7,7 @@
 
 // ros
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <sbus_interface/msg/sbus.hpp>
 #include <rm2_referee_msgs/msg/remote_control.hpp>
 #include <rm2_referee_msgs/msg/custom_robot_data.hpp>
@@ -29,6 +30,7 @@
 #include "arm/ros_params.hpp"
 #include "common/device_monitor.hpp"
 #include "common/ros_params_manager.hpp"
+#include "common/action_server.hpp"
 
 /**
  * @brief    控制节点
@@ -51,6 +53,7 @@ class FluoriteArm final : public rclcpp::Node {
   void Referee();
   void JointStatesPublisher();
   void TFBroadcaster();
+  void BehaviourTreeInterface();
 
   void ParamHotUpdate();
   void ProcessSensorData();
@@ -119,6 +122,12 @@ class FluoriteArm final : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr joint_state_pub_timer_{nullptr};
   sensor_msgs::msg::JointState joint_state_msg_{};
   /** </joint state publisher> **/
+
+  /** <behaviour tree interface> **/
+  ActionServer<fluorite_msgs::action::ArmEndEffectorCartesianCommand> arm_end_effector_cartesian_command_as_;
+  ActionServer<fluorite_msgs::action::ArmJointCommand> arm_joint_command_as_;
+  ActionServer<fluorite_msgs::action::ArmTrajectoryCommand> arm_trajectory_command_as_;
+  /** </behaviour tree interface> **/
 };
 
 #endif
