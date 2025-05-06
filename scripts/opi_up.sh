@@ -1,11 +1,13 @@
 #!/bin/bash
 
-# if [ "$EUID" -ne 0 ] then 
-#     echo "execute me as root!"
-#     exit
-# fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ip link set can0 type can bitrate 1000000
+ip link set can1 type can bitrate 1000000
+ip link set can0 down
+ip link set can1 down
+ip link set can0 up
+ip link set can1 up
 
 source ${SCRIPT_DIR}/../install/setup.bash
 ros2 launch fluorite_bringup opi.py
