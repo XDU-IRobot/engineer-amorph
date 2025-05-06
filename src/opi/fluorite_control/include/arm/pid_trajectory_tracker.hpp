@@ -169,7 +169,7 @@ class PidTrajectoryTracker {
     const auto elapsed_time_ms =
         std::chrono::duration_cast<std::chrono::milliseconds>(current_time - traj_start_time_).count();
 
-    // corner case 3：轨迹播放完毕，直接把index设为最后一个点返回
+    // corner case 3：轨迹执行完毕，直接把index设为最后一个点返回
     if (PointTimeMs(current_trajectory_[current_trajectory_.size() - 1]) < elapsed_time_ms) {
       current_point_index_ = current_trajectory_.size() - 1;
       return;
@@ -219,6 +219,10 @@ class PidTrajectoryTracker {
     }
   }
 
+  bool execution_finished() {
+    std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
+    return current_point_index_ == current_trajectory_.size() - 1;
+  }
   const auto &pids() const { return pids_; }
   const auto &output_torque() const { return output_torque_; }
   const auto &trajoctory() const { return current_trajectory_; }

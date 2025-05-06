@@ -101,12 +101,12 @@ fluorite_control_arm:
     lpf_cutoff_freq_end_yaw_2: 200
 
     # encoder offsets
-    yaw_encoder_zero_offset: 0.17223644256591797 # -0.5369272232055664 0.17223644256591797
-    pitch_1_encoder_zero_offset: -1.0486761331558228
-    pitch_2_encoder_zero_offset: -2.723163604736328
+    yaw_encoder_zero_offset: 0.0 # -0.5369272232055664 0.17223644256591797
+    pitch_1_encoder_zero_offset: 0.0
+    pitch_2_encoder_zero_offset: 0.0
     end_yaw_1_encoder_zero_offset: 0.0
     end_pitch_encoder_zero_offset: 0.0
-    end_yaw_2_encoder_zero_offset: 2.892673969268799
+    end_yaw_2_encoder_zero_offset: 0.0
 
     # motor settings
     yaw_reverse: true
