@@ -23,15 +23,16 @@ class PidTrajectoryTracker {
 
  public:
   PidTrajectoryTracker(
-      std::initializer_list<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>> pids,
+      std::initializer_list<std::shared_ptr<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>>>
+          pids,
       std::initializer_list<std::pair<double, double>> joint_limits)
       : pids_(pids), joint_limits_(joint_limits) {
     if (pids_.size() != 2 * NJoints) {
-      error("trajectory tracker: PID number mismatch! expected %d, got %ld", 2 * NJoints, pids_.size());
+      fatal("trajectory tracker: PID number mismatch! expected %d, got %ld", 2 * NJoints, pids_.size());
       throw std::invalid_argument("PID number mismatch!");
     }
     if (joint_limits_.size() != NJoints) {
-      error("trajectory tracker: number of pairs of joint limit mismatch! expected %d, got %ld", NJoints,
+      fatal("trajectory tracker: number of pairs of joint limit mismatch! expected %d, got %ld", NJoints,
             joint_limits_.size());
       throw std::invalid_argument("number of pairs of joint limit mismatch!");
     }
@@ -39,8 +40,8 @@ class PidTrajectoryTracker {
     std::printf("=======================================================\n");
     std::printf("trajectory tracker:\n");
     for (size_t i = 0; i < 2 * NJoints; ++i) {
-      std::printf("PID %zu: P=%f, I=%f, D=%f, max_iout=%f, max_out=%f\n", i, pids_[i].kp_, pids_[i].ki_, pids_[i].kd_,
-                  pids_[i].max_iout_, pids_[i].max_out_);
+      std::printf("PID %zu: P=%f, I=%f, D=%f, max_iout=%f, max_out=%f\n", i, pids_[i]->kp_, pids_[i]->ki_,
+                  pids_[i]->kd_, pids_[i]->max_iout_, pids_[i]->max_out_);
     }
     std::printf("=======================================================\n");
   }
@@ -145,7 +146,7 @@ class PidTrajectoryTracker {
    */
   void ClearPid() {
     for (auto &pid : pids_) {
-      pid.Clear();
+      pid->Clear();
     }
   }
 
@@ -213,9 +214,9 @@ class PidTrajectoryTracker {
     for (size_t i = 0; i < NJoints; ++i) {
       auto &pid_outer = pids_[2 * i];
       auto &pid_inner = pids_[2 * i + 1];
-      pid_inner.Update(current_point.positions[i], current_joint_positions[i]);
-      pid_outer.Update(pid_inner.value(), current_joint_velocities[i]);
-      output_torque_[i] = pid_outer.value();
+      pid_inner->Update(current_point.positions[i], current_joint_positions[i]);
+      pid_outer->Update(pid_inner->value(), current_joint_velocities[i]);
+      output_torque_[i] = pid_outer->value();
     }
   }
 
@@ -254,7 +255,7 @@ class PidTrajectoryTracker {
   std::mutex current_trajectory_mutex_{};
   std::chrono::steady_clock::time_point traj_start_time_{};
   std::array<double, NJoints> output_torque_{};
-  std::vector<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>>
+  std::vector<std::shared_ptr<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>>>
       pids_;                                             ///< outer0, inner0, outer1, inner1, ...
   std::vector<std::pair<double, double>> joint_limits_;  ///< <lower bound, upper bound>
 };
