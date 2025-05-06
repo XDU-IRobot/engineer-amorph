@@ -127,10 +127,11 @@ void FluoriteArm::InitializeShit() {
                   ros_params_manager_.data().pid_end_yaw_2_speed[2], ros_params_manager_.data().pid_end_yaw_2_speed[3],
                   ros_params_manager_.data().pid_end_yaw_2_speed[4]),  // end_yaw_2 速度环
               std::make_shared<PosRingPID>(ros_params_manager_.data().pid_end_yaw_2_position[0],
-                                       ros_params_manager_.data().pid_end_yaw_2_position[1],
-                                       ros_params_manager_.data().pid_end_yaw_2_position[2],
-                                       ros_params_manager_.data().pid_end_yaw_2_position[3],
-                                       ros_params_manager_.data().pid_end_yaw_2_position[4], M_PI),  // end_yaw_2 位置环
+                                           ros_params_manager_.data().pid_end_yaw_2_position[1],
+                                           ros_params_manager_.data().pid_end_yaw_2_position[2],
+                                           ros_params_manager_.data().pid_end_yaw_2_position[3],
+                                           ros_params_manager_.data().pid_end_yaw_2_position[4],
+                                           M_PI),  // end_yaw_2 位置环
           },
           // joint limits
           {
