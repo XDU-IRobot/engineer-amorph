@@ -106,7 +106,7 @@ fluorite_control_arm:
     pitch_2_encoder_zero_offset: 0.0
     end_yaw_1_encoder_zero_offset: 0.0
     end_pitch_encoder_zero_offset: 0.0
-    end_yaw_2_encoder_zero_offset: 0.0
+    end_yaw_2_encoder_zero_offset: 2.892673969268799
 
     # motor settings
     yaw_reverse: true
