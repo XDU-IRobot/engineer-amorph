@@ -2,15 +2,15 @@
 #ifndef ARM_PID_TRAJECTORY_TRACKER_HPP
 #define ARM_PID_TRAJECTORY_TRACKER_HPP
 
-#include <initializer_list>
-#include <trajectory_msgs/msg/joint_trajectory.hpp>
-
 #include <array>
 #include <limits>
 #include <vector>
 #include <chrono>
 #include <mutex>
 #include <utility>
+#include <initializer_list>
+
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 #include <librm.hpp>
 
@@ -221,8 +221,18 @@ class PidTrajectoryTracker {
   }
 
   bool execution_finished() {
-    std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
-    return current_point_index_ == current_trajectory_.size() - 1;
+    if (current_trajectory_.empty()) {
+      return true;
+    }
+    constexpr double kDiffThreshold = 2.0 / 360.0 * 2.0 * M_PI;  // 2度
+    const auto &last_point = current_trajectory_[current_trajectory_.size() - 1];
+    // 计算上一次传入的关节位置和目标轨迹最后一个点的位置的差值，如果所有关节的误差都小于阈值，则认为执行完毕
+    for (size_t i = 0; i < NJoints; ++i) {
+      if (std::abs(last_joint_positions_[i] - last_point.positions[i]) > kDiffThreshold) {
+        return false;
+      }
+    }
+    return true;
   }
   const auto &pids() const { return pids_; }
   const auto &output_torque() const { return output_torque_; }
@@ -254,6 +264,7 @@ class PidTrajectoryTracker {
   std::vector<Point> current_trajectory_{};
   std::mutex current_trajectory_mutex_{};
   std::chrono::steady_clock::time_point traj_start_time_{};
+  std::array<double, NJoints> last_joint_positions_{};
   std::array<double, NJoints> output_torque_{};
   std::vector<std::shared_ptr<rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>>>
       pids_;                                             ///< outer0, inner0, outer1, inner1, ...

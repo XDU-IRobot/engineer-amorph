@@ -67,29 +67,6 @@ struct Control : public tinyfsm::Event {
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
 
   custom_controller::JointCommand custom_controller_command;
-  /**
-   * @brief   Action Server和Service Server接收到的来自行为树的命令，
-              机械臂和气动系统在BehaviourTree模式下会且仅会采用这个控制量。
-   * @details 这些控制量以及各自的active状态会在ActionServer的回调函数中被赋值，
-   *          当有新的控制量到达时，active被置为true，执行完毕或者被取消后被置为false。
-   *          后来的控制量会覆盖之前的控制量。当所有控制量的active都为false时，机械臂会保持在最后的状态不动。
-   */
-  struct BehaviourTreeCommand {
-    using CommandType =
-        std::variant<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal,
-                     fluorite_msgs::action::ArmJointCommand::Goal, fluorite_msgs::action::ArmTrajectoryCommand::Goal,
-                     fluorite_msgs::srv::StorageSystemCommand::Request, fluorite_msgs::srv::SuckerCommand::Request,
-                     std::nullptr_t>;
-
-    using ActionGoalHandleType = std::variant<
-        std::shared_ptr<ActionServer<fluorite_msgs::action::ArmEndEffectorCartesianCommand>::GoalHandleType>,
-        std::shared_ptr<ActionServer<fluorite_msgs::action::ArmJointCommand>::GoalHandleType>,
-        std::shared_ptr<ActionServer<fluorite_msgs::action::ArmTrajectoryCommand>::GoalHandleType>,
-        std::nullptr_t>;  // 注意有两个命令不是action是service
-    CommandType command{nullptr};
-    ActionGoalHandleType action_goal_handle{nullptr};
-    bool active{false};
-  } behaviour_tree_command;
 
   KeypressHandler keypress_handler;
   struct _ {
@@ -104,7 +81,30 @@ struct Control : public tinyfsm::Event {
   } hotkeys;
 };
 template <typename T>
-struct SwitchMode : tinyfsm::Event {};
+struct SwitchMode : public tinyfsm::Event {};
+
+/**
+ * @brief   Action Server和Service Server接收到的来自行为树的命令，
+            机械臂和气动系统在BehaviourTree模式下会且仅会采用这个控制量。
+ * @details 这些控制量以及各自的active状态会在ActionServer的回调函数中被赋值，
+ *          当有新的控制量到达时，active被置为true，执行完毕或者被取消后被置为false。
+ *          后来的控制量会覆盖之前的控制量。当所有控制量的active都为false时，机械臂会保持在最后的状态不动。
+ */
+template <typename T>
+struct BehaviourTreeCommand : public tinyfsm::Event {
+  static_assert(std::is_same_v<T, fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> ||
+                    std::is_same_v<T, fluorite_msgs::action::ArmJointCommand::Goal> ||
+                    std::is_same_v<T, fluorite_msgs::action::ArmTrajectoryCommand::Goal> ||
+                    std::is_same_v<T, fluorite_msgs::srv::StorageSystemCommand::Request> ||
+                    std::is_same_v<T, fluorite_msgs::srv::SuckerCommand::Request>,
+                "BehaviourTreeCommand should only be one of ArmEndEffectorCartesianCommand, ArmJointCommand, "
+                "ArmTrajectoryCommand, StorageSystemCommand and SuckerCommand");
+  BehaviourTreeCommand(T command, std::function<void()> execution_finished_callback)
+      : command{command}, execution_finished_callback{execution_finished_callback} {}
+  T command;
+  std::function<void()> execution_finished_callback;
+};
+struct BehaviorTreeCancelExecution : public tinyfsm::Event {};
 
 }  // namespace event
 
@@ -188,9 +188,29 @@ namespace arm {
 DeclareState(Debug, Arm);             ///< 单关节调试模式
 DeclareState(KeyboardManual, Arm);    ///< 键鼠手动控制模式
 DeclareState(CustomCtrlManual, Arm);  ///< 自定义控制器手动控制模式
-DeclareState(BehaviourTree, Arm);     ///< 行为树控制
-DeclareState(Retracted, Arm);         ///< 机械臂保持收回
-DeclareState(NoForce, Arm);           ///< 机械臂无力
+// 行为树控制，空闲状态
+class BehaviourTreeIdle : public Arm {
+ public:
+  void react(event::Control const &control) override;
+  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e);
+  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e);
+  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e);
+  void entry() override;
+};
+// 行为树控制，目前正在执行命令
+class BehaviourTreeExecuting : public Arm {
+  friend class BehaviourTreeIdle;
+
+ public:
+  void react(event::Control const &control) override;
+  void react(event::BehaviorTreeCancelExecution const &e);
+  void entry() override;
+
+ protected:
+  static std::function<void()> execution_finished_callback_;
+};
+DeclareState(Retracted, Arm);  ///< 机械臂保持收回
+DeclareState(NoForce, Arm);    ///< 机械臂无力
 
 }  // namespace arm
 

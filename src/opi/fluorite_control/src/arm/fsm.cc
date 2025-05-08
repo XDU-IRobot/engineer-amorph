@@ -27,10 +27,9 @@ namespace fsm {
 
 // 忽略不关心的event
 // these functions should never be called so wtf in them
-void Arm::react(tinyfsm::Event const &event) { error("wtf1"); }
-void Arm::react(event::Control const &control) { error("wt2f"); }
-void GimbalBase::react(tinyfsm::Event const &event) { error("wtf3"); }
-void GimbalBase::react(event::Control const &control) { error("wt4f"); }
+void Arm::react(tinyfsm::Event const &event) { error("wtf"); }
+void GimbalBase::react(tinyfsm::Event const &event) { error("wtf"); }
+void PneumaticSystem::react(tinyfsm::Event const &event) { error("wtf"); }
 
 void Arm::EnableActuators(bool enable) {
   const auto dm_enable = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
@@ -64,7 +63,7 @@ void Arm::CalcPidAndExecute() {
   fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 40, 15);
   fluorite::actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
                                           0, 0.65 * kCompensateTorques[1], 40, 15);
-  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, kCompensateTorques[2], 40, 15);
+  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 40, 15);
   fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 80, 30);
   fluorite::actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 80, 30);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
@@ -78,14 +77,10 @@ void Debug::entry() {
   Arm::EnableActuators(true);
   const auto kCurrentJointPositions = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
-    p.positions.resize(6);
     p.velocities.resize(6);
-    p.positions[0] = fluorite::state.yaw_encoder;
-    p.positions[1] = fluorite::state.pitch_1_encoder;
-    p.positions[2] = fluorite::state.pitch_2_encoder;
-    p.positions[3] = fluorite::state.end_yaw_1_encoder;
-    p.positions[4] = fluorite::state.end_pitch_encoder;
-    p.positions[5] = fluorite::state.end_yaw_2_encoder;
+    p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
+                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
     return p;
   }();
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
@@ -96,12 +91,9 @@ void KeyboardManual::entry() {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions.resize(6);
     p.velocities.resize(6);
-    p.positions[0] = fluorite::state.yaw_encoder;
-    p.positions[1] = fluorite::state.pitch_1_encoder;
-    p.positions[2] = fluorite::state.pitch_2_encoder;
-    p.positions[3] = fluorite::state.end_yaw_1_encoder;
-    p.positions[4] = fluorite::state.end_pitch_encoder;
-    p.positions[5] = fluorite::state.end_yaw_2_encoder;
+    p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
+                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
     return p;
   }();
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
@@ -110,22 +102,28 @@ void CustomCtrlManual::entry() {
   Arm::EnableActuators(true);
   const auto kCurrentJointPositions = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
-    p.positions.resize(6);
     p.velocities.resize(6);
-    p.positions[0] = fluorite::state.yaw_encoder;
-    p.positions[1] = fluorite::state.pitch_1_encoder;
-    p.positions[2] = fluorite::state.pitch_2_encoder;
-    p.positions[3] = fluorite::state.end_yaw_1_encoder;
-    p.positions[4] = fluorite::state.end_pitch_encoder;
-    p.positions[5] = fluorite::state.end_yaw_2_encoder;
+    p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
+                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
     return p;
   }();
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
 }
-void BehaviourTree::entry() {
+void BehaviourTreeIdle::entry() {
   Arm::EnableActuators(true);
-  fluorite::controller->trajectory_tracker.ClearPid();
+  const auto kCurrentJointPositions = [&] {
+    trajectory_msgs::msg::JointTrajectoryPoint p;
+    p.velocities.resize(6);
+    p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
+                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
+    return p;
+  }();
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
 }
+std::function<void()> BehaviourTreeExecuting::execution_finished_callback_;
+void BehaviourTreeExecuting::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
   Arm::EnableActuators(true);
   fluorite::controller->trajectory_tracker.ClearPid();
@@ -142,34 +140,36 @@ void NoForce::entry() {
 // 根据遥控器拨杆和键盘的状态，更新机械臂的运行模式
 // 转换逻辑请看仓库最顶层的README.md，操作方法一章
 // 每次控制循环运行结束后，都会调用这个宏一次
-#define UpdateState()                                                           \
-  do {                                                                          \
-    if (control.sd != kRcSwitchUp) {                                            \
-      DispatchEvent(event::SwitchMode<NoForce>{});                              \
-      return;                                                                   \
-    }                                                                           \
-    if (control.sf == kRcSwitchUp) {                                            \
-      DispatchEvent(event::SwitchMode<Debug>{});                                \
-      return;                                                                   \
-    }                                                                           \
-    switch (control.sc) {                                                       \
-      case kRcSwitchUp: {                                                       \
-        if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) { \
-          DispatchEvent(event::SwitchMode<KeyboardManual>{});                   \
-        } else {                                                                \
-          DispatchEvent(event::SwitchMode<CustomCtrlManual>{});                 \
-        }                                                                       \
-        return;                                                                 \
-      }                                                                         \
-      case kRcSwitchMiddle: {                                                   \
-        DispatchEvent(event::SwitchMode<BehaviourTree>{});                      \
-        return;                                                                 \
-      }                                                                         \
-      case kRcSwitchDown: {                                                     \
-        DispatchEvent(event::SwitchMode<Retracted>{});                          \
-        return;                                                                 \
-      }                                                                         \
-    }                                                                           \
+#define UpdateState()                                                                                              \
+  do {                                                                                                             \
+    if (control.sd != kRcSwitchUp) {                                                                               \
+      DispatchEvent(event::SwitchMode<NoForce>{});                                                                 \
+      return;                                                                                                      \
+    }                                                                                                              \
+    if (control.sf == kRcSwitchUp) {                                                                               \
+      DispatchEvent(event::SwitchMode<Debug>{});                                                                   \
+      return;                                                                                                      \
+    }                                                                                                              \
+    switch (control.sc) {                                                                                          \
+      case kRcSwitchUp: {                                                                                          \
+        if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) {                                    \
+          DispatchEvent(event::SwitchMode<KeyboardManual>{});                                                      \
+        } else {                                                                                                   \
+          DispatchEvent(event::SwitchMode<CustomCtrlManual>{});                                                    \
+        }                                                                                                          \
+        return;                                                                                                    \
+      }                                                                                                            \
+      case kRcSwitchMiddle: {                                                                                      \
+        if (!this->is_in_state<fsm::state::arm::BehaviourTreeExecuting>()) { /*防止执行中的动作被打断*/ \
+          DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});                                                   \
+        }                                                                                                          \
+        return;                                                                                                    \
+      }                                                                                                            \
+      case kRcSwitchDown: {                                                                                        \
+        DispatchEvent(event::SwitchMode<Retracted>{});                                                             \
+        return;                                                                                                    \
+      }                                                                                                            \
+    }                                                                                                              \
   } while (0)
 
 void Debug::react(event::Control const &control) {
@@ -250,40 +250,16 @@ void KeyboardManual::react(event::Control const &control) {
     // 如果上一轮计算结束（锁被释放），才计算一次新的目标关节位置，否则还是按TrajectoryTracker中的参考轨迹继续运动
     if (fluorite::controller->ik_calculation_mutex.try_lock()) {
       fluorite::controller->ik_calculation_thread_pool_.enqueue([&] {  // 异步计算ik，不阻塞控制循环
-        try {
-          // 尝试逆解，成功的话就把解出来的关节位置送进轨迹跟踪器
-          const auto joint_model_group = fluorite::controller->kinematic_model->getJointModelGroup("fluorite_arm");
-          const bool ik_solved = fluorite::controller->kinematic_model->setFromIK(
-              joint_model_group, fluorite::state.target_end_effector_pose, 0.1);
-          fluorite::controller->kinematic_model->enforceBounds();
-          if (ik_solved && fluorite::controller->kinematic_model->satisfiesBounds()) {
-            std::vector<double> joint_values;
-            fluorite::state.last_ik_success = true;
-            fluorite::controller->kinematic_model->copyJointGroupPositions(joint_model_group, joint_values);
-            debug("====================================================");
-            debug("ik solved!");
-            for (std::size_t i = 0; i < joint_values.size(); ++i) {
-              debug("Joint %lu: %f", i, joint_values[i]);
-            }
-            debug("====================================================");
-            const auto kReferenceTraj = [&] {
-              trajectory_msgs::msg::JointTrajectoryPoint p;
-              p.positions = joint_values;
-              p.velocities.resize(6);
-              return p;
-            }();
-            fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kReferenceTraj);
-          } else {
-            fluorite::state.last_ik_success = false;
-            warn("failed to solve ik");  // 无解
-          }
-        } catch (const std::exception &e) {
-          error("failed to solve ik: %s", e.what());  // 求解过程中有报错
-          fluorite::controller->ik_calculation_mutex.unlock();
+        const auto [kSolved, kIKResult] =
+            fluorite::controller->moveit_helper.CalculateIK(fluorite::state.target_end_effector_pose);
+        if (kSolved) {
+          fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kIKResult);
+          fluorite::state.last_ik_success = true;
+        } else {
+          fluorite::state.last_ik_success = false;
         }
 
-        // 计算完毕，解锁
-        fluorite::controller->ik_calculation_mutex.unlock();
+        fluorite::controller->ik_calculation_mutex.unlock();  // 计算完毕，解锁
       });
     }
   }
@@ -315,16 +291,54 @@ void CustomCtrlManual::react(event::Control const &control) {
   Arm::CalcPidAndExecute();
   UpdateState();
 }
-void BehaviourTree::react(event::Control const &control) {
-  if (control.behaviour_tree_command.active) {
-    if (std::holds_alternative<fluorite_msgs::action::ArmTrajectoryCommand::Goal>(
-            control.behaviour_tree_command.command)) {
-      const auto kCommand =
-          std::get<fluorite_msgs::action::ArmTrajectoryCommand::Goal>(control.behaviour_tree_command.command);
-      // fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCommand.trajectory);
+void BehaviourTreeIdle::react(event::Control const &control) {
+  Arm::CalcPidAndExecute();
+  UpdateState();
+}
+void BehaviourTreeIdle::react(
+    event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e) {
+  fluorite::controller->ik_calculation_thread_pool_.enqueue([&] {  // 异步计算ik，不阻塞控制循环
+    fluorite::controller->ik_calculation_mutex.lock();             // 阻塞等待上一次ik计算完成
+    // 尝试逆解，成功的话就把解出来的关节位置送进轨迹跟踪器
+    fluorite::state.target_end_effector_pose = e.command.goal_end_effector_pose;
+    const auto [kSolved, kIKResult] =
+        fluorite::controller->moveit_helper.CalculateIK(fluorite::state.target_end_effector_pose);
+    if (kSolved) {
+      fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kIKResult);
+      fluorite::state.last_ik_success = true;
+    } else {
+      fluorite::state.last_ik_success = false;
     }
+
+    fluorite::controller->ik_calculation_mutex.unlock();  // 计算完毕，解锁
+  });
+  BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
+  // TODO:
+  // 有可能出现ik计算还没有完成就transit了的情况，这时候上一个轨迹已经执行完毕的话Executing状态会立刻返回到Idle状态。这个逻辑需要想一想怎么处理，暂时不要用ArmEndEffectorCartesianCommand这个接口
+  transit<BehaviourTreeIdle>();
+}
+void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e) {
+  const auto kTargetJointPosition = [&] {
+    trajectory_msgs::msg::JointTrajectoryPoint ret;
+    ret.velocities.resize(6);
+    ret.positions = e.command.goal_joint_state.position;
+    return ret;
+  }();
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kTargetJointPosition);
+  BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
+}
+void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e) {
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(e.command.trajectory);
+  BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
+}
+void BehaviourTreeExecuting::react(event::Control const &control) {
+  if (fluorite::controller->trajectory_tracker.execution_finished()) {
+    if (execution_finished_callback_) {
+      execution_finished_callback_();
+    }
+    transit<BehaviourTreeIdle>();
   }
-  // Arm::CalcPidAndExecute();
+  Arm::CalcPidAndExecute();
   UpdateState();
 }
 void Retracted::react(event::Control const &control) {

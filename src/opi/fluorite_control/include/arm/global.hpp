@@ -19,6 +19,7 @@
 #include "arm/pneumatic.hpp"
 #include "arm/dynamics.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
+#include "arm/moveit_helper.hpp"
 #include "common/logger.hpp"
 
 namespace fluorite {
@@ -62,12 +63,12 @@ struct Controller {
   using PosRingPID = rm::modules::algorithm::RingPID<rm::modules::algorithm::PIDType::kPosition>;
 
   Controller(PidTrajectoryTracker<6> &&ptt, PosPID &&base_yaw_speed_pid, PosRingPID &&base_yaw_position_pid,
-             std::unique_ptr<tf2_ros::Buffer> &&tf_buffer, moveit::core::RobotStatePtr &&kinematic_model)
+             std::unique_ptr<tf2_ros::Buffer> &&tf_buffer, rclcpp::Node *ros_node)
       : trajectory_tracker{std::move(ptt)},
         base_yaw_speed_pid{std::move(base_yaw_speed_pid)},
         base_yaw_position_pid{std::move(base_yaw_position_pid)},
         tf_buffer(std::move(tf_buffer)),
-        kinematic_model(std::move(kinematic_model)) {}
+        moveit_helper{ros_node} {}
   PidTrajectoryTracker<6> trajectory_tracker;
   PosPID base_yaw_speed_pid;
   PosRingPID base_yaw_position_pid;
@@ -75,7 +76,7 @@ struct Controller {
   DynamicModel dynamic_model{};  ///< 逆动力学模型
 
   std::unique_ptr<tf2_ros::Buffer> tf_buffer;
-  moveit::core::RobotStatePtr kinematic_model;
+  MoveitHelper moveit_helper;
   std::mutex ik_calculation_mutex;
   rm::core::ThreadPool ik_calculation_thread_pool_{1};
 };

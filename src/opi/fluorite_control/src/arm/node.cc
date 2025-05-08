@@ -65,10 +65,6 @@ void FluoriteArm::InitializeShit() {
   using PosPID = rm::modules::algorithm::PID<rm::modules::algorithm::PIDType::kPosition>;
   using PosRingPID = rm::modules::algorithm::RingPID<rm::modules::algorithm::PIDType::kPosition>;
 
-  robot_model_loader::RobotModelLoader robot_model_loader{rclcpp::Node::SharedPtr{this}};
-  auto kinematic_model = robot_model_loader.getModel();
-  auto robot_state = std::make_shared<moveit::core::RobotState>(kinematic_model);
-
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
@@ -139,7 +135,7 @@ void FluoriteArm::InitializeShit() {
               std::make_pair(0.0, 2.7911),
               std::make_pair(0.0, 2.7911),
               std::make_pair(-2.6167, 2.6167),
-              std::make_pair(-1.57, 1.57),
+              std::make_pair(-2.09333, 2.09333),
               std::make_pair(-3.14, 3.14),
           }},
       PosPID{static_cast<float>(ros_params_manager_.data().pid_base_yaw_speed[0]),
@@ -152,7 +148,7 @@ void FluoriteArm::InitializeShit() {
                  static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[2]),
                  static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
                  static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4]), M_PI * 2},  // base_yaw 位置环
-      std::move(tf_buffer_), std::move(robot_state));
+      std::move(tf_buffer_), this);
   fluorite::actuator = std::make_unique<fluorite::Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
       DmMit{*arm_can,
@@ -519,40 +515,55 @@ void FluoriteArm::TFBroadcaster() {
  */
 void FluoriteArm::BehaviourTreeInterface() {
   arm_end_effector_cartesian_command_as_.goal_callback = [this](auto uuid, auto goal) {
-    control_msg_.behaviour_tree_command.active = true;
-    control_msg_.behaviour_tree_command.command = *goal;
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   };
   arm_end_effector_cartesian_command_as_.cancel_callback = [this](auto goal_handle) {
-    control_msg_.behaviour_tree_command.active = false;
+    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviorTreeCancelExecution{});
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_end_effector_cartesian_command_as_.accepted_callback = [this](auto goal_handle) {
-    control_msg_.behaviour_tree_command.action_goal_handle = goal_handle;
+    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+        *goal_handle->get_goal(), [&] {
+          if (rclcpp::ok()) {
+            auto result = std::make_shared<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Result>();
+            result->success = true;
+            goal_handle->succeed(result);
+          }
+        }});
   };
   arm_joint_command_as_.goal_callback = [this](auto uuid, auto goal) {
-    control_msg_.behaviour_tree_command.active = true;
-    control_msg_.behaviour_tree_command.command = *goal;
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   };
   arm_joint_command_as_.cancel_callback = [this](auto goal_handle) {
-    control_msg_.behaviour_tree_command.active = false;
+    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviorTreeCancelExecution{});
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_joint_command_as_.accepted_callback = [this](auto goal_handle) {
-    control_msg_.behaviour_tree_command.action_goal_handle = goal_handle;
+    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+        *goal_handle->get_goal(), [&] {
+          if (rclcpp::ok()) {
+            auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
+            result->success = true;
+            goal_handle->succeed(result);
+          }
+        }});
   };
   arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
-    control_msg_.behaviour_tree_command.active = true;
-    control_msg_.behaviour_tree_command.command = *goal;
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   };
   arm_trajectory_command_as_.cancel_callback = [this](auto goal_handle) {
-    control_msg_.behaviour_tree_command.active = false;
+    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviorTreeCancelExecution{});
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_trajectory_command_as_.accepted_callback = [this](auto goal_handle) {
-    control_msg_.behaviour_tree_command.action_goal_handle = goal_handle;
+    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+        *goal_handle->get_goal(), [&] {
+          if (rclcpp::ok()) {
+            auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
+            result->success = true;
+            goal_handle->succeed(result);
+          }
+        }});
   };
 
   arm_end_effector_cartesian_command_as_.Create(this, "fluorite/arm/end_effector_cartesian_command");

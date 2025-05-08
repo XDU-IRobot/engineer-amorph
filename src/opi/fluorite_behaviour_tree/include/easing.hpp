@@ -1,5 +1,5 @@
-#ifndef MATH_UTILS_HPP
-#define MATH_UTILS_HPP
+#ifndef EASING_HPP
+#define EASING_HPP
 
 #include <cmath>
 
