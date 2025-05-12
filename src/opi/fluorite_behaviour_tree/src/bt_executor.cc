@@ -27,31 +27,31 @@ class AsyncTreeRunner {
     tree_ = std::move(tree);
     cout_logger_ = std::make_unique<BT::StdCoutLogger>(tree_);
     zmq_logger_ = std::make_unique<BT::PublisherZMQ>(tree_);
-    tick_worker_thread_ = std::thread([this, &tree]() {
+    tick_worker_thread_ = std::thread([this]() {
       try {
         while (!stop_flag_) {
-          const auto tree_status = tree.tickRoot();
+          const auto tree_status = tree_.tickRoot();
           if (tree_status == BT::NodeStatus::RUNNING) {
             // do nothing
           } else if (tree_status == BT::NodeStatus::SUCCESS) {
             RCLCPP_INFO(rclcpp::get_logger("bt_executor"), "Tree finished successfully");
-            Stop();
+            Stop(false);
           } else if (tree_status == BT::NodeStatus::FAILURE) {
             RCLCPP_ERROR(rclcpp::get_logger("bt_executor"), "Tree failed");
-            Stop();
+            Stop(false);
           }
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
       } catch (const std::exception& e) {
-        Stop();
         RCLCPP_ERROR(rclcpp::get_logger("bt_executor"), "Exception in tick worker: %s", e.what());
+        Stop(false);
       }
     });
   }
 
-  void Stop() {
+  void Stop(bool join_worker = true) {
     stop_flag_ = true;
-    if (tick_worker_thread_.joinable()) {
+    if (tick_worker_thread_.joinable() && join_worker) {
       cout_logger_.reset();
       zmq_logger_.reset();
       tree_.haltTree();

@@ -536,7 +536,7 @@ void FluoriteArm::BehaviourTreeInterface() {
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Result>();
           result->success = false;
-          goal_handle->canceled(result);
+          goal_handle->succeed(result);
         }});
   };
   arm_joint_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -559,7 +559,7 @@ void FluoriteArm::BehaviourTreeInterface() {
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
           result->success = false;
-          goal_handle->canceled(result);
+          goal_handle->succeed(result);
         }});
   };
   arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -582,7 +582,7 @@ void FluoriteArm::BehaviourTreeInterface() {
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
           result->success = false;
-          goal_handle->canceled(result);
+          goal_handle->succeed(result);
         }});
   };
 
