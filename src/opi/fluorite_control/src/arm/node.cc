@@ -556,7 +556,7 @@ void FluoriteArm::BehaviourTreeInterface() {
             goal_handle->succeed(result);
           }
         },
-        [&] { 
+        [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
           result->success = false;
           goal_handle->canceled(result);
@@ -579,11 +579,11 @@ void FluoriteArm::BehaviourTreeInterface() {
             goal_handle->succeed(result);
           }
         },
-        [&] { 
+        [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
           result->success = false;
           goal_handle->canceled(result);
-         }});
+        }});
   };
 
   arm_end_effector_cartesian_command_as_.Create(this, "fluorite/arm/end_effector_cartesian_command");
