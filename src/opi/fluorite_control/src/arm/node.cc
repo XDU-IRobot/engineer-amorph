@@ -525,7 +525,7 @@ void FluoriteArm::BehaviourTreeInterface() {
   };
   arm_end_effector_cartesian_command_as_.accepted_callback = [this](auto goal_handle) {
     arm_end_effector_cartesian_command_as_.current_goal_handle_ = goal_handle;
-     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
         *goal_handle->get_goal(),
         [&] {
           if (rclcpp::ok()) {

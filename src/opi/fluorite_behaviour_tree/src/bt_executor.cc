@@ -66,9 +66,7 @@ class AsyncTreeRunner {
     }
   }
 
-  bool have_ongoing_tree() {
-    return !stop_flag_;
-  }
+  bool have_ongoing_tree() { return !stop_flag_; }
 
  private:
   BT::Tree tree_;
@@ -134,9 +132,9 @@ class BTExecutorNode : public rclcpp::Node {
   /** </user input subscribers> **/
 
   struct {
-    Hotkey rise_eff,      // R
-        go_to_left_storage,    // Z
-        go_to_right_storage;   // X
+    Hotkey rise_eff,          // R
+        go_to_left_storage,   // Z
+        go_to_right_storage;  // X
   } hotkeys_;
 };
 
