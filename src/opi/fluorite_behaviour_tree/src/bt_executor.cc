@@ -1,14 +1,74 @@
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <thread>
 
 #include "behaviortree_cpp_v3/bt_factory.h"
 #include "behaviortree_cpp_v3/loggers/bt_cout_logger.h"
 #include "behaviortree_cpp_v3/loggers/bt_zmq_publisher.h"
 
-#include "bt_node_register.hpp"
-#include "tree_loader.hpp"
+#include <sbus_interface/msg/sbus.hpp>
+#include <rm2_referee_msgs/msg/remote_control.hpp>
 
+#include "bt_node_register.hpp"
+#include "keypress_handler.hpp"
+#include "tree_loader.hpp"
 #include "moveit.hpp"
+
+class AsyncTreeRunner {
+ public:
+  ~AsyncTreeRunner() {
+    if (tick_worker_thread_.joinable()) {
+      stop_flag_ = true;
+      tick_worker_thread_.join();
+    }
+  }
+
+  void Run(BT::Tree tree) {
+    stop_flag_ = false;
+    tree_ = std::move(tree);
+    cout_logger_ = std::make_unique<BT::StdCoutLogger>(tree_);
+    zmq_logger_ = std::make_unique<BT::PublisherZMQ>(tree_);
+    tick_worker_thread_ = std::thread([this, &tree]() {
+      try {
+        while (!stop_flag_) {
+          const auto tree_status = tree.tickRoot();
+          if (tree_status == BT::NodeStatus::RUNNING) {
+            // do nothing
+          } else if (tree_status == BT::NodeStatus::SUCCESS) {
+            RCLCPP_INFO(rclcpp::get_logger("bt_executor"), "Tree finished successfully");
+            Stop();
+          } else if (tree_status == BT::NodeStatus::FAILURE) {
+            RCLCPP_ERROR(rclcpp::get_logger("bt_executor"), "Tree failed");
+            Stop();
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+      } catch (const std::exception& e) {
+        Stop();
+        RCLCPP_ERROR(rclcpp::get_logger("bt_executor"), "Exception in tick worker: %s", e.what());
+      }
+    });
+  }
+
+  void Stop() {
+    stop_flag_ = true;
+    if (tick_worker_thread_.joinable()) {
+      cout_logger_.reset();
+      zmq_logger_.reset();
+      tree_.haltTree();
+      tick_worker_thread_.join();
+    }
+  }
+
+  bool have_ongoing_tree() const { return tick_worker_thread_.joinable(); }
+
+ private:
+  BT::Tree tree_;
+  std::unique_ptr<BT::StdCoutLogger> cout_logger_{nullptr};
+  std::unique_ptr<BT::PublisherZMQ> zmq_logger_{nullptr};
+
+  std::thread tick_worker_thread_;
+  std::atomic<bool> stop_flag_{false};
+};
 
 class BTExecutorNode : public rclcpp::Node {
  public:
@@ -16,33 +76,53 @@ class BTExecutorNode : public rclcpp::Node {
       const rclcpp::NodeOptions& options =
           rclcpp::NodeOptions().allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(true))
       : Node("bt_executor_node", options) {
-    bt_nodes::BtNodeRegisterArray::Register(factory_);
+    bt_nodes::BtNodeRegisterArray::Register(bt_factory_);
+
+    // spawn user input subscribers
+    sbus_sub_ = create_subscription<sbus_interface::msg::Sbus>("/sbus", rclcpp::SensorDataQoS(),
+                                                               [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
+                                                                 if (msg->failsafe) {
+                                                                 }
+                                                               });
+    fpv_link_input_sub_ = create_subscription<rm2_referee_msgs::msg::RemoteControl>(
+        "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
+        [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
+          hotkeys_.rise_eff.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_R);
+          hotkeys_.store_to_right.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_X);
+        });
+
+    // define keymap
+    hotkeys_.rise_eff.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Rise effect key pressed"); });
+    hotkeys_.store_to_left.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to left key pressed"); });
+    hotkeys_.store_to_right.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to right key pressed"); });
+    hotkeys_.pick_from_left.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Pick from left key pressed"); });
+    hotkeys_.pick_from_right.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Pick from right key pressed"); });
+
+    RCLCPP_INFO(this->get_logger(), "BT executor initialized");
   }
 
  private:
-  BT::BehaviorTreeFactory factory_;
-  TreeLoader tree_loader_{factory_};
+  AsyncTreeRunner tree_runner_;
+  BT::BehaviorTreeFactory bt_factory_;
+  TreeLoader tree_loader_{bt_factory_};
+
+  /** <user input subscribers> **/
+  rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr sbus_sub_{nullptr};
+  rclcpp::Subscription<rm2_referee_msgs::msg::RemoteControl>::SharedPtr fpv_link_input_sub_{nullptr};
+  /** </user input subscribers> **/
+
+  struct {
+    Hotkey rise_eff,      // R
+        store_to_left,    // Z
+        store_to_right,   // X
+        pick_from_left,   // C
+        pick_from_right;  // V
+  } hotkeys_;
 };
 
-int main(int argc, char** argv) try {
+int main(int argc, char* argv[]) {
   rclcpp::init(argc, argv);
-  BT::BehaviorTreeFactory factory;
-  bt_nodes::BtNodeRegisterArray::Register(factory);
-  TreeLoader tree_loader(factory);
-
-  auto tree = tree_loader.Load("take_silver_and_store");
-  BT::StdCoutLogger logger_cout(tree);
-  BT::PublisherZMQ publisher_zmq(tree);
-  tree.tickRootWhileRunning();
-
+  rclcpp::spin(std::make_shared<BTExecutorNode>());
   rclcpp::shutdown();
   return 0;
-} catch (const std::exception& e) {
-  RCLCPP_ERROR(rclcpp::get_logger("fluorite"), "Exception: %s", e.what());
-  rclcpp::shutdown();
-  return -1;
-} catch (...) {
-  RCLCPP_ERROR(rclcpp::get_logger("fluorite"), "Unknown exception");
-  rclcpp::shutdown();
-  return -1;
 }
