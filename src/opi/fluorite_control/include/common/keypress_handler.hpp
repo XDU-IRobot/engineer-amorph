@@ -13,41 +13,17 @@
 
 class Hotkey {
  public:
-  explicit inline Hotkey(std::function<bool()> pred) : pred_(std::move(pred)) {
-    edge_trigger_.on_rising([this] { have_pressed_.store(true); });
-  }
+  explicit inline Hotkey(std::function<bool()> pred);
   Hotkey() = default;
   ~Hotkey() = default;
 
-  inline void Poll() {
-    if (pred_) {
-      condition_ = pred_();
-    }
-  }
-
-  inline void Poll(bool new_condition) { condition_ = new_condition; }
-
-  inline Hotkey &OnPress(std::function<void()> cb) {
-    edge_trigger_.on_rising(cb);
-    return *this;
-  }
-
-  inline Hotkey &OnRelease(std::function<void()> cb) {
-    edge_trigger_.on_falling(cb);
-    return *this;
-  }
-
-  inline Hotkey &OnHold(std::function<void()> cb) {
-    onhold_cb_ = cb;
-    return *this;
-  }
-
-  inline Hotkey &OnIdle(std::function<void()> cb) {
-    onidle_cb_ = cb;
-    return *this;
-  }
-
-  inline bool have_pressed(bool reset = true) { return reset ? have_pressed_.exchange(false) : have_pressed_.load(); }
+  void Poll();
+  void Poll(bool new_condition);
+  Hotkey &OnPress(std::function<void()> cb);
+  Hotkey &OnRelease(std::function<void()> cb);
+  Hotkey &OnHold(std::function<void()> cb);
+  Hotkey &OnIdle(std::function<void()> cb);
+  bool have_pressed(bool reset = true);
 
  private:
   std::atomic<bool> have_pressed_{false};

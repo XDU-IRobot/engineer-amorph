@@ -33,7 +33,7 @@ struct SwitchMode : tinyfsm::Event {};
  * @brief 所有链路的控制量全都在这里，数据由节点的各个subscriber回调函数负责更新
  */
 struct Control : tinyfsm::Event {
-  Control() : hotkeys{this} {
+  Control() {
     // map里的std::atomic<bool>不能用std::initializer_list初始化，必须一个一个构造
     for (const auto &keyboard_map_k : {
              keyboard_msgs::msg::Key::KEY_W,
@@ -66,16 +66,16 @@ struct Control : tinyfsm::Event {
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
   std::atomic<uint16_t> keyboard_modifier;                       ///< 键盘组合键modifier
-  struct _ {
-    _(Control *this_) : this_(this_) {}
-    Hotkey switch_arm_pump{[&]() -> bool {
-      return this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) &&
-             this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT);
-    }};
+  // struct _ {
+  //   _(Control *this_) : this_(this_) {}
+  //   Hotkey switch_arm_pump{[&]() -> bool {
+  //     return this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) &&
+  //            this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT);
+  //   }};
 
-   private:
-    Control *this_;
-  } hotkeys;
+  //  private:
+  //   Control *this_;
+  // } hotkeys;
 };
 }  // namespace chassis
 }  // namespace event
