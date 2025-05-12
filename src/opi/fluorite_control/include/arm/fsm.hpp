@@ -23,6 +23,10 @@
 #include "arm/custom_controller.hpp"
 #include "arm/global.hpp"
 
+constexpr int kRcSwitchUp = 1;
+constexpr int kRcSwitchMiddle = 0;
+constexpr int kRcSwitchDown = -1;
+
 namespace fluorite {
 
 namespace fsm {
@@ -32,7 +36,7 @@ namespace event {
  * @brief 所有控制量全都在这里，其中的数据由ROS节点的各个回调函数负责更新
  */
 struct Control : public tinyfsm::Event {
-  Control() : hotkeys{this} {
+  Control() {
     // map里的std::atomic<bool>不能用std::initializer_list初始化，必须一个一个构造
     for (const auto &keyboard_map_k : {
              keyboard_msgs::msg::Key::KEY_W,
@@ -68,18 +72,6 @@ struct Control : public tinyfsm::Event {
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
 
   custom_controller::JointCommand custom_controller_command;
-
-  KeypressHandler keypress_handler;
-  struct _ {
-    explicit _(Control *this_) : this_(this_) {}
-    // Hotkey switch_arm_pump{[&]() -> bool {
-    //   return this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) &&
-    //          this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT);
-    // }};
-
-   private:
-    Control *this_;
-  } hotkeys;
 };
 template <typename T>
 struct SwitchMode : public tinyfsm::Event {};

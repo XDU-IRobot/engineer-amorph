@@ -13,10 +13,6 @@
 #include "keyboard_msgs/msg/key.hpp"
 #include "tinyfsm.hpp"
 
-constexpr int kRcSwitchUp = 1;
-constexpr int kRcSwitchMiddle = 0;
-constexpr int kRcSwitchDown = -1;
-
 namespace fluorite {
 
 fluorite_msgs::msg::ArmState state{};
@@ -27,9 +23,9 @@ namespace fsm {
 
 // 忽略不关心的event
 // these functions should never be called so wtf in them
-void Arm::react(tinyfsm::Event const &event) { error("wtf"); }
-void GimbalBase::react(tinyfsm::Event const &event) { error("wtf"); }
-void PneumaticSystem::react(tinyfsm::Event const &event) { error("wtf"); }
+void Arm::react(tinyfsm::Event const &event) { error("FSM: Arm received unknown event"); }
+void GimbalBase::react(tinyfsm::Event const &event) { error("FSM: GimbalBase received unknown event"); }
+void PneumaticSystem::react(tinyfsm::Event const &event) { error("FSM: PneumaticSystem received unknown event"); }
 
 void Arm::EnableActuators(bool enable) {
   const auto dm_enable = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
@@ -137,41 +133,6 @@ void NoForce::entry() {
 ////////////////////////////////CONTROL LOOPS///////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// 根据遥控器拨杆和键盘的状态，更新机械臂的运行模式
-// 转换逻辑请看仓库最顶层的README.md，操作方法一章
-// 每次控制循环运行结束后，都会调用这个宏一次
-#define UpdateState()                                                                                              \
-  do {                                                                                                             \
-    if (control.sd != kRcSwitchUp) {                                                                               \
-      DispatchEvent(event::SwitchMode<NoForce>{});                                                                 \
-      return;                                                                                                      \
-    }                                                                                                              \
-    if (control.sf == kRcSwitchUp) {                                                                               \
-      DispatchEvent(event::SwitchMode<Debug>{});                                                                   \
-      return;                                                                                                      \
-    }                                                                                                              \
-    switch (control.sc) {                                                                                          \
-      case kRcSwitchUp: {                                                                                          \
-        if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G) == false) {                                    \
-          DispatchEvent(event::SwitchMode<KeyboardManual>{});                                                      \
-        } else {                                                                                                   \
-          DispatchEvent(event::SwitchMode<CustomCtrlManual>{});                                                    \
-        }                                                                                                          \
-        return;                                                                                                    \
-      }                                                                                                            \
-      case kRcSwitchMiddle: {                                                                                      \
-        if (!this->is_in_state<fsm::state::arm::BehaviourTreeExecuting>()) { /*防止执行中的动作被打断*/ \
-          DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});                                                   \
-        }                                                                                                          \
-        return;                                                                                                    \
-      }                                                                                                            \
-      case kRcSwitchDown: {                                                                                        \
-        DispatchEvent(event::SwitchMode<Retracted>{});                                                             \
-        return;                                                                                                    \
-      }                                                                                                            \
-    }                                                                                                              \
-  } while (0)
-
 void Debug::react(event::Control const &control) {
   auto joint_positions = fluorite::controller->trajectory_tracker.current_point();
   if (control.se == kRcSwitchUp) {
@@ -193,7 +154,33 @@ void Debug::react(event::Control const &control) {
   }
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(joint_positions);
   Arm::CalcPidAndExecute();
-  UpdateState();
+
+  // update hotkey
+  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
+
+  // state transition
+  if (control.sd != kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<NoForce>{});
+    return;
+  }
+  if (control.sf == kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<Debug>{});
+    return;
+  }
+  switch (control.sc) {
+    case kRcSwitchUp: {
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      return;
+    }
+    case kRcSwitchMiddle: {
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      return;
+    }
+    case kRcSwitchDown: {
+      DispatchEvent(event::SwitchMode<Retracted>{});
+      return;
+    }
+  }
 }
 void KeyboardManual::react(event::Control const &control) {
   // 如果键盘有输入，
@@ -265,7 +252,35 @@ void KeyboardManual::react(event::Control const &control) {
   }
 
   Arm::CalcPidAndExecute();
-  UpdateState();
+
+  // update hotkey
+  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
+
+  // state transition
+  if (control.sd != kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<NoForce>{});
+    return;
+  }
+  if (control.sf == kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<Debug>{});
+    return;
+  }
+  switch (control.sc) {
+    case kRcSwitchUp: {
+      if (controller->hotkeys.toggle_custom_ctrl.have_pressed()) {
+        DispatchEvent(event::SwitchMode<CustomCtrlManual>{});
+      }
+      return;
+    }
+    case kRcSwitchMiddle: {
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      return;
+    }
+    case kRcSwitchDown: {
+      DispatchEvent(event::SwitchMode<Retracted>{});
+      return;
+    }
+  }
 }
 void CustomCtrlManual::react(event::Control const &control) {
   if constexpr (std::is_same_v<decltype(control.custom_controller_command), custom_controller::JointCommand>) {
@@ -289,11 +304,64 @@ void CustomCtrlManual::react(event::Control const &control) {
     // TODO: 感觉T265自定义控制器不会再用了
   }
   Arm::CalcPidAndExecute();
-  UpdateState();
+
+  // update hotkey
+  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
+
+  // state transition
+  if (control.sd != kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<NoForce>{});
+    return;
+  }
+  if (control.sf == kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<Debug>{});
+    return;
+  }
+  switch (control.sc) {
+    case kRcSwitchUp: {
+      if (controller->hotkeys.toggle_custom_ctrl.have_pressed()) {
+        DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      }
+      return;
+    }
+    case kRcSwitchMiddle: {
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      return;
+    }
+    case kRcSwitchDown: {
+      DispatchEvent(event::SwitchMode<Retracted>{});
+      return;
+    }
+  }
 }
 void BehaviourTreeIdle::react(event::Control const &control) {
   Arm::CalcPidAndExecute();
-  UpdateState();
+
+  // update hotkey
+  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
+
+  // state transition
+  if (control.sd != kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<NoForce>{});
+    return;
+  }
+  if (control.sf == kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<Debug>{});
+    return;
+  }
+  switch (control.sc) {
+    case kRcSwitchUp: {
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      return;
+    }
+    case kRcSwitchMiddle: {
+      return;
+    }
+    case kRcSwitchDown: {
+      DispatchEvent(event::SwitchMode<Retracted>{});
+      return;
+    }
+  }
 }
 void BehaviourTreeIdle::react(
     event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e) {
@@ -340,7 +408,32 @@ void BehaviourTreeExecuting::react(event::Control const &control) {
     transit<BehaviourTreeIdle>();
   }
   Arm::CalcPidAndExecute();
-  UpdateState();
+
+  // update hotkey
+  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
+
+  // state transition
+  if (control.sd != kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<NoForce>{});
+    return;
+  }
+  if (control.sf == kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<Debug>{});
+    return;
+  }
+  switch (control.sc) {
+    case kRcSwitchUp: {
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      return;
+    }
+    case kRcSwitchMiddle: {
+      return;
+    }
+    case kRcSwitchDown: {
+      DispatchEvent(event::SwitchMode<Retracted>{});
+      return;
+    }
+  }
 }
 void Retracted::react(event::Control const &control) {
   const auto kReferenceTraj = [&] {
@@ -353,15 +446,62 @@ void Retracted::react(event::Control const &control) {
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kReferenceTraj);
   Arm::CalcPidAndExecute();
 
-  UpdateState();
+  // update hotkey
+  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
+
+  // state transition
+  if (control.sd != kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<NoForce>{});
+    return;
+  }
+  if (control.sf == kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<Debug>{});
+    return;
+  }
+  switch (control.sc) {
+    case kRcSwitchUp: {
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      return;
+    }
+    case kRcSwitchMiddle: {
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      return;
+    }
+    case kRcSwitchDown: {
+      return;
+    }
+  }
 }
 void NoForce::react(event::Control const &control) {
   Arm::EnableActuators(false);
   fluorite::actuator->end_yaw_2.SetCurrent(0);
-  UpdateState();
-}
 
-#undef UpdateState
+  // update hotkey
+  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
+
+  // state transition
+  if (control.sd != kRcSwitchUp) {
+    return;
+  }
+  if (control.sf == kRcSwitchUp) {
+    DispatchEvent(event::SwitchMode<Debug>{});
+    return;
+  }
+  switch (control.sc) {
+    case kRcSwitchUp: {
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      return;
+    }
+    case kRcSwitchMiddle: {
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      return;
+    }
+    case kRcSwitchDown: {
+      DispatchEvent(event::SwitchMode<Retracted>{});
+      return;
+    }
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

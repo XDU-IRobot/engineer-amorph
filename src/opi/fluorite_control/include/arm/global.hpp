@@ -15,6 +15,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <moveit/move_group_interface/move_group_interface.h>
 
+#include "common/keypress_handler.hpp"
 #include "fluorite_msgs/msg/arm_state.hpp"
 #include "arm/pneumatic.hpp"
 #include "arm/dynamics.hpp"
@@ -79,6 +80,10 @@ struct Controller {
   MoveitHelper moveit_helper;
   std::mutex ik_calculation_mutex;
   rm::core::ThreadPool ik_calculation_thread_pool_{1};
+
+  struct {
+    Hotkey toggle_custom_ctrl;
+  } hotkeys;
 };
 extern std::unique_ptr<Controller> controller;
 }  // namespace fluorite

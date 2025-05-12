@@ -66,8 +66,6 @@ struct Control : tinyfsm::Event {
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
   std::atomic<uint16_t> keyboard_modifier;                       ///< 键盘组合键modifier
-
-  KeypressHandler keypress_handler;
   struct _ {
     _(Control *this_) : this_(this_) {}
     Hotkey switch_arm_pump{[&]() -> bool {

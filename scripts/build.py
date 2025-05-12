@@ -4,7 +4,7 @@ import argparse
 import subprocess
 
 COMMON_ARGS = ["--merge-install", "--symlink-install", "--parallel-workers", "1", "--cmake-args",
-               "-DCMAKE_BUILD_TYPE=RelWithDebInfo", "-DCMAKE_EXPORT_COMPILE_COMMANDS=Yes"]
+               "-DCMAKE_BUILD_TYPE=RelWithDebInfo", "-DCMAKE_EXPORT_COMPILE_COMMANDS=Yes", "-DBUILD_TESTS=No"]
 
 
 def main():
