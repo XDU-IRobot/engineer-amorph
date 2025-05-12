@@ -113,7 +113,7 @@ fluorite_control_arm:
     pitch_1_reverse: false
     pitch_2_reverse: true
     end_yaw_1_reverse: true
-    end_pitch_reverse: false
+    end_pitch_reverse: true
     end_yaw_2_reverse: false
 
     # gpio settings

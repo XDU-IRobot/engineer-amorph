@@ -10,7 +10,21 @@
 
 #include "moveit.hpp"
 
-int main(int argc, char** argv) {
+class BTExecutorNode : public rclcpp::Node {
+ public:
+  explicit BTExecutorNode(
+      const rclcpp::NodeOptions& options =
+          rclcpp::NodeOptions().allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(true))
+      : Node("bt_executor_node", options) {
+    bt_nodes::BtNodeRegisterArray::Register(factory_);
+  }
+
+ private:
+  BT::BehaviorTreeFactory factory_;
+  TreeLoader tree_loader_{factory_};
+};
+
+int main(int argc, char** argv) try {
   rclcpp::init(argc, argv);
   BT::BehaviorTreeFactory factory;
   bt_nodes::BtNodeRegisterArray::Register(factory);
@@ -23,12 +37,12 @@ int main(int argc, char** argv) {
 
   rclcpp::shutdown();
   return 0;
+} catch (const std::exception& e) {
+  RCLCPP_ERROR(rclcpp::get_logger("fluorite"), "Exception: %s", e.what());
+  rclcpp::shutdown();
+  return -1;
+} catch (...) {
+  RCLCPP_ERROR(rclcpp::get_logger("fluorite"), "Unknown exception");
+  rclcpp::shutdown();
+  return -1;
 }
-
-// int main(int argc, char** argv) {
-//   rclcpp::init(argc, argv);
-//   // MoveGroupInterfaceSingleton::GetInstance().GetMoveGroupInterface();
-
-//   rclcpp::shutdown();
-//   return 0;
-// }

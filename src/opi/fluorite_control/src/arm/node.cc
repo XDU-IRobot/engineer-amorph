@@ -69,7 +69,7 @@ void FluoriteArm::InitializeShit() {
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   // 这个can对象的生命周期和程序一样长，所以new一个就不管他了，不用delete
-  auto arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
+  auto *arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
   fluorite::controller = std::make_unique<fluorite::Controller>(
       PidTrajectoryTracker<6>{
           // pid controllers
@@ -131,7 +131,7 @@ void FluoriteArm::InitializeShit() {
           },
           // joint limits
           {
-              std::make_pair(-2.355, 2.355),
+              std::make_pair(-2.8798, 2.8798),
               std::make_pair(0.0, 2.7911),
               std::make_pair(0.0, 2.7911),
               std::make_pair(-2.6167, 2.6167),
@@ -163,7 +163,7 @@ void FluoriteArm::InitializeShit() {
       DmMit{*arm_can,
             DmSettingsMit{.master_id = ros_params_manager_.data().pitch_1_master_id,
                           .slave_id = ros_params_manager_.data().pitch_1_slave_id,
-                          .p_max = 3.141592f,
+                          .p_max = 6.283185f,
                           .v_max = 45.f,
                           .t_max = 54.f,
                           .kp_range = {0, 500},
@@ -187,13 +187,14 @@ void FluoriteArm::InitializeShit() {
                           .kp_range = {0, 500},
                           .kd_range = {0, 50}},
             ros_params_manager_.data().end_yaw_1_reverse},
-      DmMit{*arm_can, DmSettingsMit{.master_id = 0xc7,
-                                    .slave_id = 0xc8,
+      DmMit{*arm_can, DmSettingsMit{.master_id = ros_params_manager_.data().end_pitch_master_id,
+                                    .slave_id = ros_params_manager_.data().end_pitch_slave_id,
                                     .p_max = 3.141593f,
                                     .v_max = 30.f,
                                     .t_max = 10.f,
                                     .kp_range = {0, 500},
-                                    .kd_range = {0, 50}}},
+                                    .kd_range = {0, 50}},
+                                  ros_params_manager_.data().end_pitch_reverse},
       rm::device::GM6020{*arm_can, static_cast<uint16_t>(ros_params_manager_.data().end_yaw_2_id),
                          ros_params_manager_.data().end_yaw_2_reverse},
       SuckerSystem{Pin<OUTPUT>(ros_params_manager_.data().sucker_out_valve_pin),

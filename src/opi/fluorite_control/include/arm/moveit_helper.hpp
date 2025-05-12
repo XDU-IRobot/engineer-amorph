@@ -10,7 +10,6 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
 #include <geometry_msgs/msg/pose.hpp>
-#include <ratio>
 
 class MoveitHelper {
  public:

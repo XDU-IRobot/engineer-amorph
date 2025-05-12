@@ -21,9 +21,9 @@
   ],
   "terminal.integrated.profiles.linux": {
     "bash": {
-      "path": "zsh",
+      "path": "bash",
       "icon": "terminal-bash",
-      "args": ["-c", "source ${workspaceFolder}/install/setup.zsh;exec zsh"]
+      "args": ["-c", "source ${workspaceFolder}/install/setup.bash;exec bash"]
     }
   },
   "clangd.detectExtensionConflicts": true,
@@ -40,8 +40,8 @@
     "--fallback-style=Google", // clang-format style to apply by default when no .clang-format file is found
     "--pretty",
     "--clang-tidy",
-    "--query-driver=clang++"
+    "--query-driver=gcc"
   ],
   "ros.distro": "humble",
-  "cmake.sourceDirectory": "/home/soraha/engineer-2025/src/opi/fluorite_control/src"
+  "cmake.sourceDirectory": "/root/engineer-2025/src/custom_controller/t265/libs/librm/src"
 }

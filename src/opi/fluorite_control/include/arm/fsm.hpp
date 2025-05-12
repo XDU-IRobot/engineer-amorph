@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <tinyfsm.hpp>
+#include <utility>
 
 #include "keyboard_msgs/msg/key.hpp"
 #include "fluorite_msgs/action/arm_end_effector_cartesian_command.hpp"
@@ -70,7 +71,7 @@ struct Control : public tinyfsm::Event {
 
   KeypressHandler keypress_handler;
   struct _ {
-    _(Control *this_) : this_(this_) {}
+    explicit _(Control *this_) : this_(this_) {}
     // Hotkey switch_arm_pump{[&]() -> bool {
     //   return this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_L) &&
     //          this_->keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT);
@@ -100,7 +101,7 @@ struct BehaviourTreeCommand : public tinyfsm::Event {
                 "BehaviourTreeCommand should only be one of ArmEndEffectorCartesianCommand, ArmJointCommand, "
                 "ArmTrajectoryCommand, StorageSystemCommand and SuckerCommand");
   BehaviourTreeCommand(T command, std::function<void()> execution_finished_callback)
-      : command{command}, execution_finished_callback{execution_finished_callback} {}
+      : command{command}, execution_finished_callback{std::move(execution_finished_callback)} {}
   T command;
   std::function<void()> execution_finished_callback;
 };
@@ -114,6 +115,11 @@ class Arm : public tinyfsm::MooreMachine<Arm> {
 
   void react(tinyfsm::Event const &event);
   virtual void react(event::Control const &control) = 0;
+
+  virtual void react(
+      event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e) {}
+  virtual void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e) {}
+  virtual void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e) {}
 
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
@@ -192,9 +198,9 @@ DeclareState(CustomCtrlManual, Arm);  ///< 自定义控制器手动控制模式
 class BehaviourTreeIdle : public Arm {
  public:
   void react(event::Control const &control) override;
-  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e);
-  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e);
-  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e);
+  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e) override;
+  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e) override;
+  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e) override;
   void entry() override;
 };
 // 行为树控制，目前正在执行命令

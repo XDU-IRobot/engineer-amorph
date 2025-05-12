@@ -10,5 +10,5 @@ ip link set can0 up
 ip link set can1 up
 
 source ${SCRIPT_DIR}/../install/setup.bash
-ros2 launch fluorite_bringup opi.py
+taskset --cpu-list 4 ros2 launch fluorite_bringup opi.launch.py   # bind to CPU4 -> A76 #1, priority 99(RT)
 # chrt -f 99 ros2 launch fluorite_bringup control.launch.py

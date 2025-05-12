@@ -4,9 +4,6 @@
 [submodule "src/fluorite_control/libs/pfr"]
 	path = src/opi/fluorite_control/libs/pfr
 	url = https://github.com/boostorg/pfr.git
-[submodule "src/fluorite_control/libs/tweeny"]
-	path = src/opi/fluorite_control/libs/tweeny
-	url = https://github.com/mobius3/tweeny.git
 [submodule "src/fluorite_control/libs/edge-trigger"]
 	path = src/opi/fluorite_control/libs/edge-trigger
 	url = https://github.com/lunarifish/edge-trigger.git
@@ -48,3 +45,6 @@
 [submodule "src/opi/fluorite_behaviour_tree/libs/tweeny"]
 	path = src/opi/fluorite_behaviour_tree/libs/tweeny
 	url = https://github.com/mobius3/tweeny.git
+[submodule "src/opi/fluorite_control/libs/libInterpolate"]
+	path = src/opi/fluorite_control/libs/libInterpolate
+	url = https://github.com/CD3/libInterpolate.git

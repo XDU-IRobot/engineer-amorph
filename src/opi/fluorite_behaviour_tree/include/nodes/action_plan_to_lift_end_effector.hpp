@@ -79,32 +79,36 @@ class ActionPlanToLiftEndEffector : public BT::StatefulActionNode {
             const double kJumpThreshold = 0.0;
             const double kEEFStep = 0.01;
             double fraction =
-                mgi.computeCartesianPath(kWaypoints, kEEFStep, kJumpThreshold, trajectory, true, &error_code);
+                mgi.computeCartesianPath(kWaypoints, kEEFStep, kJumpThreshold, trajectory, false, &error_code);
             if (error_code.val == moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
               ok = moveit::core::MoveItErrorCode::SUCCESS;
 
-              /// 规划Cartesian路径成功，接下来给每个点赋上时间戳
-              // 如果轨迹里只有一个点那就不用处理没有时间戳的问题
+              // 如果轨迹里只有一个点那要么是plan失败了，要么是真的起点和终点离得很近
+              // 按使用场景来看起点和终点一定不会太近，所以如果轨迹只有一个点一律视为规划失败
               if (trajectory.joint_trajectory.points.size() <= 1) {
-                trajectory.joint_trajectory.points[0].time_from_start = rclcpp::Duration::from_seconds(0.0);
-              } else {
-                // 为了计算简单，取max_linear_speed/2为平均速度
-                const double kAverageSpeed = max_linear_speed_value / 2.0;
-                // 所以轨迹的总时间就是点数*点间距/平均速度
-                const size_t kPointCount = trajectory.joint_trajectory.points.size();
-                const auto kDuration = kPointCount * kEEFStep / kAverageSpeed;
-                auto timestamp_tween = tweeny::from(0.0)
-                                           .to(kDuration)
-                                           .during(kPointCount - 1)
-                                           .via(SineInOutEasingInversed<double>);  // https://easings.net/zh-cn
-                RCLCPP_INFO(ros_logger_, "waypoints: %zu, trajectory duration: %.2fs @max eef linear speed: %.2fm/s",
-                            kPointCount, kDuration, max_linear_speed_value);
-                for (int i = 0; i < kPointCount; ++i) {
-                  auto& point = trajectory.joint_trajectory.points[i];
-                  const auto kTimeStamp = timestamp_tween.seek(i);
-                  point.time_from_start = rclcpp::Duration::from_seconds(kTimeStamp);
-                }
+                MoveitHelper::GetInstance().ReleaseMoveGroupInterface();
+                return std::make_pair(moveit::core::MoveItErrorCode{moveit::core::MoveItErrorCode::FAILURE},
+                                      trajectory_msgs::msg::JointTrajectory());
               }
+              /// 规划Cartesian路径成功，接下来给每个点赋上时间戳
+
+              // 为了计算简单，取max_linear_speed/2为平均速度
+              const double kAverageSpeed = max_linear_speed_value / 2.0;
+              // 所以轨迹的总时间就是点数*点间距/平均速度
+              const size_t kPointCount = trajectory.joint_trajectory.points.size();
+              const auto kDuration = kPointCount * kEEFStep / kAverageSpeed;
+              auto timestamp_tween = tweeny::from(0.0)
+                                         .to(kDuration)
+                                         .during(kPointCount - 1)
+                                         .via(SineInOutEasingInversed<double>);  // https://easings.net/zh-cn
+              RCLCPP_INFO(ros_logger_, "waypoints: %zu, trajectory duration: %.2fs @max eef linear speed: %.2fm/s",
+                          kPointCount, kDuration, max_linear_speed_value);
+              for (int i = 0; i < kPointCount; ++i) {
+                auto& point = trajectory.joint_trajectory.points[i];
+                const auto kTimeStamp = timestamp_tween.seek(i);
+                point.time_from_start = rclcpp::Duration::from_seconds(kTimeStamp);
+              }
+
               MoveitHelper::GetInstance().DrawTrajectory(trajectory.joint_trajectory);
             } else {
               ok = moveit::core::MoveItErrorCode::FAILURE;

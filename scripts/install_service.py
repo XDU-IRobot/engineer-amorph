@@ -28,7 +28,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart={PROJECT_ROOT}/scripts/vaccum_pump_stfu.sh
+ExecStart=bash -c "gpio mode 2 out;gpio mode 16 out;echo vaccum_pump_stfu"
 User=root
 
 [Install]

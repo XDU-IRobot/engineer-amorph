@@ -14,7 +14,7 @@ target_include_directories(filters INTERFACE ${CMAKE_CURRENT_LIST_DIR}/DSP-Cpp-f
 
 add_subdirectory(edge-trigger)
 
-add_subdirectory(tweeny)
+add_subdirectory(libInterpolate)
 
 add_subdirectory(pfr)
 
@@ -24,7 +24,7 @@ target_link_libraries(${PROJECT_NAME}_libs INTERFACE
     tinyfsm
     filters
     edge_trigger
-    tweeny
+    libInterpolate::Interpolate
     Boost::pfr
     # qpOASES
 )

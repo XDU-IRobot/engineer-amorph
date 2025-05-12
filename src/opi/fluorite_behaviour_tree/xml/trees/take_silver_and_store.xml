@@ -5,23 +5,12 @@
         <Sequence>
             <RetryUntilSuccessful num_attempts="5">
                 <Fallback>
-                    <Action ID="ActionPlanToLiftEndEffector" lift_distance="0.3" max_linear_speed="2.0" trajectory="{trajectory}"/>
-                    <Delay delay_msec="1000">
+                    <Action ID="ActionPlanToLiftEndEffector" lift_distance="0.28" max_linear_speed="0.55" trajectory="{trajectory}"/>
+                    <Delay delay_msec="100">
                         <AlwaysFailure/>
                     </Delay>
                 </Fallback>
             </RetryUntilSuccessful>
-            <Action ID="ActionCommandArmJointTrajectory" trajectory="{trajectory}"/>
-            <Delay delay_msec="1000">
-                <RetryUntilSuccessful num_attempts="5">
-                    <Fallback>
-                        <Action ID="ActionPlanToJointPosition" joint_positions="[0.1, 0.6, 1.1, 0.1, 0.1, 0.1]" trajectory="{trajectory}"/>
-                        <Delay delay_msec="1000">
-                            <AlwaysFailure/>
-                        </Delay>
-                    </Fallback>
-                </RetryUntilSuccessful>
-            </Delay>
             <Action ID="ActionCommandArmJointTrajectory" trajectory="{trajectory}"/>
         </Sequence>
     </BehaviorTree>

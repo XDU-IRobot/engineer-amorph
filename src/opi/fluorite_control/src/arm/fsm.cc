@@ -60,12 +60,12 @@ void Arm::CalcPidAndExecute() {
   // apply output torque
   const auto kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
   const auto kDesiredPosition = fluorite::controller->trajectory_tracker.current_point().positions;
-  fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 40, 15);
+  fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 70, 30);
   fluorite::actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-                                          0, 0.65 * kCompensateTorques[1], 40, 15);
-  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 40, 15);
-  fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 80, 30);
-  fluorite::actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 80, 30);
+                                          0, 0.65 * kCompensateTorques[1], 70, 30);
+  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
+  fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
+  fluorite::actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 70, 30);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
 }
 
@@ -301,10 +301,10 @@ void BehaviourTreeIdle::react(
     fluorite::controller->ik_calculation_mutex.lock();             // 阻塞等待上一次ik计算完成
     // 尝试逆解，成功的话就把解出来的关节位置送进轨迹跟踪器
     fluorite::state.target_end_effector_pose = e.command.goal_end_effector_pose;
-    const auto [kSolved, kIKResult] =
+    const auto [solved, ik_result] =
         fluorite::controller->moveit_helper.CalculateIK(fluorite::state.target_end_effector_pose);
-    if (kSolved) {
-      fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kIKResult);
+    if (solved) {
+      fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(ik_result);
       fluorite::state.last_ik_success = true;
     } else {
       fluorite::state.last_ik_success = false;
@@ -313,9 +313,8 @@ void BehaviourTreeIdle::react(
     fluorite::controller->ik_calculation_mutex.unlock();  // 计算完毕，解锁
   });
   BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
-  // TODO:
-  // 有可能出现ik计算还没有完成就transit了的情况，这时候上一个轨迹已经执行完毕的话Executing状态会立刻返回到Idle状态。这个逻辑需要想一想怎么处理，暂时不要用ArmEndEffectorCartesianCommand这个接口
-  transit<BehaviourTreeIdle>();
+  // TODO:有可能出现ik计算还没有完成就transit了的情况，这时候上一个轨迹已经执行完毕的话Executing状态会立刻返回到Idle状态。这个逻辑需要想一想怎么处理，暂时不要用ArmEndEffectorCartesianCommand这个接口
+  transit<BehaviourTreeExecuting>();
 }
 void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e) {
   const auto kTargetJointPosition = [&] {
@@ -326,10 +325,12 @@ void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action:
   }();
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kTargetJointPosition);
   BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
+  transit<BehaviourTreeExecuting>();
 }
 void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e) {
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(e.command.trajectory);
   BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
+  transit<BehaviourTreeExecuting>();
 }
 void BehaviourTreeExecuting::react(event::Control const &control) {
   if (fluorite::controller->trajectory_tracker.execution_finished()) {

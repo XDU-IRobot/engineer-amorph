@@ -174,31 +174,32 @@ class MoveitHelper {
     return mgi_;
   }
 
-  bool ReleaseMoveGroupInterface() {
-    if (!mgi_in_use_.exchange(false)) {
-      return false;
-    }
-    return true;
-  }
+  bool ReleaseMoveGroupInterface() { return mgi_in_use_.exchange(false); }
 
   bool IsMoveGroupInterfaceInUse() const { return mgi_in_use_.load(); }
 
   void DrawTrajectory(const moveit_msgs::msg::RobotTrajectory &trajectory) {
-    const auto jmg = mgi_.getRobotModel()->getJointModelGroup(mgi_.getName());
     RCLCPP_INFO(mgi_node_->get_logger(), "Drawing trajectory");
-    mvt_.publishTrajectoryLine(trajectory, jmg);
+    mvt_.deleteAllMarkers();
+    const auto *const jmg = mgi_.getRobotModel()->getJointModelGroup(mgi_.getName());
+    const auto *eff_link_model = jmg->getLinkModel("end_yaw_2_link");
+
+    mvt_.publishTrajectoryLine(trajectory, eff_link_model, jmg);
     mvt_.trigger();
   }
 
   void DrawTrajectory(const trajectory_msgs::msg::JointTrajectory &trajectory) {
-    const auto jmg = mgi_.getRobotModel()->getJointModelGroup(mgi_.getName());
     RCLCPP_INFO(mgi_node_->get_logger(), "Drawing trajectory");
+    mvt_.deleteAllMarkers();
+    const auto *const jmg = mgi_.getRobotModel()->getJointModelGroup(mgi_.getName());
+    const auto *eff_link_model = jmg->getLinkModel("end_yaw_2_link");
+
     const auto traj_msg = [&] {
       moveit_msgs::msg::RobotTrajectory ret;
       ret.joint_trajectory = trajectory;
       return ret;
     }();
-    mvt_.publishTrajectoryLine(traj_msg, jmg);
+    mvt_.publishTrajectoryLine(traj_msg, eff_link_model, jmg);
     mvt_.trigger();
   }
 

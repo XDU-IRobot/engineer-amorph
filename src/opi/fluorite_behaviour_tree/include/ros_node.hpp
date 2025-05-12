@@ -8,6 +8,14 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include "fluorite_msgs/action/arm_end_effector_cartesian_command.hpp"
+#include "fluorite_msgs/action/arm_joint_command.hpp"
+#include "fluorite_msgs/action/arm_trajectory_command.hpp"
+#include "fluorite_msgs/srv/storage_system_command.hpp"
+#include "fluorite_msgs/srv/sucker_command.hpp"
+
+#include "action_client.hpp"
+
 class RosNodeSingleton {
  public:
   static RosNodeSingleton &GetInstance() {
@@ -17,12 +25,24 @@ class RosNodeSingleton {
 
   rclcpp::Node::SharedPtr GetNode() { return node_; }
 
+  ActionClient<fluorite_msgs::action::ArmEndEffectorCartesianCommand> arm_end_effector_cartesian_command_ac_;
+  ActionClient<fluorite_msgs::action::ArmJointCommand> arm_joint_command_ac_;
+  ActionClient<fluorite_msgs::action::ArmTrajectoryCommand> arm_trajectory_command_ac_;
+
  private:
   RosNodeSingleton()
       : node_(rclcpp::Node::make_shared("fluorite_behaviour_tree")),
         executor_(std::make_shared<rclcpp::executors::SingleThreadedExecutor>()) {
     executor_->add_node(node_);
     executor_thread_ = std::thread([&] { executor_->spin(); });
+
+    // create action clients
+    arm_end_effector_cartesian_command_ac_.Create(node_, "fluorite/arm/end_effector_cartesian_command");
+    arm_joint_command_ac_.Create(node_, "fluorite/arm/joint_command");
+    arm_trajectory_command_ac_.Create(node_, "fluorite/arm/trajectory_command");
+    arm_end_effector_cartesian_command_ac_.CheckServerOnline();
+    arm_joint_command_ac_.CheckServerOnline();
+    arm_trajectory_command_ac_.CheckServerOnline();
   }
   ~RosNodeSingleton() {
     executor_->cancel();
