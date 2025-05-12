@@ -92,10 +92,13 @@ struct BehaviourTreeCommand : public tinyfsm::Event {
                     std::is_same_v<T, fluorite_msgs::srv::SuckerCommand::Request>,
                 "BehaviourTreeCommand should only be one of ArmEndEffectorCartesianCommand, ArmJointCommand, "
                 "ArmTrajectoryCommand, StorageSystemCommand and SuckerCommand");
-  BehaviourTreeCommand(T command, std::function<void()> execution_finished_callback)
-      : command{command}, execution_finished_callback{std::move(execution_finished_callback)} {}
+  BehaviourTreeCommand(T command, std::function<void()> execution_finished_callback,
+                       std::function<void()> execution_interrupted_callback)
+      : command{command},
+        execution_finished_callback{std::move(execution_finished_callback)},
+        execution_interrupted_callback(std::move(execution_interrupted_callback)) {}
   T command;
-  std::function<void()> execution_finished_callback;
+  std::function<void()> execution_finished_callback, execution_interrupted_callback;
 };
 struct BehaviorTreeCancelExecution : public tinyfsm::Event {};
 
@@ -207,6 +210,7 @@ class BehaviourTreeExecuting : public Arm {
 
  protected:
   static std::function<void()> execution_finished_callback_;
+  static std::function<void()> execution_interrupted_callback_;
 };
 DeclareState(Retracted, Arm);  ///< 机械臂保持收回
 DeclareState(NoForce, Arm);    ///< 机械臂无力

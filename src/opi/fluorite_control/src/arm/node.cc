@@ -525,12 +525,18 @@ void FluoriteArm::BehaviourTreeInterface() {
   };
   arm_end_effector_cartesian_command_as_.accepted_callback = [this](auto goal_handle) {
     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
-        *goal_handle->get_goal(), [&] {
+        *goal_handle->get_goal(),
+        [&] {
           if (rclcpp::ok()) {
             auto result = std::make_shared<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Result>();
             result->success = true;
             goal_handle->succeed(result);
           }
+        },
+        [&] {
+          auto result = std::make_shared<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Result>();
+          result->success = false;
+          goal_handle->canceled(result);
         }});
   };
   arm_joint_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -542,12 +548,18 @@ void FluoriteArm::BehaviourTreeInterface() {
   };
   arm_joint_command_as_.accepted_callback = [this](auto goal_handle) {
     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
-        *goal_handle->get_goal(), [&] {
+        *goal_handle->get_goal(),
+        [&] {
           if (rclcpp::ok()) {
             auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
             result->success = true;
             goal_handle->succeed(result);
           }
+        },
+        [&] { 
+          auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
+          result->success = false;
+          goal_handle->canceled(result);
         }});
   };
   arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -559,13 +571,19 @@ void FluoriteArm::BehaviourTreeInterface() {
   };
   arm_trajectory_command_as_.accepted_callback = [this](auto goal_handle) {
     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
-        *goal_handle->get_goal(), [&] {
+        *goal_handle->get_goal(),
+        [&] {
           if (rclcpp::ok()) {
             auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
             result->success = true;
             goal_handle->succeed(result);
           }
-        }});
+        },
+        [&] { 
+          auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
+          result->success = false;
+          goal_handle->canceled(result);
+         }});
   };
 
   arm_end_effector_cartesian_command_as_.Create(this, "fluorite/arm/end_effector_cartesian_command");

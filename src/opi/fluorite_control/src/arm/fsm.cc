@@ -119,6 +119,7 @@ void BehaviourTreeIdle::entry() {
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
 }
 std::function<void()> BehaviourTreeExecuting::execution_finished_callback_;
+std::function<void()> BehaviourTreeExecuting::execution_interrupted_callback_;
 void BehaviourTreeExecuting::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
   Arm::EnableActuators(true);
@@ -136,19 +137,19 @@ void NoForce::entry() {
 void Debug::react(event::Control const &control) {
   auto joint_positions = fluorite::controller->trajectory_tracker.current_point();
   if (control.se == kRcSwitchUp) {
-    joint_positions.positions[0] += control.left_y * 0.0017;
+    joint_positions.positions[0] += control.right_y * 0.0017;
   } else if (control.se == kRcSwitchMiddle) {
-    joint_positions.positions[1] += control.left_y * 0.0017;
+    joint_positions.positions[1] += control.right_y * 0.0017;
   } else {
     if (control.sg == kRcSwitchUp) {
-      joint_positions.positions[2] += control.left_y * 0.0017;
+      joint_positions.positions[2] += control.right_y * 0.0017;
     } else if (control.sg == kRcSwitchMiddle) {
-      joint_positions.positions[3] += control.left_y * 0.0017;
+      joint_positions.positions[3] += control.right_y * 0.0017;
     } else {
       if (control.sh == kRcSwitchUp) {
-        joint_positions.positions[4] += control.left_y * 0.0017;
+        joint_positions.positions[4] += control.right_y * 0.0017;
       } else if (control.sh == kRcSwitchDown) {
-        joint_positions.positions[5] += control.left_y * 0.0017;
+        joint_positions.positions[5] += control.right_y * 0.0017;
       }
     }
   }
@@ -381,8 +382,9 @@ void BehaviourTreeIdle::react(
     fluorite::controller->ik_calculation_mutex.unlock();  // 计算完毕，解锁
   });
   BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
+  BehaviourTreeExecuting::execution_interrupted_callback_ = e.execution_interrupted_callback;
   // TODO:有可能出现ik计算还没有完成就transit了的情况，这时候上一个轨迹已经执行完毕的话Executing状态会立刻返回到Idle状态。这个逻辑需要想一想怎么处理，暂时不要用ArmEndEffectorCartesianCommand这个接口
-  transit<BehaviourTreeExecuting>();
+  DispatchEvent(event::SwitchMode<BehaviourTreeExecuting>{});
 }
 void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e) {
   const auto kTargetJointPosition = [&] {
@@ -393,19 +395,21 @@ void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action:
   }();
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kTargetJointPosition);
   BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
-  transit<BehaviourTreeExecuting>();
+  BehaviourTreeExecuting::execution_interrupted_callback_ = e.execution_interrupted_callback;
+  DispatchEvent(event::SwitchMode<BehaviourTreeExecuting>{});
 }
 void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e) {
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(e.command.trajectory);
   BehaviourTreeExecuting::execution_finished_callback_ = e.execution_finished_callback;
-  transit<BehaviourTreeExecuting>();
+  BehaviourTreeExecuting::execution_interrupted_callback_ = e.execution_interrupted_callback;
+  DispatchEvent(event::SwitchMode<BehaviourTreeExecuting>{});
 }
 void BehaviourTreeExecuting::react(event::Control const &control) {
   if (fluorite::controller->trajectory_tracker.execution_finished()) {
     if (execution_finished_callback_) {
       execution_finished_callback_();
     }
-    transit<BehaviourTreeIdle>();
+    DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
   }
   Arm::CalcPidAndExecute();
 
@@ -414,15 +418,24 @@ void BehaviourTreeExecuting::react(event::Control const &control) {
 
   // state transition
   if (control.sd != kRcSwitchUp) {
+    if (execution_interrupted_callback_) {
+      execution_interrupted_callback_();
+    }
     DispatchEvent(event::SwitchMode<NoForce>{});
     return;
   }
   if (control.sf == kRcSwitchUp) {
+    if (execution_interrupted_callback_) {
+      execution_interrupted_callback_();
+    }
     DispatchEvent(event::SwitchMode<Debug>{});
     return;
   }
   switch (control.sc) {
     case kRcSwitchUp: {
+      if (execution_interrupted_callback_) {
+        execution_interrupted_callback_();
+      }
       DispatchEvent(event::SwitchMode<KeyboardManual>{});
       return;
     }
@@ -430,10 +443,16 @@ void BehaviourTreeExecuting::react(event::Control const &control) {
       return;
     }
     case kRcSwitchDown: {
+      if (execution_interrupted_callback_) {
+        execution_interrupted_callback_();
+      }
       DispatchEvent(event::SwitchMode<Retracted>{});
       return;
     }
   }
+}
+void BehaviourTreeExecuting::react(event::BehaviorTreeCancelExecution const &e) {
+  DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
 }
 void Retracted::react(event::Control const &control) {
   const auto kReferenceTraj = [&] {

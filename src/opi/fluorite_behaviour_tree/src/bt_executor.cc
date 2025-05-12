@@ -79,11 +79,17 @@ class BTExecutorNode : public rclcpp::Node {
     bt_nodes::BtNodeRegisterArray::Register(bt_factory_);
 
     // spawn user input subscribers
-    sbus_sub_ = create_subscription<sbus_interface::msg::Sbus>("/sbus", rclcpp::SensorDataQoS(),
-                                                               [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
-                                                                 if (msg->failsafe) {
-                                                                 }
-                                                               });
+    sbus_sub_ = create_subscription<sbus_interface::msg::Sbus>(
+        "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
+          constexpr int kRcSwitchUp = 1;
+          constexpr int kRcSwitchMiddle = 0;
+          constexpr int kRcSwitchDown = -1;
+          if (!msg->failsafe && -msg->mapped_channels[10] == kRcSwitchMiddle) {
+            ready_to_command_ = true;
+          } else {
+            ready_to_command_ = false;
+          }
+        });
     fpv_link_input_sub_ = create_subscription<rm2_referee_msgs::msg::RemoteControl>(
         "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
         [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
@@ -92,7 +98,14 @@ class BTExecutorNode : public rclcpp::Node {
         });
 
     // define keymap
-    hotkeys_.rise_eff.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Rise effect key pressed"); });
+    hotkeys_.rise_eff.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Rise effect key pressed");
+      if (ready_to_command_ && !tree_runner_.have_ongoing_tree()) {
+        tree_runner_.Run(tree_loader_.Load("rise_eff"));
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Not ready to command");
+      }
+    });
     hotkeys_.store_to_left.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to left key pressed"); });
     hotkeys_.store_to_right.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to right key pressed"); });
     hotkeys_.pick_from_left.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Pick from left key pressed"); });
@@ -102,6 +115,7 @@ class BTExecutorNode : public rclcpp::Node {
   }
 
  private:
+  std::atomic<bool> ready_to_command_{false};
   AsyncTreeRunner tree_runner_;
   BT::BehaviorTreeFactory bt_factory_;
   TreeLoader tree_loader_{bt_factory_};
