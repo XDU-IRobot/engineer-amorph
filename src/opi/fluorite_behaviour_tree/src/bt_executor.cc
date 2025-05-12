@@ -23,6 +23,13 @@ class AsyncTreeRunner {
   }
 
   void Run(BT::Tree tree) {
+    if (!stop_flag_) {
+      RCLCPP_WARN(rclcpp::get_logger("bt_executor"), "Tree is already running");
+      return;
+    }
+    if (tick_worker_thread_.joinable()) {
+      tick_worker_thread_.join();
+    }
     stop_flag_ = false;
     tree_ = std::move(tree);
     cout_logger_ = std::make_unique<BT::StdCoutLogger>(tree_);
@@ -59,7 +66,9 @@ class AsyncTreeRunner {
     }
   }
 
-  bool have_ongoing_tree() const { return tick_worker_thread_.joinable(); }
+  bool have_ongoing_tree() {
+    return !stop_flag_;
+  }
 
  private:
   BT::Tree tree_;
@@ -67,7 +76,7 @@ class AsyncTreeRunner {
   std::unique_ptr<BT::PublisherZMQ> zmq_logger_{nullptr};
 
   std::thread tick_worker_thread_;
-  std::atomic<bool> stop_flag_{false};
+  std::atomic<bool> stop_flag_{true};
 };
 
 class BTExecutorNode : public rclcpp::Node {
@@ -94,7 +103,8 @@ class BTExecutorNode : public rclcpp::Node {
         "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
         [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
           hotkeys_.rise_eff.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_R);
-          hotkeys_.store_to_right.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_X);
+          hotkeys_.go_to_left_storage.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Z);
+          hotkeys_.go_to_right_storage.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_X);
         });
 
     // define keymap
@@ -106,10 +116,8 @@ class BTExecutorNode : public rclcpp::Node {
         RCLCPP_WARN(this->get_logger(), "Not ready to command");
       }
     });
-    hotkeys_.store_to_left.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to left key pressed"); });
-    hotkeys_.store_to_right.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to right key pressed"); });
-    hotkeys_.pick_from_left.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Pick from left key pressed"); });
-    hotkeys_.pick_from_right.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Pick from right key pressed"); });
+    hotkeys_.go_to_left_storage.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to left key pressed"); });
+    hotkeys_.go_to_right_storage.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to right key pressed"); });
 
     RCLCPP_INFO(this->get_logger(), "BT executor initialized");
   }
@@ -127,10 +135,8 @@ class BTExecutorNode : public rclcpp::Node {
 
   struct {
     Hotkey rise_eff,      // R
-        store_to_left,    // Z
-        store_to_right,   // X
-        pick_from_left,   // C
-        pick_from_right;  // V
+        go_to_left_storage,    // Z
+        go_to_right_storage;   // X
   } hotkeys_;
 };
 

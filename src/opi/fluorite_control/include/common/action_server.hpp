@@ -33,6 +33,7 @@ class ActionServer {
   HandleGoalCallback goal_callback{nullptr};
   HandleCancelCallback cancel_callback{nullptr};
   HandleAcceptedCallback accepted_callback{nullptr};
+  std::shared_ptr<GoalHandleType> current_goal_handle_{nullptr};
 };
 
 #endif  // COMMON_ACTION_SERVER_HPP

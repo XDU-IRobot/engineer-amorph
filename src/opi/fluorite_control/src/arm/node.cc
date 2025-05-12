@@ -524,19 +524,20 @@ void FluoriteArm::BehaviourTreeInterface() {
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_end_effector_cartesian_command_as_.accepted_callback = [this](auto goal_handle) {
-    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+    arm_end_effector_cartesian_command_as_.current_goal_handle_ = goal_handle;
+     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
         *goal_handle->get_goal(),
         [&] {
           if (rclcpp::ok()) {
             auto result = std::make_shared<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Result>();
             result->success = true;
-            goal_handle->succeed(result);
+            arm_end_effector_cartesian_command_as_.current_goal_handle_->succeed(result);
           }
         },
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Result>();
           result->success = false;
-          goal_handle->succeed(result);
+          arm_end_effector_cartesian_command_as_.current_goal_handle_->canceled(result);
         }});
   };
   arm_joint_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -547,19 +548,20 @@ void FluoriteArm::BehaviourTreeInterface() {
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_joint_command_as_.accepted_callback = [this](auto goal_handle) {
+    arm_joint_command_as_.current_goal_handle_ = goal_handle;
     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
         *goal_handle->get_goal(),
         [&] {
           if (rclcpp::ok()) {
             auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
             result->success = true;
-            goal_handle->succeed(result);
+            arm_joint_command_as_.current_goal_handle_->succeed(result);
           }
         },
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
           result->success = false;
-          goal_handle->succeed(result);
+          arm_joint_command_as_.current_goal_handle_->canceled(result);
         }});
   };
   arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -570,19 +572,20 @@ void FluoriteArm::BehaviourTreeInterface() {
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_trajectory_command_as_.accepted_callback = [this](auto goal_handle) {
+    arm_trajectory_command_as_.current_goal_handle_ = goal_handle;
     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
         *goal_handle->get_goal(),
         [&] {
           if (rclcpp::ok()) {
             auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
             result->success = true;
-            goal_handle->succeed(result);
+            arm_trajectory_command_as_.current_goal_handle_->succeed(result);
           }
         },
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
           result->success = false;
-          goal_handle->succeed(result);
+          arm_trajectory_command_as_.current_goal_handle_->canceled(result);
         }});
   };
 

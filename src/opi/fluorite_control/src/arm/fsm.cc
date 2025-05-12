@@ -170,11 +170,11 @@ void Debug::react(event::Control const &control) {
   }
   switch (control.sc) {
     case kRcSwitchUp: {
-      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
       return;
     }
     case kRcSwitchMiddle: {
-      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
       return;
     }
     case kRcSwitchDown: {
@@ -268,13 +268,11 @@ void KeyboardManual::react(event::Control const &control) {
   }
   switch (control.sc) {
     case kRcSwitchUp: {
-      if (controller->hotkeys.toggle_custom_ctrl.have_pressed()) {
-        DispatchEvent(event::SwitchMode<CustomCtrlManual>{});
-      }
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
       return;
     }
     case kRcSwitchMiddle: {
-      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
       return;
     }
     case kRcSwitchDown: {
@@ -321,12 +319,12 @@ void CustomCtrlManual::react(event::Control const &control) {
   switch (control.sc) {
     case kRcSwitchUp: {
       if (controller->hotkeys.toggle_custom_ctrl.have_pressed()) {
-        DispatchEvent(event::SwitchMode<KeyboardManual>{});
+        DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
       }
       return;
     }
     case kRcSwitchMiddle: {
-      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
       return;
     }
     case kRcSwitchDown: {
@@ -352,10 +350,13 @@ void BehaviourTreeIdle::react(event::Control const &control) {
   }
   switch (control.sc) {
     case kRcSwitchUp: {
-      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      if (controller->hotkeys.toggle_custom_ctrl.have_pressed()) {
+        DispatchEvent(event::SwitchMode<CustomCtrlManual>{});
+      }
       return;
     }
     case kRcSwitchMiddle: {
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
       return;
     }
     case kRcSwitchDown: {
@@ -433,13 +434,19 @@ void BehaviourTreeExecuting::react(event::Control const &control) {
   }
   switch (control.sc) {
     case kRcSwitchUp: {
+      if (controller->hotkeys.toggle_custom_ctrl.have_pressed()) {
+        if (execution_interrupted_callback_) {
+          execution_interrupted_callback_();
+        }
+        DispatchEvent(event::SwitchMode<CustomCtrlManual>{});
+      }
+      return;
+    }
+    case kRcSwitchMiddle: {
       if (execution_interrupted_callback_) {
         execution_interrupted_callback_();
       }
       DispatchEvent(event::SwitchMode<KeyboardManual>{});
-      return;
-    }
-    case kRcSwitchMiddle: {
       return;
     }
     case kRcSwitchDown: {
@@ -452,6 +459,9 @@ void BehaviourTreeExecuting::react(event::Control const &control) {
   }
 }
 void BehaviourTreeExecuting::react(event::BehaviorTreeCancelExecution const &e) {
+  if (execution_interrupted_callback_) {
+    execution_interrupted_callback_();
+  }
   DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
 }
 void Retracted::react(event::Control const &control) {
@@ -479,11 +489,11 @@ void Retracted::react(event::Control const &control) {
   }
   switch (control.sc) {
     case kRcSwitchUp: {
-      DispatchEvent(event::SwitchMode<KeyboardManual>{});
+      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
       return;
     }
     case kRcSwitchMiddle: {
-      DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
+      DispatchEvent(event::SwitchMode<KeyboardManual>{});
       return;
     }
     case kRcSwitchDown: {
