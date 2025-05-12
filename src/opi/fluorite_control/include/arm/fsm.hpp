@@ -198,7 +198,8 @@ DeclareState(CustomCtrlManual, Arm);  ///< 自定义控制器手动控制模式
 class BehaviourTreeIdle : public Arm {
  public:
   void react(event::Control const &control) override;
-  void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e) override;
+  void react(
+      event::BehaviourTreeCommand<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Goal> const &e) override;
   void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmJointCommand::Goal> const &e) override;
   void react(event::BehaviourTreeCommand<fluorite_msgs::action::ArmTrajectoryCommand::Goal> const &e) override;
   void entry() override;
