@@ -45,11 +45,12 @@ class JointSpaceInterpolator {
   }
 
  private:
-  auto StdChronoDurationToRosDuration(const std::chrono::duration<double> &duration) {
+  static builtin_interfaces::msg::Duration StdChronoDurationToRosDuration(
+      const std::chrono::duration<double> &duration) {
     builtin_interfaces::msg::Duration ret;
     ret.sec = static_cast<int32_t>(std::chrono::duration_cast<std::chrono::seconds>(duration).count());
     const auto sec_floored = std::chrono::duration<double>(std::chrono::seconds(ret.sec));
-    ret.nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(duration - sec_floored).count();
+    ret.nanosec = std::chrono::duration_cast<std::chrono::milliseconds>(duration - sec_floored).count() * 1e6;
     return ret;
   }
 

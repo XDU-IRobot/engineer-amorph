@@ -11,6 +11,7 @@ list(APPEND tests
     keyboard
     ik
     joint_space_interpolator
+    trajectory_time_scaling
 )
 
 foreach(test ${tests})

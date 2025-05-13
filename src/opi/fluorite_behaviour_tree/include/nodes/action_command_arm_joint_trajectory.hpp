@@ -90,18 +90,28 @@ class ActionCommandArmJointTrajectory : public BT::StatefulActionNode {
   void onHalted() override {}
 
  private:
+  static std::chrono::duration<double> RosDurationToStdChronoDuration(
+      const builtin_interfaces::msg::Duration& duration) {
+    return std::chrono::seconds(duration.sec) + std::chrono::nanoseconds(duration.nanosec);
+  }
+  static builtin_interfaces::msg::Duration StdChronoDurationToRosDuration(
+      const std::chrono::duration<double>& duration) {
+    builtin_interfaces::msg::Duration ret;
+    ret.sec = static_cast<int32_t>(std::chrono::duration_cast<std::chrono::seconds>(duration).count());
+    const auto sec_floored = std::chrono::duration<double>(std::chrono::seconds(ret.sec));
+    ret.nanosec = std::chrono::duration_cast<std::chrono::milliseconds>(duration - sec_floored).count() * 1e6;
+    return ret;
+  }
   static trajectory_msgs::msg::JointTrajectory TimeScaleTrajectory(const trajectory_msgs::msg::JointTrajectory& traj,
                                                                    double playback_speed) {
     auto scaled = traj;
     playback_speed = std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max());
     const auto time_ratio = 1.0 / playback_speed;
     for (auto& point : scaled.points) {
-      point.time_from_start.sec *= time_ratio;
-      point.time_from_start.nanosec *= time_ratio;
-      while (point.time_from_start.nanosec >= 1e9) {
-        point.time_from_start.sec += 1;
-        point.time_from_start.nanosec -= 1e9;
-      }
+      const auto std_chrono_time_scaled = RosDurationToStdChronoDuration(point.time_from_start) * time_ratio;
+      std::cout << "std_chrono_time_scaled: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(std_chrono_time_scaled).count() << std::endl;
+      point.time_from_start = StdChronoDurationToRosDuration(std_chrono_time_scaled);
     }
     return scaled;
   }
