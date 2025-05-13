@@ -124,25 +124,15 @@ std::function<void()> BehaviourTreeExecuting::execution_interrupted_callback_;
 void BehaviourTreeExecuting::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
   Arm::EnableActuators(true);
-  const auto current_joint_positions = [&] {
-    trajectory_msgs::msg::JointTrajectoryPoint p;
-    p.velocities.resize(6);
-    p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
-                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
-                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
-    return p;
-  }();
   const auto retracted_joint_positions = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions = {0.0, 0.1, 0.1, 0, 0, 0};
     p.velocities = {0, 0, 0, 0, 0, 0};
     return p;
   }();
-  const auto interpolated_trajectory = fluorite::controller->joint_space_interpolator.Interpolate(
-      current_joint_positions, retracted_joint_positions, std::chrono::milliseconds(500),
-      std::chrono::milliseconds(50));
 
-  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(interpolated_trajectory);
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(retracted_joint_positions,
+                                                                     std::chrono::seconds(1));
 }
 void NoForce::entry() {
   Arm::EnableActuators(false);

@@ -5,13 +5,13 @@
         <Sequence>
             <RetryUntilSuccessful num_attempts="5">
                 <Fallback>
-                    <Action ID="ActionPlanToLiftEndEffector" lift_distance="0.3" trajectory="{trajectory}"/>
+                    <Action ID="ActionPlanToLiftEndEffector" lift_distance="0.3" max_linear_speed="1.0" trajectory="{trajectory}"/>
                     <Delay delay_msec="100">
                         <AlwaysFailure/>
                     </Delay>
                 </Fallback>
             </RetryUntilSuccessful>
-            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="{trajectory}"/>
+            <Action ID="ActionCommandArmJointTrajectory" srdf_pose_name="" trajectory="{trajectory}"/>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->

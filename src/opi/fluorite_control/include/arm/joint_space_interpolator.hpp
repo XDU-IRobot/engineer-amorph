@@ -4,6 +4,7 @@
 
 #include <array>
 #include <chrono>
+#include <utility>
 
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
@@ -16,7 +17,7 @@ class JointSpaceInterpolator {
 
  public:
   JointSpaceInterpolator() = delete;
-  explicit JointSpaceInterpolator(const std::vector<std::string> &joint_names) : joint_names_(joint_names) {}
+  explicit JointSpaceInterpolator(std::vector<std::string> joint_names) : joint_names_(std::move(joint_names)) {}
   Trajectory Interpolate(const Point &start, const Point &end, std::chrono::duration<double> duration,
                          std::chrono::duration<double> dt) {
     if (joint_names_.size() != NJoints) {
@@ -44,7 +45,38 @@ class JointSpaceInterpolator {
     return traj;
   }
 
+  void SetTrajectory(const Trajectory &traj) {
+    for (size_t i = 0; i < NJoints; ++i) {
+      std::vector<double> x(traj.points.size());
+      std::vector<double> y(traj.points.size());
+      for (size_t j; j < traj.points.size(); ++j) {
+        x[j] = std::chrono::duration_cast<std::chrono::milliseconds>(
+                   RosDurationToStdChronoDuration(traj.points[j].time_from_start))
+                   .count();
+        y[j] = traj.points[j].positions[i];
+      }
+      interpolators_[i].setData(x, y);
+    }
+  }
+
+  /**
+   * @param time_elapsed duration没有做边界检查，调用时注意
+   */
+  Point operator()(const std::chrono::duration<double> &time_elapsed) {
+    Point ret;
+    ret.time_from_start = StdChronoDurationToRosDuration(time_elapsed);
+    ret.velocities.resize(NJoints);
+    ret.positions.resize(NJoints);
+    for (size_t i = 0; i < NJoints; ++i) {
+      ret.positions[i] = interpolators_[i](std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed).count());
+    }
+    return ret;
+  }
+
  private:
+  std::chrono::duration<double> RosDurationToStdChronoDuration(const builtin_interfaces::msg::Duration &duration) {
+    return std::chrono::seconds(duration.sec) + std::chrono::nanoseconds(duration.nanosec);
+  }
   static builtin_interfaces::msg::Duration StdChronoDurationToRosDuration(
       const std::chrono::duration<double> &duration) {
     builtin_interfaces::msg::Duration ret;

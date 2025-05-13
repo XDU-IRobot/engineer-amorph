@@ -11,7 +11,7 @@
                     </Delay>
                 </Fallback>
             </RetryUntilSuccessful>
-            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.5" trajectory="{trajectory}"/>
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="2.6" trajectory="{trajectory}"/>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->
