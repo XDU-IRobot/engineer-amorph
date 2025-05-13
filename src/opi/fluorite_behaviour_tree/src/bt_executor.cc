@@ -58,10 +58,10 @@ class AsyncTreeRunner {
 
   void Stop(bool join_worker = true) {
     stop_flag_ = true;
+    cout_logger_.reset();
+    zmq_logger_.reset();
+    tree_.haltTree();
     if (tick_worker_thread_.joinable() && join_worker) {
-      cout_logger_.reset();
-      zmq_logger_.reset();
-      tree_.haltTree();
       tick_worker_thread_.join();
     }
   }
@@ -91,7 +91,7 @@ class BTExecutorNode : public rclcpp::Node {
           constexpr int kRcSwitchUp = 1;
           constexpr int kRcSwitchMiddle = 0;
           constexpr int kRcSwitchDown = -1;
-          if (!msg->failsafe && -msg->mapped_channels[10] == kRcSwitchMiddle) {
+          if (!msg->failsafe && -msg->mapped_channels[10] / 1000 == kRcSwitchUp) {
             ready_to_command_ = true;
           } else {
             ready_to_command_ = false;

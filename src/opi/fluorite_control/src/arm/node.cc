@@ -127,7 +127,7 @@ void FluoriteArm::InitializeShit() {
                                            ros_params_manager_.data().pid_end_yaw_2_position[2],
                                            ros_params_manager_.data().pid_end_yaw_2_position[3],
                                            ros_params_manager_.data().pid_end_yaw_2_position[4],
-                                           M_PI),  // end_yaw_2 位置环
+                                           2 * M_PI),  // end_yaw_2 位置环
           },
           // joint limits
           {
@@ -537,7 +537,7 @@ void FluoriteArm::BehaviourTreeInterface() {
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmEndEffectorCartesianCommand::Result>();
           result->success = false;
-          arm_end_effector_cartesian_command_as_.current_goal_handle_->canceled(result);
+          arm_end_effector_cartesian_command_as_.current_goal_handle_->succeed(result);
         }});
   };
   arm_joint_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -561,7 +561,7 @@ void FluoriteArm::BehaviourTreeInterface() {
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmJointCommand::Result>();
           result->success = false;
-          arm_joint_command_as_.current_goal_handle_->canceled(result);
+          arm_joint_command_as_.current_goal_handle_->succeed(result);
         }});
   };
   arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
@@ -585,7 +585,7 @@ void FluoriteArm::BehaviourTreeInterface() {
         [&] {
           auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
           result->success = false;
-          arm_trajectory_command_as_.current_goal_handle_->canceled(result);
+          arm_trajectory_command_as_.current_goal_handle_->succeed(result);
         }});
   };
 

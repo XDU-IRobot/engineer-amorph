@@ -54,29 +54,43 @@ class StorageSystem {
    * @brief 两侧电磁阀不通电，并关闭真空泵
    */
   void Disable() {
-    left_valve_.Write(HIGH);
-    right_valve_.Write(HIGH);
+    left_valve_.Write(LOW);
+    right_valve_.Write(LOW);
     vaccum_pump_.Write(0.0);
   }
 
   /**
    * @param power 真空泵功率，范围[0, 1]
    */
-  void SetPumpPower(double power) { vaccum_pump_.Write(std::abs(power)); }
+  void SetPumpPower() { 
+    if (left_state_ || right_state_) {
+      vaccum_pump_.Write(1.0);
+    } else {
+      vaccum_pump_.Write(0.0);
+    }
+    //vaccum_pump_.Write(std::abs(power)); 
+  }
 
   /**
    * @brief 设置左侧吸盘
    * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
-  void SetLeftValve(bool state) { left_valve_.Write(state); }
+  void SetLeftValve(bool state) {
+    left_valve_.Write(state);
+    left_state_ = state;
+  }
 
   /**
    * @brief 设置右侧吸盘
    * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
-  void SetRightValve(bool state) { right_valve_.Write(!state); }
+  void SetRightValve(bool state) { 
+    right_valve_.Write(state);
+    right_state_ = state;
+  }
 
  private:
+  bool left_state_{false}, right_state_{false};
   OutputPin left_valve_;
   OutputPin right_valve_;
   PwmOutputPin vaccum_pump_;

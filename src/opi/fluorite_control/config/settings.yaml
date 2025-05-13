@@ -33,7 +33,7 @@ fluorite_control_chassis:
     pid_rf_steer_position: [196.0, 0.0, 0.0, 145.0, 0.0]
     pid_lr_steer_position: [196.0, 0.0, 0.0, 145.0, 0.0]
     pid_rr_steer_position: [196.0, 0.0, 0.0, 145.0, 0.0]
-    pid_chassis_orientation_position: [13500.0, 0.0, 0.0, 5000.0, 5000.0]
+    pid_chassis_orientation_position: [34000.0, 0.0, 1400000.0, 7500.0, 7500.0]
 
     # motor settings
     lf_wheel_reverse: false
@@ -80,8 +80,8 @@ fluorite_control_arm:
     pid_pitch_2_speed: [-2.8, 0.0, 0.0, 10.0, 10.0]
     pid_end_yaw_1_speed: [-0.6, 0.0, 0.0, 4.0, 4.0]
     pid_end_pitch_speed: [0.45, 0.0, 0.0, 4.0, 4.0]
-    pid_end_yaw_2_speed: [78.0, 0.0, 0.0, 5000.0, 5000.0]
-    pid_base_yaw_position: [425.0, 0.0, 24000.0, 130.0, 130.0]
+    pid_end_yaw_2_speed: [91.0, 0.0, 0.0, 6500.0, 6500.0]
+    pid_base_yaw_position: [450.0, 0.0, 24000.0, 130.0, 130.0]
     pid_yaw_position: [40.0, 0.0, 230.0, 3.4, 3.4]
     pid_pitch_1_position: [85.0, 0.0, 1.0, 4.0, 4.0]
     pid_pitch_2_position: [30.0, 0.0, 0.0, 4.0, 4.0]
@@ -120,8 +120,8 @@ fluorite_control_arm:
     sucker_out_valve_pin: 11
     sucker_in_valve_pin: 12
     sucker_vaccum_pump_pin: 2 # pwm15_m2
-    storage_left_valve_pin: 14
-    storage_right_valve_pin: 15
+    storage_left_valve_pin: 15
+    storage_right_valve_pin: 14
     storage_vaccum_pump_pin: 16 # pwm1_m2
 
     # input settings

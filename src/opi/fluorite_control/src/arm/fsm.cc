@@ -58,8 +58,8 @@ void Arm::CalcPidAndExecute() {
   const auto kDesiredPosition = fluorite::controller->trajectory_tracker.current_point().positions;
   fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
   fluorite::actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-                                          0, 0.65 * kCompensateTorques[1], 90, 35);
-  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 90, 35);
+                                          0, 0.65 * kCompensateTorques[1], 85, 35);
+  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
   fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
   fluorite::actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 70, 30);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
@@ -609,7 +609,7 @@ void Off::entry() {}
 
 void Manual::react(event::Control const &control) {
   fluorite::actuator->sucker_system.Suck(control.ld);
-  fluorite::actuator->storage_system.SetPumpPower(control.rd);
+  fluorite::actuator->storage_system.SetPumpPower();
   fluorite::actuator->storage_system.SetLeftValve(control.ls > 0);
   fluorite::actuator->storage_system.SetRightValve(control.rs > 0);
   UpdateState();
