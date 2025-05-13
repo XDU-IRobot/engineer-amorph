@@ -6,6 +6,8 @@
 #include <chrono>
 #include <string>
 
+namespace fluorite {
+
 class Device {
   friend class DeviceMonitor;
 
@@ -44,5 +46,7 @@ class DeviceMonitor {
  private:
   std::vector<Device *> devices_;
 };
+
+}  // namespace fluorite
 
 #endif

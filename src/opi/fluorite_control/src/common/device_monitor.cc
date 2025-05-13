@@ -5,6 +5,8 @@
 
 #include "common/logger.hpp"
 
+namespace fluorite {
+
 Device::Device(std::string name, std::chrono::duration<double> offline_timeout)
     : name_{name}, offline_timeout_{offline_timeout} {}
 
@@ -40,3 +42,5 @@ bool DeviceMonitor::all_device_ok() const {
   }
   return true;
 }
+
+}  // namespace fluorite

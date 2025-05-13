@@ -16,6 +16,8 @@
 
 #include "common/logger.hpp"
 
+namespace fluorite {
+
 template <int NJoints>
 class PidTrajectoryTracker {
   using Trajectory = trajectory_msgs::msg::JointTrajectory;
@@ -270,5 +272,7 @@ class PidTrajectoryTracker {
       pids_;                                             ///< outer0, inner0, outer1, inner1, ...
   std::vector<std::pair<double, double>> joint_limits_;  ///< <lower bound, upper bound>
 };
+
+}  // namespace fluorite
 
 #endif

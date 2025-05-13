@@ -11,6 +11,8 @@
 #include <edge_trigger.hpp>
 #include <utility>
 
+namespace fluorite {
+
 class Hotkey {
  public:
   explicit inline Hotkey(std::function<bool()> pred);
@@ -49,5 +51,7 @@ class Hotkey {
 //  private:
 //   std::vector<Hotkey> hotkey_list_{};
 // };
+
+}  // namespace fluorite
 
 #endif  // KEYPRESS_HANDLER_HPP

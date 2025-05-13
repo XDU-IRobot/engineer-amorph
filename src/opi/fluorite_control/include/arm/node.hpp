@@ -32,6 +32,8 @@
 #include "common/ros_params_manager.hpp"
 #include "common/action_server.hpp"
 
+namespace fluorite {
+
 /**
  * @brief    控制节点
  */
@@ -129,5 +131,7 @@ class FluoriteArm final : public rclcpp::Node {
   ActionServer<fluorite_msgs::action::ArmTrajectoryCommand> arm_trajectory_command_as_;
   /** </behaviour tree interface> **/
 };
+
+}  // namespace fluorite
 
 #endif

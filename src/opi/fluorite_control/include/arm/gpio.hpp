@@ -8,6 +8,8 @@
 
 #include <wiringPi.h>
 
+namespace fluorite {
+
 class OutputPin {
  public:
   explicit OutputPin(int pin_num) : pin_num_{pin_num} { pinMode(pin_num, OUTPUT); }
@@ -61,6 +63,8 @@ auto Pin(int pin_num) {
     return PwmOutputPin{pin_num};
   }
 }
+
+}  // namespace fluorite
 
 #else
 

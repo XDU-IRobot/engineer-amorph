@@ -11,6 +11,8 @@
 
 #include "common/logger.hpp"
 
+namespace fluorite {
+
 constexpr int kRcSwitchUp = 1;
 constexpr int kRcSwitchMiddle = 0;
 constexpr int kRcSwitchDown = -1;
@@ -104,5 +106,6 @@ void NoForce::react(const event::chassis::Control &control) {
 }
 }  // namespace chassis
 }  // namespace state
+}  // namespace fluorite
 
-FSM_INITIAL_STATE(fsm::Chassis, state::chassis::NoForce)
+FSM_INITIAL_STATE(fluorite::fsm::Chassis, fluorite::state::chassis::NoForce)

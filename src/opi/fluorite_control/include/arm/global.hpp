@@ -20,6 +20,7 @@
 #include "arm/pneumatic.hpp"
 #include "arm/dynamics.hpp"
 #include "arm/pid_trajectory_tracker.hpp"
+#include "arm/joint_space_interpolator.hpp"
 #include "arm/moveit_helper.hpp"
 #include "common/logger.hpp"
 
@@ -81,6 +82,8 @@ struct Controller {
   std::mutex ik_calculation_mutex;
   rm::core::ThreadPool ik_calculation_thread_pool_{1};
 
+  JointSpaceInterpolator<6> joint_space_interpolator{
+      {"yaw_joint", "pitch_1_joint", "pitch_2_joint", "end_yaw_1_joint", "end_pitch_joint", "end_yaw_2_joint"}};
   struct {
     Hotkey toggle_custom_ctrl;
   } hotkeys;

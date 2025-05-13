@@ -18,6 +18,8 @@
 #include "librm/device/actuator/directdrive_motor.hpp"
 #include "librm/modules/algorithm/utils.hpp"
 
+namespace fluorite {
+
 using namespace std::chrono_literals;
 using namespace rm;
 using namespace rm::modules::algorithm::utils;
@@ -314,9 +316,11 @@ void FluoriteChassis::UpdateFsmState() {
 
 void FluoriteChassis::ParamHotUpdate() {}
 
+}  // namespace fluorite
+
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<FluoriteChassis>());
+  rclcpp::spin(std::make_shared<fluorite::FluoriteChassis>());
   rclcpp::shutdown();
   return 0;
 }

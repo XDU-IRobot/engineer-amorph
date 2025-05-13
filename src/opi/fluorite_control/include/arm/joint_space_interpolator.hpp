@@ -5,12 +5,10 @@
 #include <array>
 #include <chrono>
 
-#include <builtin_interfaces/msg/duration.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 #include <libInterpolate/Interpolate.hpp>
 
-// TODO: WIPWIPWIPWIP!!!DONT USE
 template <size_t NJoints>
 class JointSpaceInterpolator {
   using Trajectory = trajectory_msgs::msg::JointTrajectory;
@@ -18,23 +16,30 @@ class JointSpaceInterpolator {
 
  public:
   JointSpaceInterpolator() = delete;
-  explicit JointSpaceInterpolator(const std::array<std::string, NJoints> &joint_names) : joint_names_(joint_names) {}
+  explicit JointSpaceInterpolator(const std::vector<std::string> &joint_names) : joint_names_(joint_names) {}
   Trajectory Interpolate(const Point &start, const Point &end, std::chrono::duration<double> duration,
                          std::chrono::duration<double> dt) {
+    if (joint_names_.size() != NJoints) {
+      throw std::invalid_argument("Joint names size mismatch!");
+    }
     Trajectory traj;
     const size_t num_points =
         static_cast<size_t>(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() /
                             std::chrono::duration_cast<std::chrono::milliseconds>(dt).count());
     traj.points.resize(num_points);
     traj.joint_names = joint_names_;
+    for (size_t i = 0; i < NJoints; ++i) {
+      const std::vector x = {0.0, static_cast<double>(num_points - 1)};
+      const std::vector y = {start.positions[i], end.positions[i]};
+      interpolators_[i].setData(x, y);
+    }
     for (size_t i = 0; i < num_points; ++i) {
-      for (size_t j = 0; j < NJoints; ++j) {
-        const std::vector x = {0.0, static_cast<double>(num_points - 1)};
-        const std::vector y = {start.positions[j], end.positions[j]};
-        interpolators_[j].setData(x, y);
-      }
-      traj.points[i].positions.resize(NJoints);
       traj.points[i].velocities.resize(NJoints);
+      traj.points[i].positions.resize(NJoints);
+      traj.points[i].time_from_start = StdChronoDurationToRosDuration(dt * i);
+      for (size_t j = 0; j < NJoints; ++j) {
+        traj.points[i].positions[j] = interpolators_[j](i);
+      }
     }
     return traj;
   }
@@ -43,12 +48,12 @@ class JointSpaceInterpolator {
   auto StdChronoDurationToRosDuration(const std::chrono::duration<double> &duration) {
     builtin_interfaces::msg::Duration ret;
     ret.sec = static_cast<int32_t>(std::chrono::duration_cast<std::chrono::seconds>(duration).count());
-    ret.nanosec = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count() -
-                                        std::chrono::duration_cast<std::chrono::seconds>(duration).count() * 1e9);
+    const auto sec_floored = std::chrono::duration<double>(std::chrono::seconds(ret.sec));
+    ret.nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(duration - sec_floored).count();
     return ret;
   }
 
-  std::array<std::string, NJoints> joint_names_;
+  std::vector<std::string> joint_names_;
   std::array<_1D::CubicSplineInterpolator<double>, NJoints> interpolators_;
 };
 

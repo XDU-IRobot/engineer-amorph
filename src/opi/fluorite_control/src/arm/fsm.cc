@@ -5,6 +5,7 @@
 
 #include "arm/fsm.hpp"
 
+#include <chrono>
 #include <iostream>
 #include <unordered_map>
 
@@ -123,7 +124,25 @@ std::function<void()> BehaviourTreeExecuting::execution_interrupted_callback_;
 void BehaviourTreeExecuting::entry() { Arm::EnableActuators(true); }
 void Retracted::entry() {
   Arm::EnableActuators(true);
-  fluorite::controller->trajectory_tracker.ClearPid();
+  const auto current_joint_positions = [&] {
+    trajectory_msgs::msg::JointTrajectoryPoint p;
+    p.velocities.resize(6);
+    p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
+                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
+    return p;
+  }();
+  const auto retracted_joint_positions = [&] {
+    trajectory_msgs::msg::JointTrajectoryPoint p;
+    p.positions = {0.0, 0.1, 0.1, 0, 0, 0};
+    p.velocities = {0, 0, 0, 0, 0, 0};
+    return p;
+  }();
+  const auto interpolated_trajectory = fluorite::controller->joint_space_interpolator.Interpolate(
+      current_joint_positions, retracted_joint_positions, std::chrono::milliseconds(500),
+      std::chrono::milliseconds(50));
+
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(interpolated_trajectory);
 }
 void NoForce::entry() {
   Arm::EnableActuators(false);
@@ -465,14 +484,6 @@ void BehaviourTreeExecuting::react(event::BehaviorTreeCancelExecution const &e) 
   DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
 }
 void Retracted::react(event::Control const &control) {
-  const auto kReferenceTraj = [&] {
-    trajectory_msgs::msg::JointTrajectoryPoint p;
-    p.positions = {0.0, 0.1, 0.1, 0, 0, 0};
-    p.velocities = {0, 0, 0, 0, 0, 0};
-    return p;
-  }();
-
-  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kReferenceTraj);
   Arm::CalcPidAndExecute();
 
   // update hotkey

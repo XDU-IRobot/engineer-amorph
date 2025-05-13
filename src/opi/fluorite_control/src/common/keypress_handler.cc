@@ -3,6 +3,8 @@
 
 #include "common/keypress_handler.hpp"
 
+namespace fluorite {
+
 Hotkey::Hotkey(std::function<bool()> pred) : pred_(std::move(pred)) {
   // edge_trigger_.on_rising([]{std::cout << "rising!" << std::endl;}).on_rising([this] { have_pressed_.store(true); });
 }
@@ -55,3 +57,5 @@ Hotkey &Hotkey::OnIdle(std::function<void()> cb) {
 }
 
 bool Hotkey::have_pressed(bool reset) { return reset ? have_pressed_.exchange(false) : have_pressed_.load(); }
+
+}  // namespace fluorite

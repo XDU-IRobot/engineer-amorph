@@ -16,6 +16,8 @@
 #include "common/device_monitor.hpp"
 #include "common/ros_params_manager.hpp"
 
+namespace fluorite {
+
 /**
  * @brief    控制节点
  */
@@ -88,5 +90,7 @@ class FluoriteChassis final : public rclcpp::Node {
   event::chassis::Control control_msg_;
   /** </control loop> **/
 };
+
+}  // namespace fluorite
 
 #endif

@@ -20,6 +20,8 @@
 #include "arm/fsm.hpp"
 #include "common/logger.hpp"
 
+namespace fluorite {
+
 using namespace std::chrono_literals;
 
 FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("fluorite_control_arm", options) {
@@ -603,9 +605,11 @@ void FluoriteArm::BehaviourTreeInterface() {
   arm_trajectory_command_as_.Create(this, "fluorite/arm/trajectory_command");
 }
 
+}  // namespace fluorite
+
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<FluoriteArm>());
+  rclcpp::spin(std::make_shared<fluorite::FluoriteArm>());
   rclcpp::shutdown();
   return 0;
 }

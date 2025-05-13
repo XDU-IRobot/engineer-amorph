@@ -10,6 +10,7 @@ list(APPEND tests
     end_effector_pose
     keyboard
     ik
+    joint_space_interpolator
 )
 
 foreach(test ${tests})

@@ -9,6 +9,8 @@
 
 #include "common/logger.hpp"
 
+namespace fluorite {
+
 constexpr int OUTPUT = 0;
 constexpr int PWM_OUTPUT = 1;
 constexpr int LOW = 0;
@@ -55,5 +57,7 @@ auto Pin(int pin_num) {
     return PwmOutputPin{pin_num};
   }
 }
+
+}  // namespace fluorite
 
 #endif

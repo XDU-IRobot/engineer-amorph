@@ -25,6 +25,8 @@
 #include "common/keypress_handler.hpp"
 #include "common/logger.hpp"
 
+namespace fluorite {
+
 namespace event {
 namespace chassis {
 template <typename T>
@@ -158,5 +160,6 @@ class NoForce : public fsm::Chassis {
 };
 }  // namespace chassis
 }  // namespace state
+}  // namespace fluorite
 
 #endif

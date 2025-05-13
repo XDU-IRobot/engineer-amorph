@@ -4,6 +4,8 @@
 
 #include "arm/gpio.hpp"
 
+namespace fluorite {
+
 /**
  * @brief 机械臂末端吸盘
  */
@@ -95,5 +97,7 @@ class StorageSystem {
   OutputPin right_valve_;
   PwmOutputPin vaccum_pump_;
 };
+
+}  // namespace fluorite
 
 #endif
