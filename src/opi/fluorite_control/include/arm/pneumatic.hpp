@@ -62,13 +62,13 @@ class StorageSystem {
   /**
    * @param power 真空泵功率，范围[0, 1]
    */
-  void SetPumpPower() { 
+  void SetPumpPower() {
     if (left_state_ || right_state_) {
       vaccum_pump_.Write(1.0);
     } else {
       vaccum_pump_.Write(0.0);
     }
-    //vaccum_pump_.Write(std::abs(power)); 
+    // vaccum_pump_.Write(std::abs(power));
   }
 
   /**
@@ -84,7 +84,7 @@ class StorageSystem {
    * @brief 设置右侧吸盘
    * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
-  void SetRightValve(bool state) { 
+  void SetRightValve(bool state) {
     right_valve_.Write(state);
     right_state_ = state;
   }
