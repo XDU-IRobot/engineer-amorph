@@ -11,7 +11,7 @@
                     </Delay>
                 </Fallback>
             </RetryUntilSuccessful>
-            <Action ID="ActionCommandArmJointTrajectory" srdf_pose_name="" trajectory="{trajectory}"/>
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.5" trajectory="{trajectory}"/>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->

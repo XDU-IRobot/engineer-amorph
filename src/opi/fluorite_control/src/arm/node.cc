@@ -571,7 +571,7 @@ void FluoriteArm::BehaviourTreeInterface() {
     } else {
       auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
       result->success = false;
-      arm_trajectory_command_as_.current_goal_handle_->abort(result);
+      arm_trajectory_command_as_.current_goal_handle_->succeed(result);
       ret = rclcpp_action::GoalResponse::REJECT;
     }
     return ret;
