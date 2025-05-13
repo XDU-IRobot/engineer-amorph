@@ -565,7 +565,16 @@ void FluoriteArm::BehaviourTreeInterface() {
         }});
   };
   arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
-    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    rclcpp_action::GoalResponse ret;
+    if (fluorite::fsm::Arm::is_in_state<fluorite::fsm::state::arm::BehaviourTreeIdle>()) {
+      ret = rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    } else {
+      auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
+      result->success = false;
+      arm_trajectory_command_as_.current_goal_handle_->abort(result);
+      ret = rclcpp_action::GoalResponse::REJECT;
+    }
+    return ret;
   };
   arm_trajectory_command_as_.cancel_callback = [this](auto goal_handle) {
     fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviorTreeCancelExecution{});

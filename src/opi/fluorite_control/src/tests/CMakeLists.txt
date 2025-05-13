@@ -5,6 +5,7 @@ if (${BUILD_TESTS})
 
 list(APPEND tests
     do_tinyfsm_has_object
+    is_tinyfsm_statically_stateful
     # trajectory_tracker
     end_effector_pose
     keyboard

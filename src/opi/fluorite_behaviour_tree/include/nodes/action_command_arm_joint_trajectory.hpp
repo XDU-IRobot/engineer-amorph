@@ -46,36 +46,41 @@ class ActionCommandArmJointTrajectory : public BT::StatefulActionNode {
         action_goal,
         [this](const typename ActionClient<fluorite_msgs::action::ArmTrajectoryCommand>::GoalHandleType::SharedPtr
                    goal_handle) {
-          // server那边无条件accept，不用处理被拒绝的逻辑
-          RCLCPP_INFO(bt_node_->get_logger(), "Goal accepted");
+          if (!goal_handle) {
+            execution_result_ = rclcpp_action::ResultCode::ABORTED;
+          } else {
+            execution_result_ = rclcpp_action::ResultCode::UNKNOWN;
+          }
         },
         [this](const typename ActionClient<fluorite_msgs::action::ArmTrajectoryCommand>::GoalHandleType::SharedPtr&
                    goal_handle,
                const std::shared_ptr<const fluorite_msgs::action::ArmTrajectoryCommand::Feedback> feedback) {
-          RCLCPP_INFO(bt_node_->get_logger(), "Feedback received");
+          // no feedback
         },
         [this](const typename ActionClient<fluorite_msgs::action::ArmTrajectoryCommand>::GoalHandleType::WrappedResult&
-                   result) {
-          if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
-            RCLCPP_INFO(bt_node_->get_logger(), "Action succeeded");
-          } else {
-            RCLCPP_ERROR(bt_node_->get_logger(), "Action failed");
-          }
-          execution_finished_ = true;
-        });
+                   result) { execution_result_ = result.code; });
     return BT::NodeStatus::RUNNING;
   }
   BT::NodeStatus onRunning() override {
-    if (!execution_finished_) {
-      return BT::NodeStatus::RUNNING;
+    switch (execution_result_.load()) {
+      case rclcpp_action::ResultCode::UNKNOWN: {
+        return BT::NodeStatus::RUNNING;
+      }
+      case rclcpp_action::ResultCode::SUCCEEDED: {
+        return BT::NodeStatus::SUCCESS;
+      }
+      case rclcpp_action::ResultCode::CANCELED:
+      case rclcpp_action::ResultCode::ABORTED: {
+        return BT::NodeStatus::FAILURE;
+      }
     }
-    execution_finished_ = false;
-    return BT::NodeStatus::SUCCESS;
+    return BT::NodeStatus::FAILURE;  // just to suppress compiler warning, should never reach here
   }
+
   void onHalted() override {}
 
  private:
-  std::atomic<bool> execution_finished_{false};
+  std::atomic<rclcpp_action::ResultCode> execution_result_{rclcpp_action::ResultCode::UNKNOWN};
   rclcpp::Node::SharedPtr bt_node_;
 };
 
