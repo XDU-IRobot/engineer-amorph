@@ -9,6 +9,7 @@
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 #include <libInterpolate/Interpolate.hpp>
+#include "common/debug_helpers.hpp"
 
 template <size_t NJoints>
 class JointSpaceInterpolator {
@@ -17,12 +18,13 @@ class JointSpaceInterpolator {
 
  public:
   JointSpaceInterpolator() = delete;
-  explicit JointSpaceInterpolator(std::vector<std::string> joint_names) : joint_names_(std::move(joint_names)) {}
+  explicit JointSpaceInterpolator(std::vector<std::string> joint_names) : joint_names_(std::move(joint_names)) {
+    // if (joint_names.size() != NJoints) {
+    //   throw std::invalid_argument("Joint names size mismatch!");
+    // }
+  }
   Trajectory Interpolate(const Point &start, const Point &end, std::chrono::duration<double> duration,
                          std::chrono::duration<double> dt) {
-    if (joint_names_.size() != NJoints) {
-      throw std::invalid_argument("Joint names size mismatch!");
-    }
     Trajectory traj;
     const size_t num_points =
         static_cast<size_t>(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() /
@@ -46,13 +48,15 @@ class JointSpaceInterpolator {
   }
 
   void SetTrajectory(const Trajectory &traj) {
+    std::vector<double> x(traj.points.size());
+    std::vector<double> y(traj.points.size());
+    for (size_t i = 0; i < traj.points.size(); ++i) {
+      x[i] = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 RosDurationToStdChronoDuration(traj.points[i].time_from_start))
+                 .count();
+    }
     for (size_t i = 0; i < NJoints; ++i) {
-      std::vector<double> x(traj.points.size());
-      std::vector<double> y(traj.points.size());
-      for (size_t j; j < traj.points.size(); ++j) {
-        x[j] = std::chrono::duration_cast<std::chrono::milliseconds>(
-                   RosDurationToStdChronoDuration(traj.points[j].time_from_start))
-                   .count();
+      for (size_t j = 0; j < traj.points.size(); ++j) {
         y[j] = traj.points[j].positions[i];
       }
       interpolators_[i].setData(x, y);
@@ -60,15 +64,16 @@ class JointSpaceInterpolator {
   }
 
   /**
-   * @param time_elapsed duration没有做边界检查，调用时注意
+   * @param time_elapsed duration没有做边界检查，调用时注意不要超出轨迹范围
    */
   Point operator()(const std::chrono::duration<double> &time_elapsed) {
     Point ret;
     ret.time_from_start = StdChronoDurationToRosDuration(time_elapsed);
     ret.velocities.resize(NJoints);
     ret.positions.resize(NJoints);
+    const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed).count();
     for (size_t i = 0; i < NJoints; ++i) {
-      ret.positions[i] = interpolators_[i](std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed).count());
+      ret.positions[i] = interpolators_[i](elapsed_ms);
     }
     return ret;
   }

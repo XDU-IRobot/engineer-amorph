@@ -112,7 +112,32 @@ class PidTrajectoryTracker {
    * @brief 更新一条只有一个点的参考轨迹
    * @param point 参考目标点
    */
-  void SwitchReferenceTrajectory(const Point &point, std::chrono::duration<double> duration = std::chrono::seconds(0)) {
+  void SwitchReferenceTrajectory(const Point &point) {
+    // corner case: 关节数量和对象创建时的给定数量不一致
+    if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
+      warn("trajectory tracker: joint number mismatch, rejecting!");
+      return;
+    }
+    {
+      std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
+      current_trajectory_ = std::vector{point};
+      // 限制关节位置
+      for (size_t i = 0; i < NJoints; ++i) {
+        current_trajectory_[0].positions[i] =
+            std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);
+      }
+      traj_start_time_ = std::chrono::steady_clock::now();
+    }
+    ResetReferenceTrajectory();
+  }
+
+  /**
+   * @brief 从当前位置样条插值到一个目标点
+   * @param point 参考目标点
+   * @param duration 用多少时间到达这个点
+   */
+  void SwitchReferenceTrajectory(const Point &point, std::chrono::duration<double> duration,
+                                 std::chrono::duration<double> dt = std::chrono::milliseconds(50)) {
     // corner case: 关节数量和对象创建时的给定数量不一致
     if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
       warn("trajectory tracker: joint number mismatch, rejecting!");
@@ -126,12 +151,12 @@ class PidTrajectoryTracker {
     {
       std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
 
-      if (std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() > 1e-1) {
+      if (std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() > 0.1) {
         const Trajectory interpolated_trajectory =
-            joint_space_interpolator_.Interpolate(current_point(), point, duration, std::chrono::milliseconds(50));
+            joint_space_interpolator_.Interpolate(current_point(), point, duration, dt);
         current_trajectory_ = interpolated_trajectory.points;
       } else {
-        current_trajectory_ = {point};
+        current_trajectory_ = {point};  // 如果duration太小，就不插值了，直接用这个点
       }
 
       // 限制关节位置
@@ -194,7 +219,6 @@ class PidTrajectoryTracker {
    */
   void Update(std::array<double, NJoints> current_joint_positions,
               std::array<double, NJoints> current_joint_velocities) {
-    Update();
     // corner case: 对象刚刚创建，没有轨迹，把输入的当前位置作为目标位置
     if (current_trajectory_.empty()) {
       Point point;
@@ -206,6 +230,7 @@ class PidTrajectoryTracker {
       SwitchReferenceTrajectory(point);
       warn("trajectory tracker: no reference trajectory, using current position as reference.");
     }
+    Update();
 
     // 以当前点为参考计算每个关节的PID
     for (size_t i = 0; i < NJoints; ++i) {
@@ -272,8 +297,6 @@ class PidTrajectoryTracker {
     const auto time_ratio = 1.0 / playback_speed;
     for (auto &point : scaled.points) {
       const auto std_chrono_time_scaled = RosDurationToStdChronoDuration(point.time_from_start) * time_ratio;
-      std::cout << "std_chrono_time_scaled: "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(std_chrono_time_scaled).count() << std::endl;
       point.time_from_start = StdChronoDurationToRosDuration(std_chrono_time_scaled);
     }
     return scaled;
