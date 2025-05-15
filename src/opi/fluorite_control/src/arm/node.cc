@@ -19,6 +19,7 @@
 
 #include "arm/fsm.hpp"
 #include "common/logger.hpp"
+#include "common/debug_helpers.hpp"
 
 namespace fluorite {
 
@@ -568,12 +569,43 @@ void FluoriteArm::BehaviourTreeInterface() {
   };
   arm_trajectory_command_as_.goal_callback = [this](auto uuid, auto goal) {
     rclcpp_action::GoalResponse ret;
+    info("RECEIVED TRAJECTORY:");
+    Print(goal->trajectory);
     if (fluorite::fsm::Arm::is_in_state<fluorite::fsm::state::arm::BehaviourTreeIdle>()) {
+      const std::vector current_joint_positions = {
+          fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,   fluorite::state.pitch_2_encoder,
+          fluorite::state.end_yaw_1_encoder, fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
+      for (size_t i = 0; i < 6; ++i) {
+        // 如果轨迹出现瞬移（第一个点和当前状态有任何一个关节差距大于25度）的情况，就拒绝执行
+        if (std::abs(current_joint_positions[i] - goal->trajectory.points[0].positions[i]) >
+            25.0 / 360.0 * 2.0 * M_PI) {
+          auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
+          result->success = false;
+          // arm_trajectory_command_as_.current_goal_handle_->succeed(result);
+          ret = rclcpp_action::GoalResponse::REJECT;
+          warn("NO TELEPORTING");
+          break;
+        }
+      }
       ret = rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+      fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+          *goal,
+          [&] {
+            if (rclcpp::ok()) {
+              auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
+              result->success = true;
+              arm_trajectory_command_as_.current_goal_handle_->succeed(result);
+            }
+          },
+          [&] {
+            auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
+            result->success = false;
+            arm_trajectory_command_as_.current_goal_handle_->succeed(result);
+          }});
     } else {
       auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
       result->success = false;
-      arm_trajectory_command_as_.current_goal_handle_->succeed(result);
+      // arm_trajectory_command_as_.current_goal_handle_->succeed(result);
       ret = rclcpp_action::GoalResponse::REJECT;
     }
     return ret;
@@ -584,20 +616,6 @@ void FluoriteArm::BehaviourTreeInterface() {
   };
   arm_trajectory_command_as_.accepted_callback = [this](auto goal_handle) {
     arm_trajectory_command_as_.current_goal_handle_ = goal_handle;
-    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
-        *goal_handle->get_goal(),
-        [&] {
-          if (rclcpp::ok()) {
-            auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
-            result->success = true;
-            arm_trajectory_command_as_.current_goal_handle_->succeed(result);
-          }
-        },
-        [&] {
-          auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
-          result->success = false;
-          arm_trajectory_command_as_.current_goal_handle_->succeed(result);
-        }});
   };
 
   arm_end_effector_cartesian_command_as_.Create(this, "fluorite/arm/end_effector_cartesian_command");

@@ -109,8 +109,6 @@ class ActionCommandArmJointTrajectory : public BT::StatefulActionNode {
     const auto time_ratio = 1.0 / playback_speed;
     for (auto& point : scaled.points) {
       const auto std_chrono_time_scaled = RosDurationToStdChronoDuration(point.time_from_start) * time_ratio;
-      std::cout << "std_chrono_time_scaled: "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(std_chrono_time_scaled).count() << std::endl;
       point.time_from_start = StdChronoDurationToRosDuration(std_chrono_time_scaled);
     }
     return scaled;

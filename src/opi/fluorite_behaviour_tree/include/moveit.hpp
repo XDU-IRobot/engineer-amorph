@@ -184,8 +184,8 @@ class MoveitHelper {
     const auto *const jmg = mgi_.getRobotModel()->getJointModelGroup(mgi_.getName());
     const auto *eff_link_model = jmg->getLinkModel("end_yaw_2_link");
 
-    // mvt_.publishTrajectoryLine(trajectory, eff_link_model, jmg);
-    // mvt_.trigger();
+    mvt_.publishTrajectoryLine(trajectory, eff_link_model, jmg);
+    mvt_.trigger();
   }
 
   void DrawTrajectory(const trajectory_msgs::msg::JointTrajectory &trajectory) {
@@ -199,8 +199,8 @@ class MoveitHelper {
       ret.joint_trajectory = trajectory;
       return ret;
     }();
-    // mvt_.publishTrajectoryLine(traj_msg, eff_link_model, jmg);
-    // mvt_.trigger();
+    mvt_.publishTrajectoryLine(traj_msg, eff_link_model, jmg);
+    mvt_.trigger();
   }
 
  private:

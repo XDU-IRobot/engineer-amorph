@@ -57,11 +57,16 @@ void Arm::CalcPidAndExecute() {
   // apply output torque
   const auto kOutputTorque = fluorite::controller->trajectory_tracker.output_torque();
   const auto kDesiredPosition = fluorite::controller->trajectory_tracker.current_point().positions;
-  fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
+  // fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
+  // fluorite::actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
+  //                                         0, 0.65 * kCompensateTorques[1], 85, 35);
+  // fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
+  // fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
+  fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 15, 18);
   fluorite::actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-                                          0, 0.65 * kCompensateTorques[1], 85, 35);
-  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
-  fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
+                                          0, 0.65 * kCompensateTorques[1], 12, 15);
+  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 9, 13);
+  fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 10, 20);
   fluorite::actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 70, 30);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
 }
@@ -109,7 +114,30 @@ void CustomCtrlManual::entry() {
 }
 void BehaviourTreeIdle::entry() {
   Arm::EnableActuators(true);
-  const auto kCurrentJointPositions = [&] {
+  const std::array<double, 6> kCurrentPosition = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
+                                                  fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                                                  fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
+  const std::array<double, 6> kCurrentSpeed = {
+      fluorite::state.yaw_encoder_speed,       fluorite::state.pitch_1_encoder_speed,
+      fluorite::state.pitch_2_encoder_speed,   fluorite::state.end_yaw_1_encoder_speed,
+      fluorite::state.end_pitch_encoder_speed, fluorite::state.end_yaw_2_encoder_speed};
+
+  fluorite::controller->trajectory_tracker.Update(kCurrentPosition, kCurrentSpeed);
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory([&] {
+    trajectory_msgs::msg::JointTrajectoryPoint p;
+    p.velocities.resize(6);
+    p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
+                   fluorite::state.pitch_2_encoder,   fluorite::state.end_yaw_1_encoder,
+                   fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
+    return p;
+  }());
+}
+std::function<void()> BehaviourTreeExecuting::execution_finished_callback_;
+std::function<void()> BehaviourTreeExecuting::execution_interrupted_callback_;
+void BehaviourTreeExecuting::entry() { Arm::EnableActuators(true); }
+void Retracted::entry() {
+  Arm::EnableActuators(true);
+  const auto current_joint_positions = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.velocities.resize(6);
     p.positions = {fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,
@@ -117,22 +145,17 @@ void BehaviourTreeIdle::entry() {
                    fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
     return p;
   }();
-  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(kCurrentJointPositions);
-}
-std::function<void()> BehaviourTreeExecuting::execution_finished_callback_;
-std::function<void()> BehaviourTreeExecuting::execution_interrupted_callback_;
-void BehaviourTreeExecuting::entry() { Arm::EnableActuators(true); }
-void Retracted::entry() {
-  Arm::EnableActuators(true);
   const auto retracted_joint_positions = [&] {
     trajectory_msgs::msg::JointTrajectoryPoint p;
     p.positions = {0.0, 0.1, 0.1, 0, 0, 0};
     p.velocities = {0, 0, 0, 0, 0, 0};
     return p;
   }();
+  const auto interpolated_trajectory = fluorite::controller->joint_space_interpolator.Interpolate(
+      current_joint_positions, retracted_joint_positions, std::chrono::milliseconds(1000),
+      std::chrono::milliseconds(50));
 
-  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(retracted_joint_positions,
-                                                                     std::chrono::seconds(1));
+  fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(interpolated_trajectory, 1.0, true);
 }
 void NoForce::entry() {
   Arm::EnableActuators(false);

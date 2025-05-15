@@ -3,7 +3,16 @@
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
         <Sequence>
-            <RetryUntilSuccessful num_attempts="5">
+            <RetryUntilSuccessful num_attempts="10">
+                <Fallback>
+                    <Action ID="ActionPlanToJointPosition" joint_positions="[-2.81,1.162,1.856,-0.014,-1.596,0.0]" trajectory="{trajectory}"/>
+                    <Delay delay_msec="100">
+                        <AlwaysFailure/>
+                    </Delay>
+                </Fallback>
+            </RetryUntilSuccessful>
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="2.5" trajectory="{trajectory}"/>
+            <RetryUntilSuccessful num_attempts="10">
                 <Fallback>
                     <Action ID="ActionPlanToJointPosition" joint_positions="[-2.75,1.74,1.9,0.015,-1.743,-0.104]" trajectory="{trajectory}"/>
                     <Delay delay_msec="100">
@@ -11,7 +20,7 @@
                     </Delay>
                 </Fallback>
             </RetryUntilSuccessful>
-            <Action ID="ActionCommandArmJointTrajectory" playback_speed="2.6" trajectory="{trajectory}"/>
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="2.5" trajectory="{trajectory}"/>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->

@@ -129,6 +129,11 @@ def generate_launch_description():
                 moveit_config.robot_description_semantic,
                 moveit_config.robot_description_kinematics],
             output="screen"),
+        Node(
+            package="fluorite_vt_servo",
+            executable="fluorite_vt_servo",
+            name="fluorite_vt_servo",
+            output="screen"),
     ]
 
     nodes = [

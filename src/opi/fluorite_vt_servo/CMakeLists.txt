@@ -4,6 +4,7 @@ project(fluorite_vt_servo)
 set(CMAKE_CXX_STANDARD 20)
 add_definitions(-std=c++20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(backward_ros REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
@@ -30,7 +31,7 @@ target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
 if(${WIRINGPI_LIBRARIES} STREQUAL "WIRINGPI_LIBRARIES-NOTFOUND")
   message(WARNING "wiringPi library not found. Using mock implementation.")
 else()
-  target_link_libraries(${PROJECT_NAME} INTERFACE ${WIRINGPI_LIBRARIES})
+  target_link_libraries(${PROJECT_NAME} ${WIRINGPI_LIBRARIES})
 endif()
 
 install(TARGETS ${PROJECT_NAME}

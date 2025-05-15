@@ -16,6 +16,7 @@
 
 #include "arm/joint_space_interpolator.hpp"
 #include "common/logger.hpp"
+#include "common/debug_helpers.hpp"
 
 namespace fluorite {
 
@@ -62,7 +63,7 @@ class PidTrajectoryTracker {
    * @param trajectory      参考轨迹
    * @param playback_speed  参考轨迹播放速度，范围[0, std::numeric_limits<double>::max()]
    */
-  void SwitchReferenceTrajectory(const Trajectory &traj, double playback_speed = 1.0) {
+  void SwitchReferenceTrajectory(const Trajectory &traj, double playback_speed = 1.0, bool forced = false) {
     // corner case 1: 空轨迹
     if (traj.points.empty()) {
       warn("trajectory tracker: empty trajectory, rejecting!");
@@ -85,6 +86,17 @@ class PidTrajectoryTracker {
       if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
         warn("trajectory tracker: joint number mismatch, rejecting!");
         return;
+      }
+    }
+    // corner case 4: 第一个点瞬移（和机械臂的当前位置差别太大）（把forced参数设为true可以超控）
+    if (!forced) {
+      for (size_t i = 0; i < NJoints; ++i) {
+        if (std::abs(traj.points[0].positions[i] - current_point_.positions[i]) > (20.0 / 3360.0 * 2.0 * M_PI)) {
+          warn("trajectory tracker: no teleport, rejecting!");
+          warn("teleporting trajectory:");
+          Print(traj);
+          return;
+        }
       }
     }
 
@@ -135,9 +147,10 @@ class PidTrajectoryTracker {
    * @brief 从当前位置样条插值到一个目标点
    * @param point 参考目标点
    * @param duration 用多少时间到达这个点
+   * @warning BROKEN DONT USE
    */
-  void SwitchReferenceTrajectory(const Point &point, std::chrono::duration<double> duration,
-                                 std::chrono::duration<double> dt = std::chrono::milliseconds(50)) {
+  [[deprecated]] void SwitchReferenceTrajectory(const Point &point, std::chrono::duration<double> duration,
+                                                std::chrono::duration<double> dt = std::chrono::milliseconds(50)) {
     // corner case: 关节数量和对象创建时的给定数量不一致
     if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
       warn("trajectory tracker: joint number mismatch, rejecting!");
@@ -148,12 +161,13 @@ class PidTrajectoryTracker {
       warn("trajectory tracker: negative duration, rejecting!");
       return;
     }
+    Update();
     {
       std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
 
       if (std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() > 0.1) {
         const Trajectory interpolated_trajectory =
-            joint_space_interpolator_.Interpolate(current_point(), point, duration, dt);
+            joint_space_interpolator_.Interpolate(current_point_, point, duration, dt);
         current_trajectory_ = interpolated_trajectory.points;
       } else {
         current_trajectory_ = {point};  // 如果duration太小，就不插值了，直接用这个点
@@ -239,6 +253,9 @@ class PidTrajectoryTracker {
       pid_inner->Update(current_point_.positions[i], current_joint_positions[i]);
       pid_outer->Update(pid_inner->value(), current_joint_velocities[i]);
       output_torque_[i] = pid_outer->value();
+
+      // 并且把这一次的关节位置存起来，用来判断轨迹有没有执行成功
+      last_joint_positions_[i] = current_joint_positions[i];
     }
   }
 
@@ -246,7 +263,7 @@ class PidTrajectoryTracker {
     if (current_trajectory_.empty()) {
       return true;
     }
-    constexpr double kDiffThreshold = 4.0 / 360.0 * 2.0 * M_PI;  // 4度
+    constexpr double kDiffThreshold = 13.5 / 360.0 * 2.0 * M_PI;  // 4度
     const auto &last_point = current_trajectory_[current_trajectory_.size() - 1];
     // 计算上一次传入的关节位置和目标轨迹最后一个点的位置的差值，如果所有关节的误差都小于阈值，则认为执行完毕
     for (size_t i = 0; i < NJoints; ++i) {
@@ -302,7 +319,12 @@ class PidTrajectoryTracker {
     return scaled;
   }
 
-  Point current_point_{};
+  Point current_point_{[] {
+    Point p;
+    p.velocities.resize(6);
+    p.positions = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    return p;
+  }()};
   std::vector<Point> current_trajectory_{};
   std::mutex current_trajectory_mutex_{};
   std::chrono::steady_clock::time_point traj_start_time_{};
