@@ -62,11 +62,11 @@ void Arm::CalcPidAndExecute() {
   //                                         0, 0.65 * kCompensateTorques[1], 85, 35);
   // fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
   // fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
-  fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 15, 18);
+  fluorite::actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 40, 30);
   fluorite::actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-                                          0, 0.65 * kCompensateTorques[1], 12, 15);
-  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 9, 13);
-  fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 10, 20);
+                                          0, 0.65 * kCompensateTorques[1], 40, 30);
+  fluorite::actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2],40, 30);
+  fluorite::actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 40, 30);
   fluorite::actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 70, 30);
   fluorite::actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
 }

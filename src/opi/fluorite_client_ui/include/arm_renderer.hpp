@@ -47,9 +47,9 @@ class ArmRenderer {
   // 输入关节角度，输出三条线段的屏幕坐标
   std::array<std::pair<Point, Point>, 3> draw(double yaw, double pitch1, double pitch2) const {
     // 转换为弧度
-    const double rad_yaw = yaw * M_PI / 180.0;
-    const double rad_p1 = pitch1 * M_PI / 180.0;
-    const double rad_p2 = (pitch1 + pitch2) * M_PI / 180.0;
+    const double rad_yaw = yaw;
+    const double rad_p1 = pitch1;
+    const double rad_p2 = (pitch1 + pitch2);
 
     // 计算各关节三维坐标
     const Point3D base(0, 0, 0);

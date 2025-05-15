@@ -24,7 +24,7 @@ include_directories(include)
 add_subdirectory(libs)
 add_subdirectory(src)
 
-install(TARGETS model_exporter bt_executor
+install(TARGETS model_exporter bt_executor trajectory_json_exporter
   DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY config xml
   DESTINATION share/${PROJECT_NAME})

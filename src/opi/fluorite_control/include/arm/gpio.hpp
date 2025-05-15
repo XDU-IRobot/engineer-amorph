@@ -7,8 +7,18 @@
 #if __has_include("wiringPi.h")
 
 #include <wiringPi.h>
+#include <softPwm.h>
 
 namespace fluorite {
+
+static bool wiringpi_initiallized = false;
+
+inline void InitWiringPi() {
+  if (!wiringpi_initiallized) {
+    wiringPiSetup();
+    wiringpi_initiallized = true;
+  }
+}
 
 class OutputPin {
  public:

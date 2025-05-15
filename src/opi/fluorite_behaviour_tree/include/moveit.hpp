@@ -9,8 +9,6 @@
 #include <memory>
 #include <atomic>
 
-#include <moveit_msgs/msg/detail/robot_trajectory__struct.hpp>
-#include <rclcpp/logging.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
@@ -29,22 +27,21 @@ class JsonBuilder {
   JsonBuilder(JsonBuilder &&) = delete;
   JsonBuilder &operator=(const JsonBuilder &) = delete;
 
- public:
   template <typename T>
-  static std::string BuildJson(const std::vector<T> &vec) {
-    rapidjson::Document doc;
-    doc.SetArray();
-    rapidjson::Document::AllocatorType &allocator = doc.GetAllocator();
-
+  static rapidjson::Value BuildJsonArray(const std::vector<T> &vec, rapidjson::Document::AllocatorType &allocator) {
+    rapidjson::Value arr(rapidjson::kArrayType);
     for (const auto &val : vec) {
-      doc.PushBack(val, allocator);
+      arr.PushBack(val, allocator);
     }
+    return arr;
+  }
 
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    doc.Accept(writer);
-
-    return buffer.GetString();
+  static rapidjson::Value BuildJsonArray(const std::vector<double> &vec, rapidjson::Document::AllocatorType &allocator) {
+    rapidjson::Value arr(rapidjson::kArrayType);
+    for (const auto &val : vec) {
+      arr.PushBack(val, allocator);
+    }
+    return arr;
   }
 
   static std::string BuildJson(const trajectory_msgs::msg::JointTrajectory &trajectory) {
@@ -55,17 +52,12 @@ class JsonBuilder {
     rapidjson::Value points(rapidjson::kArrayType);
     for (const auto &point : trajectory.points) {
       rapidjson::Value point_obj(rapidjson::kObjectType);
-      point_obj.AddMember("time_from_start", point.time_from_start.sec + point.time_from_start.nanosec / 1e9,
-                          allocator);
+      point_obj.AddMember("time_from_start", point.time_from_start.sec + point.time_from_start.nanosec / 1e9, allocator);
 
-      // REMINDER
-      // Value:如果字符串生命周期很短，那么必须用Value（复制一份字符串到allocator），如果用StringRef（传入字符串指针），变量销毁后则会访问到错误的地址。
-      // StringRef:如果字符串变量生命周期能buffer.GetString之后，那么可以用StringRef（传入字符串指针）。
-
-      point_obj.AddMember("positions", rapidjson::StringRef(BuildJson(point.positions).c_str()), allocator);
-      point_obj.AddMember("velocities", rapidjson::StringRef(BuildJson(point.velocities).c_str()), allocator);
-      point_obj.AddMember("accelerations", rapidjson::StringRef(BuildJson(point.accelerations).c_str()), allocator);
-      point_obj.AddMember("effort", rapidjson::StringRef(BuildJson(point.effort).c_str()), allocator);
+      point_obj.AddMember("positions", BuildJsonArray(point.positions, allocator), allocator);
+      point_obj.AddMember("velocities", BuildJsonArray(point.velocities, allocator), allocator);
+      point_obj.AddMember("accelerations", BuildJsonArray(point.accelerations, allocator), allocator);
+      point_obj.AddMember("effort", BuildJsonArray(point.effort, allocator), allocator);
       points.PushBack(point_obj, allocator);
     }
     doc.AddMember("points", points, allocator);
@@ -83,15 +75,28 @@ class JsonBuilder {
     rapidjson::Document::AllocatorType &allocator = doc.GetAllocator();
 
     doc.AddMember("time_from_start", point.time_from_start.sec + point.time_from_start.nanosec / 1e9, allocator);
-    doc.AddMember("positions", rapidjson::StringRef(BuildJson(point.positions).c_str()), allocator);
-    doc.AddMember("velocities", rapidjson::StringRef(BuildJson(point.velocities).c_str()), allocator);
-    doc.AddMember("accelerations", rapidjson::StringRef(BuildJson(point.accelerations).c_str()), allocator);
-    doc.AddMember("effort", rapidjson::StringRef(BuildJson(point.effort).c_str()), allocator);
+    doc.AddMember("positions", BuildJsonArray(point.positions, allocator), allocator);
+    doc.AddMember("velocities", BuildJsonArray(point.velocities, allocator), allocator);
+    doc.AddMember("accelerations", BuildJsonArray(point.accelerations, allocator), allocator);
+    doc.AddMember("effort", BuildJsonArray(point.effort, allocator), allocator);
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     doc.Accept(writer);
 
+    return buffer.GetString();
+  }
+
+  static std::string BuildJson(const std::vector<double>& vec) {
+    rapidjson::Document doc;
+    doc.SetArray();
+    rapidjson::Document::AllocatorType &allocator = doc.GetAllocator();
+    for (const auto &val : vec) {
+      doc.PushBack(val, allocator);
+    }
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    doc.Accept(writer);
     return buffer.GetString();
   }
 };
@@ -110,7 +115,7 @@ inline std::vector<double> convertFromString(BT::StringView str) {
 
   if (doc.IsArray()) {
     for (const auto &val : doc.GetArray()) {
-      if (val.IsDouble()) {
+      if (val.IsDouble() || val.IsInt() || val.IsUint()) {
         vec.push_back(val.GetDouble());
       }
     }
@@ -129,12 +134,32 @@ inline trajectory_msgs::msg::JointTrajectory convertFromString(BT::StringView st
     const auto &points = doc["points"].GetArray();
     for (const auto &point : points) {
       trajectory_msgs::msg::JointTrajectoryPoint point_obj;
-      point_obj.time_from_start.sec = point["time_from_start"].GetInt();
-      point_obj.time_from_start.nanosec = point["time_from_start"].GetUint();
-      point_obj.positions = convertFromString<std::vector<double>>(point["positions"].GetString());
-      point_obj.velocities = convertFromString<std::vector<double>>(point["velocities"].GetString());
-      point_obj.accelerations = convertFromString<std::vector<double>>(point["accelerations"].GetString());
-      point_obj.effort = convertFromString<std::vector<double>>(point["effort"].GetString());
+      // time_from_start 作为double存储，需拆分为sec和nanosec
+      if (point.HasMember("time_from_start") && point["time_from_start"].IsNumber()) {
+        double t = point["time_from_start"].GetDouble();
+        point_obj.time_from_start.sec = static_cast<int32_t>(t);
+        point_obj.time_from_start.nanosec = static_cast<uint32_t>((t - point_obj.time_from_start.sec) * 1e9);
+      }
+      if (point.HasMember("positions") && point["positions"].IsArray()) {
+        for (const auto &val : point["positions"].GetArray()) {
+          point_obj.positions.push_back(val.GetDouble());
+        }
+      }
+      if (point.HasMember("velocities") && point["velocities"].IsArray()) {
+        for (const auto &val : point["velocities"].GetArray()) {
+          point_obj.velocities.push_back(val.GetDouble());
+        }
+      }
+      if (point.HasMember("accelerations") && point["accelerations"].IsArray()) {
+        for (const auto &val : point["accelerations"].GetArray()) {
+          point_obj.accelerations.push_back(val.GetDouble());
+        }
+      }
+      if (point.HasMember("effort") && point["effort"].IsArray()) {
+        for (const auto &val : point["effort"].GetArray()) {
+          point_obj.effort.push_back(val.GetDouble());
+        }
+      }
       trajectory.points.push_back(point_obj);
     }
   } else {
@@ -150,10 +175,31 @@ inline trajectory_msgs::msg::JointTrajectoryPoint convertFromString(BT::StringVi
   rapidjson::Document doc;
   doc.Parse(str.data());
 
-  point.positions = convertFromString<std::vector<double>>(doc["positions"].GetString());
-  point.velocities = convertFromString<std::vector<double>>(doc["velocities"].GetString());
-  point.accelerations = convertFromString<std::vector<double>>(doc["accelerations"].GetString());
-  point.effort = convertFromString<std::vector<double>>(doc["effort"].GetString());
+  if (doc.HasMember("time_from_start") && doc["time_from_start"].IsNumber()) {
+    double t = doc["time_from_start"].GetDouble();
+    point.time_from_start.sec = static_cast<int32_t>(t);
+    point.time_from_start.nanosec = static_cast<uint32_t>((t - point.time_from_start.sec) * 1e9);
+  }
+  if (doc.HasMember("positions") && doc["positions"].IsArray()) {
+    for (const auto &val : doc["positions"].GetArray()) {
+      point.positions.push_back(val.GetDouble());
+    }
+  }
+  if (doc.HasMember("velocities") && doc["velocities"].IsArray()) {
+    for (const auto &val : doc["velocities"].GetArray()) {
+      point.velocities.push_back(val.GetDouble());
+    }
+  }
+  if (doc.HasMember("accelerations") && doc["accelerations"].IsArray()) {
+    for (const auto &val : doc["accelerations"].GetArray()) {
+      point.accelerations.push_back(val.GetDouble());
+    }
+  }
+  if (doc.HasMember("effort") && doc["effort"].IsArray()) {
+    for (const auto &val : doc["effort"].GetArray()) {
+      point.effort.push_back(val.GetDouble());
+    }
+  }
 
   return point;
 }

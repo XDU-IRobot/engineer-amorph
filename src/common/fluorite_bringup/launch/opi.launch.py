@@ -133,7 +133,21 @@ def generate_launch_description():
             package="fluorite_vt_servo",
             executable="fluorite_vt_servo",
             name="fluorite_vt_servo",
+            parameters=[os.path.join(get_package_share_directory(
+                    'fluorite_vt_servo'), "config", "settings.yaml")],
             output="screen"),
+        Node(
+            package="fluorite_client_ui",
+            executable="fluorite_client_ui",
+            name="fluorite_client_ui",
+            output="screen"),
+        Node(
+            package='fluorite_behaviour_tree',
+            executable='bt_executor',
+            output='both',
+            parameters=[moveit_config.robot_description,
+                        moveit_config.robot_description_semantic,
+                        moveit_config.robot_description_kinematics],),
     ]
 
     nodes = [

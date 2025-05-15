@@ -20,14 +20,21 @@ class FluoriteVTServoNode : public rclcpp::Node {
                                                         .allow_undeclared_parameters(true)
                                                         .automatically_declare_parameters_from_overrides(true))
       : Node("fluorite_vt_servo_node", options) {
+    // get_parameter("pwm_pin", ros_params_.pwm_pin);
+    get_parameter("angle_multiplier", ros_params_.angle_multiplier);
+    get_parameter("zero_offset_degs", ros_params_.zero_offset_degs);
+    // RCLCPP_INFO(get_logger(), "pwm_pin: %d", ros_params_.pwm_pin);
+    RCLCPP_INFO(get_logger(), "angle_multiplier: %f", ros_params_.angle_multiplier);
+    RCLCPP_INFO(get_logger(), "zero_offset_degs: %f", ros_params_.zero_offset_degs);
+    // pwm_pin_ = Pin<PWM_OUTPUT>(ros_params_.pwm_pin);
     joint_state_sub_ = create_subscription<sensor_msgs::msg::JointState>(
         "/joint_states", rclcpp::SensorDataQoS(), [&](sensor_msgs::msg::JointState::SharedPtr msg) {
-          const double endeff_yaw_heading =
-              std::clamp(EndEffYaw(msg->position[3], msg->position[4]), -M_PI / 2, M_PI / 2);
+          const double endeff_yaw_heading = std::clamp(
+              EndEffYaw(msg->position[3], std::clamp(msg->position[4], -M_PI / 2, M_PI / 2)), -M_PI / 2, M_PI / 2);
           if (std::abs(endeff_yaw_heading) < 17.0 / 360.0 * 2.0 * M_PI) {
-            pwm_pin_.Write(AngleToDuty(0));
+            pwm_pin_.Write(AngleToDuty(ros_params_.zero_offset_degs / 180.0 * M_PI));
           } else {
-            pwm_pin_.Write(AngleToDuty(-endeff_yaw_heading * 0.4));
+            pwm_pin_.Write(AngleToDuty(-endeff_yaw_heading * ros_params_.angle_multiplier + ros_params_.zero_offset_degs/ 180.0 * M_PI));
           }
         });
   }
@@ -49,6 +56,11 @@ class FluoriteVTServoNode : public rclcpp::Node {
 
   PwmOutputPin pwm_pin_ = Pin<PWM_OUTPUT>(13);
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_{nullptr};
+  struct {
+    int pwm_pin{};
+    double angle_multiplier{};
+    double zero_offset_degs{};
+  } ros_params_{};
 };
 
 int main(int argc, char *argv[]) {

@@ -88,24 +88,69 @@ class PidTrajectoryTracker {
         return;
       }
     }
-    // corner case 4: 第一个点瞬移（和机械臂的当前位置差别太大）（把forced参数设为true可以超控）
+    // corner case 4: 存在某相邻两点之间至少一个关节的速度太大
     if (!forced) {
-      for (size_t i = 0; i < NJoints; ++i) {
-        if (std::abs(traj.points[0].positions[i] - current_point_.positions[i]) > (20.0 / 3360.0 * 2.0 * M_PI)) {
-          warn("trajectory tracker: no teleport, rejecting!");
-          warn("teleporting trajectory:");
-          Print(traj);
+      for (size_t i = 1; i < traj.points.size(); ++i) {
+        const auto &point1 = traj.points[i - 1];
+        const auto &point2 = traj.points[i];
+        constexpr double kMaxVelocity = 90.0 / 180.0 * M_PI;                   // 90度/s
+        const double dt = (PointTimeMs(point2) - PointTimeMs(point1)) * 1e-3;  // ms to s
+        for (size_t j = 0; j < NJoints; ++j) {
+          const auto velocity = std::abs(point2.positions[j] - point1.positions[j]) / dt;
+          if (velocity > kMaxVelocity) {
+            warn("trajectory tracker: too large velocity in trajectory, rejecting!");
+            return;
+          }
+        }
+      }
+      // corner case 4.5: 或从当前位置到轨迹第一个点的速度过大
+      if (PointTimeMs(traj.points[0]) == 0) {
+        // 防止除零，如果第一个点的时间戳是0，则直接判断当前位置到这个点的角度差
+        // 不允许某个关节的角度差大于30度
+        for (size_t j = 0; j < NJoints; ++j) {
+          const auto position_delta = std::abs(current_point_.positions[j] - traj.points[0].positions[j]);
+          if (position_delta > 30.0 / 180.0 * M_PI) {
+            warn("trajectory tracker: no teleport, rejecting!");
+            return;
+          }
+        }
+      }
+      const auto &point1 = traj.points[0];
+      const auto &point2 = current_point_;
+      constexpr double kMaxVelocity = 90.0 / 180.0 * M_PI;                   // 90度/s
+      const double dt = (PointTimeMs(point1) - PointTimeMs(point2)) * 1e-3;  // ms to s
+      for (size_t j = 0; j < NJoints; ++j) {
+        const auto velocity = std::abs(point1.positions[j] - point2.positions[j]) / dt;
+        if (velocity > kMaxVelocity) {
+          warn("trajectory tracker: too large velocity in trajectory, rejecting!");
           return;
         }
       }
     }
 
+    Trajectory traj_processed = traj;
+    // 额外处理：如果第一个点的时间戳不等于0，则从当前位置开始计算一段插值轨迹，平滑地到达这个点
+    if (PointTimeMs(traj.points[0]) != 0) {
+      const auto duration = RosDurationToStdChronoDuration(traj.points[0].time_from_start);
+      const auto dt = std::chrono::milliseconds(50);
+      const Point start_point = current_point_;
+      const Point end_point = traj.points[0];
+      const auto interpolated_trajectory = joint_space_interpolator_.Interpolate(start_point, end_point, duration, dt);
+
+      // 把计算出来的这段插值轨迹插到已有的轨迹前面
+      traj_processed.points.insert(traj_processed.points.begin(), interpolated_trajectory.points.begin(),
+                                   interpolated_trajectory.points.end());
+      info("trajectory tracker: added interpolated trajectory to the beginning of the trajectory.");
+    }
+
+    // 所有检查通过，开始执行轨迹
     {
       std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
       current_trajectory_ =
-          TimeScaleTrajectory(traj, std::clamp(playback_speed, 0.0, std::numeric_limits<double>::max())).points;
-      // 限制关节位置
-      for (auto &point : current_trajectory_) {
+          TimeScaleTrajectory(traj_processed, std::clamp(playback_speed, 1e-3, std::numeric_limits<double>::max()))
+              .points;
+      // 限位
+      for (Point &point : current_trajectory_) {
         for (size_t i = 0; i < NJoints; ++i) {
           point.positions[i] = std::clamp(point.positions[i], joint_limits_[i].first, joint_limits_[i].second);
         }
@@ -133,7 +178,7 @@ class PidTrajectoryTracker {
     {
       std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
       current_trajectory_ = std::vector{point};
-      // 限制关节位置
+      // 限位
       for (size_t i = 0; i < NJoints; ++i) {
         current_trajectory_[0].positions[i] =
             std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);
@@ -173,7 +218,7 @@ class PidTrajectoryTracker {
         current_trajectory_ = {point};  // 如果duration太小，就不插值了，直接用这个点
       }
 
-      // 限制关节位置
+      // 限位
       for (size_t i = 0; i < NJoints; ++i) {
         current_trajectory_[0].positions[i] =
             std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);

@@ -20,12 +20,12 @@ class SuckerSystem {
     switch (state) {
       case SuckerState::kSuck:
         in_valve_.Write(HIGH);
-        out_valve_.Write(LOW);
+        out_valve_.Write(HIGH);
         vaccum_pump_.Write(0.7);
         break;
       case SuckerState::kBlow:
         in_valve_.Write(LOW);
-        out_valve_.Write(HIGH);
+        out_valve_.Write(LOW);
         vaccum_pump_.Write(0.7);
         break;
       case SuckerState::kOff:
@@ -40,21 +40,21 @@ class SuckerSystem {
   void CycleMode() {
     switch (state_) {
       case SuckerState::kSuck:
-        in_valve_.Write(HIGH);
+        in_valve_.Write(LOW);
         out_valve_.Write(LOW);
         vaccum_pump_.Write(0.7);
         state_ = SuckerState::kBlow;
         break;
       case SuckerState::kBlow:
-        in_valve_.Write(LOW);
+        in_valve_.Write(HIGH);
         out_valve_.Write(HIGH);
-        vaccum_pump_.Write(0.7);
-        state_ = SuckerState::kSuck;
+        vaccum_pump_.Write(0.0);
+        state_ = SuckerState::kOff;
         break;
       case SuckerState::kOff:
         in_valve_.Write(HIGH);
         out_valve_.Write(HIGH);
-        vaccum_pump_.Write(0.0);
+        vaccum_pump_.Write(0.7);
         state_ = SuckerState::kSuck;
         break;
     }
