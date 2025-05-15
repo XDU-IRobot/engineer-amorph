@@ -16,7 +16,7 @@ constexpr int PWM_OUTPUT = 1;
 constexpr int LOW = 0;
 constexpr int HIGH = 1;
 
-inline void wiringPiSetup() { std::printf("wiringPiSetup\n"); }
+inline void InitWiringPi() { std::printf("InitWiringPi\n"); }
 
 class OutputPin {
  public:
