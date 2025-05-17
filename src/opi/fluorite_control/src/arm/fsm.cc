@@ -188,9 +188,6 @@ void Debug::react(event::Control const &control) {
   fluorite::controller->trajectory_tracker.SwitchReferenceTrajectory(joint_positions);
   Arm::CalcPidAndExecute();
 
-  // update hotkey
-  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
-
   // state transition
   if (control.sd != kRcSwitchUp) {
     DispatchEvent(event::SwitchMode<NoForce>{});
@@ -286,9 +283,6 @@ void KeyboardManual::react(event::Control const &control) {
 
   Arm::CalcPidAndExecute();
 
-  // update hotkey
-  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
-
   // state transition
   if (control.sd != kRcSwitchUp) {
     DispatchEvent(event::SwitchMode<NoForce>{});
@@ -336,9 +330,6 @@ void CustomCtrlManual::react(event::Control const &control) {
   }
   Arm::CalcPidAndExecute();
 
-  // update hotkey
-  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
-
   // state transition
   if (control.sd != kRcSwitchUp) {
     DispatchEvent(event::SwitchMode<NoForce>{});
@@ -367,9 +358,6 @@ void CustomCtrlManual::react(event::Control const &control) {
 }
 void BehaviourTreeIdle::react(event::Control const &control) {
   Arm::CalcPidAndExecute();
-
-  // update hotkey
-  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
 
   // state transition
   if (control.sd != kRcSwitchUp) {
@@ -446,9 +434,6 @@ void BehaviourTreeExecuting::react(event::Control const &control) {
   }
   Arm::CalcPidAndExecute();
 
-  // update hotkey
-  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
-
   // state transition
   if (control.sd != kRcSwitchUp) {
     if (execution_interrupted_callback_) {
@@ -499,9 +484,6 @@ void BehaviourTreeExecuting::react(event::BehaviorTreeCancelExecution const &e) 
 void Retracted::react(event::Control const &control) {
   Arm::CalcPidAndExecute();
 
-  // update hotkey
-  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
-
   // state transition
   if (control.sd != kRcSwitchUp) {
     DispatchEvent(event::SwitchMode<NoForce>{});
@@ -528,9 +510,6 @@ void Retracted::react(event::Control const &control) {
 void NoForce::react(event::Control const &control) {
   Arm::EnableActuators(false);
   fluorite::actuator->end_yaw_2.SetCurrent(0);
-
-  // update hotkey
-  controller->hotkeys.toggle_custom_ctrl.Poll(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G));
 
   // state transition
   if (control.sd != kRcSwitchUp) {
@@ -628,22 +607,31 @@ namespace pneumatic_system {
     }                                             \
   }
 
-void Manual::entry() {}
-void Off::entry() {}
+void Manual::entry() {
+  fluorite::actuator->sucker_system.Set(SuckerSystem::SuckerState::kOff);
+  fluorite::actuator->storage_system.SetLeft(false);
+  fluorite::actuator->storage_system.SetRight(false);
+}
+void Off::entry() {
+  fluorite::actuator->sucker_system.Set(SuckerSystem::SuckerState::kOff);
+  fluorite::actuator->storage_system.SetLeft(false);
+  fluorite::actuator->storage_system.SetRight(false);
+}
 
 void Manual::react(event::Control const &control) {
-  fluorite::actuator->sucker_system.Suck(control.ld);
-  fluorite::actuator->storage_system.SetPumpPower();
-  fluorite::actuator->storage_system.SetLeftValve(control.ls > 0);
-  fluorite::actuator->storage_system.SetRightValve(control.rs > 0);
+  if (controller->hotkeys.toggle_arm_pump.have_pressed()) {
+    fluorite::actuator->sucker_system.CycleMode();
+  }
+  if (controller->hotkeys.toggle_left_storage.have_pressed()) {
+    fluorite::actuator->storage_system.ToggleLeft();
+  }
+  if (controller->hotkeys.toggle_right_storage.have_pressed()) {
+    fluorite::actuator->storage_system.ToggleRight();
+  }
   UpdateState();
 }
 
-void Off::react(event::Control const &control) {
-  fluorite::actuator->sucker_system.Disable();
-  fluorite::actuator->storage_system.Disable();
-  UpdateState();
-}
+void Off::react(event::Control const &control) { UpdateState(); }
 
 #undef UpdateState
 

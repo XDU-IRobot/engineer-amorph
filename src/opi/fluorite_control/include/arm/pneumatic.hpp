@@ -10,35 +10,62 @@ namespace fluorite {
  * @brief 机械臂末端吸盘
  */
 class SuckerSystem {
+    
+
  public:
   SuckerSystem(OutputPin out_valve, OutputPin in_valve, PwmOutputPin vaccum_pump)
       : out_valve_{out_valve}, in_valve_{in_valve}, vaccum_pump_{vaccum_pump} {}
 
-  /**
-   * @brief 两侧电磁阀不通电，并关闭真空泵
-   */
-  void Disable() {
-    in_valve_.Write(HIGH);
-    out_valve_.Write(HIGH);
-    vaccum_pump_.Write(0.0);
+enum class SuckerState { kSuck, kBlow, kOff };
+
+  void Set(SuckerState state) {
+    switch (state) {
+      case SuckerState::kSuck:
+        in_valve_.Write(HIGH);
+        out_valve_.Write(LOW);
+        vaccum_pump_.Write(0.7);
+        break;
+      case SuckerState::kBlow:
+        in_valve_.Write(LOW);
+        out_valve_.Write(HIGH);
+        vaccum_pump_.Write(0.7);
+        break;
+      case SuckerState::kOff:
+        in_valve_.Write(HIGH);
+        out_valve_.Write(HIGH);
+        vaccum_pump_.Write(0.0);
+        break;
+    }
+    state_ = state;
   }
 
-  /**
-   * @brief 从吸盘吸气/吹气
-   * @param power 真空泵功率，范围[-1, 1]，正数为吸气，负数为吹气，一般给0.7就可以吸住矿
-   */
-  void Suck(double power) {
-    if (power > 0) {
-      in_valve_.Write(HIGH);
-      out_valve_.Write(HIGH);
-    } else {
-      in_valve_.Write(LOW);
-      out_valve_.Write(LOW);
+  void CycleMode() {
+    switch (state_) {
+      case SuckerState::kSuck:
+        in_valve_.Write(HIGH);
+        out_valve_.Write(LOW);
+        vaccum_pump_.Write(0.7);
+        state_ = SuckerState::kBlow;
+        break;
+      case SuckerState::kBlow:
+        in_valve_.Write(LOW);
+        out_valve_.Write(HIGH);
+        vaccum_pump_.Write(0.7);
+        state_ = SuckerState::kSuck;
+        break;
+      case SuckerState::kOff:
+        in_valve_.Write(HIGH);
+        out_valve_.Write(HIGH);
+        vaccum_pump_.Write(0.0);
+        state_ = SuckerState::kSuck;
+        break;
     }
-    vaccum_pump_.Write(std::abs(power));
   }
+
+  auto state() const { return state_; }
 
  private:
+  SuckerState state_{SuckerState::kOff};
   OutputPin out_valve_;
   OutputPin in_valve_;
   PwmOutputPin vaccum_pump_;
@@ -62,36 +89,51 @@ class StorageSystem {
   }
 
   /**
-   * @param power 真空泵功率，范围[0, 1]
-   */
-  void SetPumpPower() {
-    if (left_state_ || right_state_) {
-      vaccum_pump_.Write(1.0);
-    } else {
-      vaccum_pump_.Write(0.0);
-    }
-    // vaccum_pump_.Write(std::abs(power));
-  }
-
-  /**
    * @brief 设置左侧吸盘
    * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
-  void SetLeftValve(bool state) {
+  void SetLeft(bool state) {
     left_valve_.Write(state);
     left_state_ = state;
+  }
+
+  void ToggleLeft() {
+    left_state_ = !left_state_;
+    left_valve_.Write(left_state_);
+    SetPumpPower();
   }
 
   /**
    * @brief 设置右侧吸盘
    * @param state true将吸盘连接到真空泵，false封闭吸盘
    */
-  void SetRightValve(bool state) {
+  void SetRight(bool state) {
     right_valve_.Write(state);
     right_state_ = state;
   }
 
+  void ToggleRight() {
+    right_state_ = !right_state_;
+    right_valve_.Write(right_state_);
+    SetPumpPower();
+  }
+
+  bool left_state() const { return left_state_; }
+  bool right_state() const { return right_state_; }
+
  private:
+  /**
+  * @param power 真空泵功率，范围[0, 1]
+  */
+  void SetPumpPower() {
+    if (left_state_ || right_state_) {
+      vaccum_pump_.Write(0.7);
+    } else {
+      vaccum_pump_.Write(0.0);
+    }
+    // vaccum_pump_.Write(std::abs(power));
+  }
+
   bool left_state_{false}, right_state_{false};
   OutputPin left_valve_;
   OutputPin right_valve_;

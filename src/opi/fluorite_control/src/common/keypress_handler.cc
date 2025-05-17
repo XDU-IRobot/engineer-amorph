@@ -5,14 +5,24 @@
 
 namespace fluorite {
 
-Hotkey::Hotkey(std::function<bool()> pred) : pred_(std::move(pred)) {
-  // edge_trigger_.on_rising([]{std::cout << "rising!" << std::endl;}).on_rising([this] { have_pressed_.store(true); });
-}
+Hotkey::Hotkey(std::function<bool()> pred) : pred_(std::move(pred)) {}
 
 void Hotkey::Poll() {
   if (pred_) {
-    condition_ = pred_();
-    // edge_trigger_.update();
+    const bool new_condition = pred_();
+    if (condition_ != new_condition) {
+      if (new_condition) {
+        have_pressed_.store(true);
+        if (onpress_cb_) {
+          onpress_cb_();
+        }
+      } else {
+        if (onrelease_cb_) {
+          onrelease_cb_();
+        }
+      }
+    }
+    condition_ = new_condition;
     if (condition_ && onhold_cb_) {
       onhold_cb_();
     }
@@ -23,11 +33,19 @@ void Hotkey::Poll() {
 }
 
 void Hotkey::Poll(bool new_condition) {
-  if ((condition_ != new_condition) && new_condition) {
-    have_pressed_.store(true);
+  if (condition_ != new_condition) {
+    if (new_condition) {
+      have_pressed_.store(true);
+      if (onpress_cb_) {
+        onpress_cb_();
+      }
+    } else {
+      if (onrelease_cb_) {
+        onrelease_cb_();
+      }
+    }
   }
   condition_ = new_condition;
-  // edge_trigger_.update();
   if (condition_ && onhold_cb_) {
     onhold_cb_();
   }
@@ -37,25 +55,24 @@ void Hotkey::Poll(bool new_condition) {
 }
 
 Hotkey &Hotkey::OnPress(std::function<void()> cb) {
-  edge_trigger_.on_rising(cb);
+  onpress_cb_ = std::move(cb);
   return *this;
 }
 
 Hotkey &Hotkey::OnRelease(std::function<void()> cb) {
-  edge_trigger_.on_falling(cb);
+  onrelease_cb_ = std::move(cb);
   return *this;
 }
 
 Hotkey &Hotkey::OnHold(std::function<void()> cb) {
-  onhold_cb_ = cb;
+  onhold_cb_ = std::move(cb);
   return *this;
 }
 
 Hotkey &Hotkey::OnIdle(std::function<void()> cb) {
-  onidle_cb_ = cb;
+  onidle_cb_ = std::move(cb);
   return *this;
 }
 
 bool Hotkey::have_pressed(bool reset) { return reset ? have_pressed_.exchange(false) : have_pressed_.load(); }
-
 }  // namespace fluorite

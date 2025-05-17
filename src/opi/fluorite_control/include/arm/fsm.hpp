@@ -71,6 +71,10 @@ struct Control : public tinyfsm::Event {
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
 
+  bool arm_pump;
+  bool left_storage;
+  bool right_storage;
+
   custom_controller::JointCommand custom_controller_command;
 };
 template <typename T>

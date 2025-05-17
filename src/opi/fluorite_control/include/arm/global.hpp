@@ -84,9 +84,14 @@ struct Controller {
 
   JointSpaceInterpolator<6> joint_space_interpolator{
       {"yaw_joint", "pitch_1_joint", "pitch_2_joint", "end_yaw_1_joint", "end_pitch_joint", "end_yaw_2_joint"}};
+
   struct {
     Hotkey toggle_custom_ctrl;
+    Hotkey toggle_arm_pump;
+    Hotkey toggle_left_storage;
+    Hotkey toggle_right_storage;
   } hotkeys;
+  KeypressHandler kh;
 };
 extern std::unique_ptr<Controller> controller;
 }  // namespace fluorite

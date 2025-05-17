@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
 
-# find_package(qpOASES REQUIRED)
-
 find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/librm)
@@ -12,8 +10,6 @@ target_include_directories(tinyfsm INTERFACE ${CMAKE_CURRENT_LIST_DIR}/tinyfsm/i
 add_library(filters INTERFACE)
 target_include_directories(filters INTERFACE ${CMAKE_CURRENT_LIST_DIR}/DSP-Cpp-filters/lib)
 
-add_subdirectory(edge-trigger)
-
 add_subdirectory(libInterpolate)
 
 add_subdirectory(pfr)
@@ -23,7 +19,6 @@ target_link_libraries(${PROJECT_NAME}_libs INTERFACE
     rm
     tinyfsm
     filters
-    edge_trigger
     libInterpolate::Interpolate
     Boost::pfr
     # qpOASES

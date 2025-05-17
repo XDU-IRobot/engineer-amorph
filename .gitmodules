@@ -4,9 +4,6 @@
 [submodule "src/fluorite_control/libs/pfr"]
 	path = src/opi/fluorite_control/libs/pfr
 	url = https://github.com/boostorg/pfr.git
-[submodule "src/fluorite_control/libs/edge-trigger"]
-	path = src/opi/fluorite_control/libs/edge-trigger
-	url = https://github.com/lunarifish/edge-trigger.git
 [submodule "src/fluorite_control/libs/DSP-Cpp-filters"]
 	path = src/opi/fluorite_control/libs/DSP-Cpp-filters
 	url = https://github.com/lunarifish/DSP-Cpp-filters.git

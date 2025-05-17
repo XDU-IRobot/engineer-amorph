@@ -45,6 +45,7 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
   control_loop_timer_ = create_wall_timer(3.0ms, [this] {
     ProcessSensorData();
     ParamHotUpdate();
+    controller->kh.Poll();
     fluorite::fsm::DispatchEvent(control_msg_);
     rm::device::DjiMotor<>::SendCommand();
     rm::device::DirectDriveMotor::SendCommand();
@@ -322,6 +323,18 @@ void FluoriteArm::UserInput() {
         std::memcpy(&control_msg_.custom_controller_command, &msg.data, sizeof(control_msg_.custom_controller_command));
       });
 
+  // setup keymap
+  controller->hotkeys.toggle_custom_ctrl =
+      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G).load(); }};
+  controller->hotkeys.toggle_arm_pump =
+      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V).load(); }};
+  controller->hotkeys.toggle_left_storage =
+      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_C).load(); }};
+  controller->hotkeys.toggle_right_storage =
+      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_B).load(); }};
+  controller->kh << controller->hotkeys.toggle_custom_ctrl << controller->hotkeys.toggle_arm_pump
+                 << controller->hotkeys.toggle_left_storage << controller->hotkeys.toggle_right_storage;
+
   info("user input subscribers spawned \033[32mmok\033[0m");
 }
 
@@ -356,6 +369,34 @@ void FluoriteArm::Blackbox() {
     for (size_t i = 0; i < 12; ++i) {
       PopulatePidMsg(fluorite::state.pids[i + 2], *fluorite::controller->trajectory_tracker.pids()[i]);
     }
+
+    state.fsm_state = [&] {
+      if (fsm::Arm::is_in_state<fsm::state::arm::NoForce>()) {
+        return fluorite_msgs::msg::ArmState::FSM_STATE_NOFORCE;
+      } else if (fsm::Arm::is_in_state<fsm::state::arm::CustomCtrlManual>()) {
+        return fluorite_msgs::msg::ArmState::FSM_STATE_MANUAL;
+      } else if (fsm::Arm::is_in_state<fsm::state::arm::BehaviourTreeExecuting>()) {
+        return fluorite_msgs::msg::ArmState::FSM_STATE_EXEC;
+      } else if (fsm::Arm::is_in_state<fsm::state::arm::BehaviourTreeIdle>()) {
+        return fluorite_msgs::msg::ArmState::FSM_STATE_IDLE;
+      }else if (fsm::Arm::is_in_state<fsm::state::arm::Retracted>()) {
+        return fluorite_msgs::msg::ArmState::FSM_STATE_RETRACTED;
+      } else {
+        return fluorite_msgs::msg::ArmState::FSM_STATE_UNKNOWN;
+      }
+    }();
+    state.arm_pump = [&] {
+      switch (actuator->sucker_system.state()) {
+        case SuckerSystem::SuckerState::kOff:
+          return fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_OFF;
+        case SuckerSystem::SuckerState::kSuck:
+          return fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_SUCK;
+        case SuckerSystem::SuckerState::kBlow:
+          return fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_BLOW;
+      }
+    }();
+    state.left_storage = actuator->storage_system.left_state();
+    state.right_storage = actuator->storage_system.right_state();
     blackbox_state_pub_->publish(fluorite::state);
 
     const auto marker = [&] {
