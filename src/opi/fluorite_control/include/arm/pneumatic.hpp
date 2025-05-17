@@ -10,13 +10,11 @@ namespace fluorite {
  * @brief 机械臂末端吸盘
  */
 class SuckerSystem {
-    
-
  public:
   SuckerSystem(OutputPin out_valve, OutputPin in_valve, PwmOutputPin vaccum_pump)
       : out_valve_{out_valve}, in_valve_{in_valve}, vaccum_pump_{vaccum_pump} {}
 
-enum class SuckerState { kSuck, kBlow, kOff };
+  enum class SuckerState { kSuck, kBlow, kOff };
 
   void Set(SuckerState state) {
     switch (state) {
@@ -123,8 +121,8 @@ class StorageSystem {
 
  private:
   /**
-  * @param power 真空泵功率，范围[0, 1]
-  */
+   * @param power 真空泵功率，范围[0, 1]
+   */
   void SetPumpPower() {
     if (left_state_ || right_state_) {
       vaccum_pump_.Write(0.7);

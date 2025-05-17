@@ -379,7 +379,7 @@ void FluoriteArm::Blackbox() {
         return fluorite_msgs::msg::ArmState::FSM_STATE_EXEC;
       } else if (fsm::Arm::is_in_state<fsm::state::arm::BehaviourTreeIdle>()) {
         return fluorite_msgs::msg::ArmState::FSM_STATE_IDLE;
-      }else if (fsm::Arm::is_in_state<fsm::state::arm::Retracted>()) {
+      } else if (fsm::Arm::is_in_state<fsm::state::arm::Retracted>()) {
         return fluorite_msgs::msg::ArmState::FSM_STATE_RETRACTED;
       } else {
         return fluorite_msgs::msg::ArmState::FSM_STATE_UNKNOWN;
