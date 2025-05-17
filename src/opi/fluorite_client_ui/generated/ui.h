@@ -17,4 +17,4 @@ extern "C" {
 }
 #endif
 
-#endif // UI_H
+#endif  // UI_H

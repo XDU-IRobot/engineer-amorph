@@ -13,12 +13,12 @@ extern uint8_t ui_main_dirty_figure[6];
 extern ui_interface_string_t ui_main_now_strings[1];
 extern uint8_t ui_main_dirty_string[1];
 
-#define ui_main_dynamic_pitch2 ((ui_interface_line_t*)&(ui_main_now_figures[0]))
-#define ui_main_dynamic_right_storage ((ui_interface_arc_t*)&(ui_main_now_figures[1]))
-#define ui_main_dynamic_left_storage ((ui_interface_arc_t*)&(ui_main_now_figures[2]))
-#define ui_main_dynamic_pitch1 ((ui_interface_line_t*)&(ui_main_now_figures[3]))
-#define ui_main_dynamic_arm_pump ((ui_interface_arc_t*)&(ui_main_now_figures[4]))
-#define ui_main_static_yaw ((ui_interface_line_t*)&(ui_main_now_figures[5]))
+#define ui_main_dynamic_pitch2 ((ui_interface_line_t *)&(ui_main_now_figures[0]))
+#define ui_main_dynamic_right_storage ((ui_interface_arc_t *)&(ui_main_now_figures[1]))
+#define ui_main_dynamic_left_storage ((ui_interface_arc_t *)&(ui_main_now_figures[2]))
+#define ui_main_dynamic_pitch1 ((ui_interface_line_t *)&(ui_main_now_figures[3]))
+#define ui_main_dynamic_arm_pump ((ui_interface_arc_t *)&(ui_main_now_figures[4]))
+#define ui_main_static_yaw ((ui_interface_line_t *)&(ui_main_now_figures[5]))
 
 #define ui_main_dynamic_arm_status (&(ui_main_now_strings[0]))
 
@@ -36,4 +36,4 @@ extern uint8_t ui_main_dirty_string[1];
 void ui_init_main();
 void ui_update_main();
 
-#endif // UI_main_H
+#endif  // UI_main_H
