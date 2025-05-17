@@ -36,7 +36,8 @@ class JsonBuilder {
     return arr;
   }
 
-  static rapidjson::Value BuildJsonArray(const std::vector<double> &vec, rapidjson::Document::AllocatorType &allocator) {
+  static rapidjson::Value BuildJsonArray(const std::vector<double> &vec,
+                                         rapidjson::Document::AllocatorType &allocator) {
     rapidjson::Value arr(rapidjson::kArrayType);
     for (const auto &val : vec) {
       arr.PushBack(val, allocator);
@@ -52,7 +53,8 @@ class JsonBuilder {
     rapidjson::Value points(rapidjson::kArrayType);
     for (const auto &point : trajectory.points) {
       rapidjson::Value point_obj(rapidjson::kObjectType);
-      point_obj.AddMember("time_from_start", point.time_from_start.sec + point.time_from_start.nanosec / 1e9, allocator);
+      point_obj.AddMember("time_from_start", point.time_from_start.sec + point.time_from_start.nanosec / 1e9,
+                          allocator);
 
       point_obj.AddMember("positions", BuildJsonArray(point.positions, allocator), allocator);
       point_obj.AddMember("velocities", BuildJsonArray(point.velocities, allocator), allocator);
@@ -87,7 +89,7 @@ class JsonBuilder {
     return buffer.GetString();
   }
 
-  static std::string BuildJson(const std::vector<double>& vec) {
+  static std::string BuildJson(const std::vector<double> &vec) {
     rapidjson::Document doc;
     doc.SetArray();
     rapidjson::Document::AllocatorType &allocator = doc.GetAllocator();

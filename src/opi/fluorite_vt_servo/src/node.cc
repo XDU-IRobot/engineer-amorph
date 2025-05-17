@@ -34,7 +34,8 @@ class FluoriteVTServoNode : public rclcpp::Node {
           if (std::abs(endeff_yaw_heading) < 17.0 / 360.0 * 2.0 * M_PI) {
             pwm_pin_.Write(AngleToDuty(ros_params_.zero_offset_degs / 180.0 * M_PI));
           } else {
-            pwm_pin_.Write(AngleToDuty(-endeff_yaw_heading * ros_params_.angle_multiplier + ros_params_.zero_offset_degs/ 180.0 * M_PI));
+            pwm_pin_.Write(AngleToDuty(-endeff_yaw_heading * ros_params_.angle_multiplier +
+                                       ros_params_.zero_offset_degs / 180.0 * M_PI));
           }
         });
   }

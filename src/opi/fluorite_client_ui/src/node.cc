@@ -34,7 +34,8 @@ class FluoriteClientUINode : public rclcpp::Node {
     joint_state_sub_ = create_subscription<sensor_msgs::msg::JointState>(
         "/joint_states", rclcpp::SensorDataQoS(), [&](const sensor_msgs::msg::JointState::SharedPtr msg) {
           static ArmRenderer renderer;
-          // RCLCPP_INFO(get_logger(), "joint positions: %f %f %f", msg->position[0], msg->position[1], msg->position[2]);
+          // RCLCPP_INFO(get_logger(), "joint positions: %f %f %f", msg->position[0], msg->position[1],
+          // msg->position[2]);
           auto lines = renderer.draw(msg->position[0], msg->position[1], msg->position[2]);
           std::ostringstream oss;
 

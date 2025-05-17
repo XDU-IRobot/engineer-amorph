@@ -40,7 +40,8 @@ int main() {
   for (size_t i = 0; i < t2.points.size(); ++i) {
     const auto& pt = t2.points[i];
     std::cout << "Point " << i << ":" << std::endl;
-    std::cout << "  time_from_start: " << pt.time_from_start.sec << "s " << pt.time_from_start.nanosec << "ns" << std::endl;
+    std::cout << "  time_from_start: " << pt.time_from_start.sec << "s " << pt.time_from_start.nanosec << "ns"
+              << std::endl;
     std::cout << "  positions: ";
     for (auto v : pt.positions) std::cout << v << " ";
     std::cout << std::endl;
