@@ -111,8 +111,17 @@ namespace BT {
 
 template <>
 inline std::vector<double> convertFromString(BT::StringView str) {
+  // 如果字符串两端有单引号或者双引号，去掉它们
+  std::string processed = str.data();
+  if (processed.front() == '\'' || processed.front() == '\"') {
+    processed.erase(processed.begin());
+  }
+  if (processed.back() == '\'' || processed.back() == '\"') {
+    processed.erase(processed.end() - 1);
+  }
+
   rapidjson::Document doc;
-  doc.Parse(str.data());
+  doc.Parse(processed.data());
   std::vector<double> vec;
 
   if (doc.IsArray()) {
@@ -128,9 +137,18 @@ inline std::vector<double> convertFromString(BT::StringView str) {
 
 template <>
 inline trajectory_msgs::msg::JointTrajectory convertFromString(BT::StringView str) {
+  // 如果字符串两端有单引号或者双引号，去掉它们
+  std::string processed = str.data();
+  if (processed.front() == '\'' || processed.front() == '\"') {
+    processed.erase(processed.begin());
+  }
+  if (processed.back() == '\'' || processed.back() == '\"') {
+    processed.erase(processed.end() - 1);
+  }
+
   trajectory_msgs::msg::JointTrajectory trajectory;
   rapidjson::Document doc;
-  doc.Parse(str.data());
+  doc.Parse(processed.data());
 
   if (doc.HasMember("points") && doc["points"].IsArray()) {
     const auto &points = doc["points"].GetArray();
@@ -173,9 +191,18 @@ inline trajectory_msgs::msg::JointTrajectory convertFromString(BT::StringView st
 
 template <>
 inline trajectory_msgs::msg::JointTrajectoryPoint convertFromString(BT::StringView str) {
+  // 如果字符串两端有单引号或者双引号，去掉它们
+  std::string processed = str.data();
+  if (processed.front() == '\'' || processed.front() == '\"') {
+    processed.erase(processed.begin());
+  }
+  if (processed.back() == '\'' || processed.back() == '\"') {
+    processed.erase(processed.end() - 1);
+  }
+
   trajectory_msgs::msg::JointTrajectoryPoint point;
   rapidjson::Document doc;
-  doc.Parse(str.data());
+  doc.Parse(processed.data());
 
   if (doc.HasMember("time_from_start") && doc["time_from_start"].IsNumber()) {
     double t = doc["time_from_start"].GetDouble();

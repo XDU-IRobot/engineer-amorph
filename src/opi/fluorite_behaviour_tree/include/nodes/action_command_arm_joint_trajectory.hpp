@@ -8,6 +8,7 @@
 
 #include "moveit.hpp"
 #include "ros_node.hpp"
+#include "debug_helpers.hpp"
 
 #include "fluorite_msgs/action/arm_trajectory_command.hpp"
 
@@ -40,6 +41,8 @@ class ActionCommandArmJointTrajectory : public BT::StatefulActionNode {
     if (!playback_speed) {
       throw BT::RuntimeError("missing required input [playback_speed]: ", playback_speed.error());
     }
+    RCLCPP_INFO(bt_node_->get_logger(), "Requesting to execute trajectory: \n");
+    Print(traj.value());
 
     const auto action_goal = [&] {
       auto goal = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Goal>();

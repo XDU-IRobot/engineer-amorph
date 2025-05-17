@@ -118,7 +118,7 @@ class BTExecutorNode : public rclcpp::Node {
     hotkeys_.go_to_right_storage.OnPress([&] {
       RCLCPP_INFO(this->get_logger(), "Store to right key pressed");
       if (ready_to_command_ && !tree_runner_.have_ongoing_tree()) {
-        tree_runner_.Run(tree_loader_.Load("go_to_right_storage"));
+        tree_runner_.Run(tree_loader_.Load("go_to_right_storage_direct"));
       } else {
         RCLCPP_WARN(this->get_logger(), "Not ready to command");
       }
