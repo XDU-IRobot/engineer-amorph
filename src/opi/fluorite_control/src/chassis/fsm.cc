@@ -57,7 +57,8 @@ void NoForce::entry() {}
 
 void FollowGimbal::react(event::chassis::Control const &control) {
   double speed_multiplier = 4000.0;
-  if (arm::fsm::Arm::is_in_state<arm::fsm::state::arm::BehaviourTreeExecuting>()) {
+  if (arm::fsm::Arm::is_in_state<arm::fsm::state::arm::BehaviourTreeExecuting>() ||
+      arm::fsm::Arm::is_in_state<arm::fsm::state::arm::CustomCtrlManual>()) {
     speed_multiplier = 1000.0;
   }
   if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT)) {
