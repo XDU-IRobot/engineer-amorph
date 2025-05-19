@@ -96,4 +96,4 @@ struct Controller {
 };
 extern std::unique_ptr<Controller> controller;
 
-}  // namespace fluorite
+}  // namespace fluorite::arm

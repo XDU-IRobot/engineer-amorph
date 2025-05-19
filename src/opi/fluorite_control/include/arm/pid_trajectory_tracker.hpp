@@ -93,7 +93,7 @@ class PidTrajectoryTracker {
       for (size_t i = 1; i < traj.points.size(); ++i) {
         const auto &point1 = traj.points[i - 1];
         const auto &point2 = traj.points[i];
-        constexpr double kMaxVelocity = 150.0 / 180.0 * M_PI;                   // 150度/s
+        constexpr double kMaxVelocity = 150.0 / 180.0 * M_PI;                  // 150度/s
         const double dt = (PointTimeMs(point2) - PointTimeMs(point1)) * 1e-3;  // ms to s
         double max_vel = 0.0;
         for (size_t j = 0; j < NJoints; ++j) {
@@ -121,7 +121,7 @@ class PidTrajectoryTracker {
       }
       const auto &point1 = traj.points[0];
       const auto &point2 = current_point_;
-      constexpr double kMaxVelocity = 150.0 / 180.0 * M_PI;                   // 150度/s
+      constexpr double kMaxVelocity = 150.0 / 180.0 * M_PI;                  // 150度/s
       const double dt = (PointTimeMs(point1) - PointTimeMs(point2)) * 1e-3;  // ms to s
       double max_vel = 0.0;
       for (size_t j = 0; j < NJoints; ++j) {
@@ -390,6 +390,6 @@ class PidTrajectoryTracker {
   std::vector<std::pair<double, double>> joint_limits_;  ///< <lower bound, upper bound>
 };
 
-}  // namespace fluorite
+}  // namespace fluorite::arm
 
 #endif

@@ -140,6 +140,6 @@ class StorageSystem {
   PwmOutputPin vaccum_pump_;
 };
 
-}  // namespace fluorite
+}  // namespace fluorite::arm
 
 #endif

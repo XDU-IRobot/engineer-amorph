@@ -62,6 +62,6 @@ class DynamicModel {
   static constexpr double b2 = m3 * r3 * g0;
 };
 
-}  // namespace fluorite
+}  // namespace fluorite::arm
 
 #endif  // ARM_DYNAMICS_HPP

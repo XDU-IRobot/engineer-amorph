@@ -409,9 +409,9 @@ void FluoriteArm::Blackbox() {
       marker.action = visualization_msgs::msg::Marker::ADD;
       marker.pose.position = state_msg.target_end_effector_pose.position;
       const auto orientation = [&] {
-        Eigen::Quaterniond q(state_msg.target_end_effector_pose.orientation.w, state_msg.target_end_effector_pose.orientation.x,
-                             state_msg.target_end_effector_pose.orientation.y,
-                             state_msg.target_end_effector_pose.orientation.z);
+        Eigen::Quaterniond q(
+            state_msg.target_end_effector_pose.orientation.w, state_msg.target_end_effector_pose.orientation.x,
+            state_msg.target_end_effector_pose.orientation.y, state_msg.target_end_effector_pose.orientation.z);
         q = q * Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitY());
         geometry_msgs::msg::Quaternion o;
         o.x = q.x();
@@ -485,7 +485,7 @@ void FluoriteArm::ProcessSensorData() {
   state_msg.yaw_encoder = actuator->yaw.pos() - ros_params_manager_.data().yaw_encoder_zero_offset;
   state_msg.yaw_encoder_speed = actuator->yaw.vel();
   state_msg.pitch_1_encoder = actuator->pitch_1.pos() * (2.0 / 3.0)  // 传动链条 减速比2:3
-                          - ros_params_manager_.data().pitch_1_encoder_zero_offset;
+                              - ros_params_manager_.data().pitch_1_encoder_zero_offset;
   state_msg.pitch_1_encoder_speed = actuator->pitch_1.vel();
   state_msg.pitch_2_encoder = actuator->pitch_2.pos() - ros_params_manager_.data().pitch_2_encoder_zero_offset;
   state_msg.pitch_2_encoder_speed = actuator->pitch_2.vel();
@@ -493,7 +493,8 @@ void FluoriteArm::ProcessSensorData() {
   state_msg.end_yaw_1_encoder_speed = actuator->end_yaw_1.vel();
   state_msg.end_pitch_encoder = actuator->end_pitch.pos() - ros_params_manager_.data().end_pitch_encoder_zero_offset;
   state_msg.end_pitch_encoder_speed = actuator->end_pitch.vel();
-  state_msg.end_yaw_2_encoder = actuator->end_yaw_2.pos_rad() - ros_params_manager_.data().end_yaw_2_encoder_zero_offset;
+  state_msg.end_yaw_2_encoder =
+      actuator->end_yaw_2.pos_rad() - ros_params_manager_.data().end_yaw_2_encoder_zero_offset;
   state_msg.end_yaw_2_encoder_speed = actuator->end_yaw_2.rpm();
 }
 

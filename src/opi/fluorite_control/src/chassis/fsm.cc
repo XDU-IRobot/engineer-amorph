@@ -64,8 +64,8 @@ void FollowGimbal::react(event::chassis::Control const &control) {
     speed_multiplier *= 1.3;
   }
   const double vy = -std::clamp(control.left_x + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
-                                                 control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A)),
-                               -1.0, 1.0) *
+                                                  control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A)),
+                                -1.0, 1.0) *
                     speed_multiplier;
   const double vx = std::clamp(control.left_y + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_W) -
                                                  control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_S)),

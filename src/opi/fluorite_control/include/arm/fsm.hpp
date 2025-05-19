@@ -250,6 +250,6 @@ void DispatchEvent(Event const &event) {
 
 }  // namespace fsm
 
-}  // namespace fluorite
+}  // namespace fluorite::arm
 
 #endif

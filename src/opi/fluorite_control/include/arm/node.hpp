@@ -40,8 +40,8 @@ namespace fluorite::arm {
 class FluoriteArm final : public rclcpp::Node {
  public:
   explicit FluoriteArm(rclcpp::NodeOptions const &options = rclcpp::NodeOptions()
-                                                       .allow_undeclared_parameters(true)
-                                                       .automatically_declare_parameters_from_overrides(true));
+                                                                .allow_undeclared_parameters(true)
+                                                                .automatically_declare_parameters_from_overrides(true));
   ~FluoriteArm() override;
 
  private:
@@ -132,6 +132,6 @@ class FluoriteArm final : public rclcpp::Node {
   /** </behaviour tree interface> **/
 };
 
-}  // namespace fluorite
+}  // namespace fluorite::arm
 
 #endif

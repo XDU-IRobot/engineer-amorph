@@ -58,6 +58,6 @@ auto Pin(int pin_num) {
   }
 }
 
-}  // namespace fluorite
+}  // namespace fluorite::arm
 
 #endif

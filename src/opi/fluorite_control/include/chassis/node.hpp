@@ -26,9 +26,10 @@ namespace fluorite::chassis {
  */
 class FluoriteChassis final : public rclcpp::Node {
  public:
-  explicit FluoriteChassis(rclcpp::NodeOptions const &options = rclcpp::NodeOptions()
-                                                           .allow_undeclared_parameters(true)
-                                                           .automatically_declare_parameters_from_overrides(true));
+  explicit FluoriteChassis(
+      rclcpp::NodeOptions const &options = rclcpp::NodeOptions()
+                                               .allow_undeclared_parameters(true)
+                                               .automatically_declare_parameters_from_overrides(true));
   ~FluoriteChassis() override;
 
  private:
@@ -98,6 +99,6 @@ class FluoriteChassis final : public rclcpp::Node {
   /** </arm state subscriber> **/
 };
 
-}  // namespace fluorite
+}  // namespace fluorite::chassis
 
 #endif
