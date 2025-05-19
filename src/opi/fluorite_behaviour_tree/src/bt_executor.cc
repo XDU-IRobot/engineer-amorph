@@ -100,16 +100,16 @@ class BTExecutorNode : public rclcpp::Node {
     fpv_link_input_sub_ = create_subscription<rm2_referee_msgs::msg::RemoteControl>(
         "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
         [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
-          hotkeys_.rise_eff.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_R);
+          hotkeys_.retract.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_R);
           hotkeys_.go_to_left_storage.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Z);
           hotkeys_.go_to_right_storage.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_X);
         });
 
     // define keymap
-    hotkeys_.rise_eff.OnPress([&] {
-      RCLCPP_INFO(this->get_logger(), "Rise effect key pressed");
+    hotkeys_.retract.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Retract arm key pressed");
       if (ready_to_command_ && !tree_runner_.have_ongoing_tree()) {
-        tree_runner_.Run(tree_loader_.Load("rise_eff"));
+        tree_runner_.Run(tree_loader_.Load("retract"));
       } else {
         RCLCPP_WARN(this->get_logger(), "Not ready to command");
       }
@@ -139,7 +139,7 @@ class BTExecutorNode : public rclcpp::Node {
   /** </user input subscribers> **/
 
   struct {
-    Hotkey rise_eff,          // R
+    Hotkey retract,           // R
         go_to_left_storage,   // Z
         go_to_right_storage;  // X
   } hotkeys_;

@@ -558,8 +558,10 @@ void FollowImu::entry() {
 void NoForce::entry() { actuator->base_yaw.Enable(false); }
 
 void FollowImu::react(event::Control const &control) {
+  const double keyboard_q_e = 0.003 * (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_E) -
+                                       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_Q));
   state_msg.imu_yaw_target = rm::modules::algorithm::utils::LoopConstrain(
-      state_msg.imu_yaw_target - control.right_x * 0.006 - control.mouse_x, -M_PIf, M_PIf);
+      state_msg.imu_yaw_target - keyboard_q_e - control.right_x * 0.006 - control.mouse_x, -M_PIf, M_PIf);
 
   const auto base_yaw_imu =
       rm::modules::algorithm::utils::LoopConstrain(state_msg.imu_yaw - state_msg.yaw_encoder, -M_PIf, M_PIf);

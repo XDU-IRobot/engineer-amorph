@@ -21,15 +21,15 @@ int main() {
 
   Point<6> a, b;
 
-  a.time_from_start = rclcpp::Duration(800ms);
-  a.positions = {-2.81, 1.162, 1.856, -0.014, -1.596, 0.0};
+  a.time_from_start = rclcpp::Duration(1000ms);
+  a.positions = {0.1, 0.1, 0.0, 0.0, 0.0, 0.0};
   b.time_from_start = rclcpp::Duration(1250ms);
   b.positions = {-2.75, 1.74, 1.9, 0.015, -1.743, -0.104};
 
   trajectory_msgs::msg::JointTrajectory t;
   t.joint_names = {"yaw_joint",       "pitch_1_joint",   "pitch_2_joint",
                    "end_yaw_1_joint", "end_pitch_joint", "end_yaw_2_joint"};
-  t.points = {a, b};
+  t.points = {a};
 
   std::string json_str = JsonBuilder::BuildJson(t);
   std::cout << json_str << std::endl;
