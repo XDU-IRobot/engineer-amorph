@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstring>
 #include <deque>
+#include <utility>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
@@ -25,6 +26,7 @@ MsgTxCallback StdFunctionToFnPtr(std::function<void(const uint8_t *, int)> fn) {
 
 class FluoriteClientUINode : public rclcpp::Node {
  public:
+  std::pair<Point, Point> line1_coord_, line2_coord_, line3_coord_;
   explicit FluoriteClientUINode(
       const rclcpp::NodeOptions &options =
           rclcpp::NodeOptions().allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(true))
@@ -36,24 +38,28 @@ class FluoriteClientUINode : public rclcpp::Node {
           static ArmRenderer renderer;
           // RCLCPP_INFO(get_logger(), "joint positions: %f %f %f", msg->position[0], msg->position[1],
           // msg->position[2]);
-          auto lines = renderer.draw(msg->position[0], msg->position[1], msg->position[2]);
+          const auto lines = renderer.Draw(msg->position[0], msg->position[1], msg->position[2]);
+          line1_coord_ = lines[0];
+          line2_coord_ = lines[1];
+          line3_coord_ = lines[2];
+
           std::ostringstream oss;
 
           constexpr int kUIOffsetX = 580;
           constexpr int kUIOffsetY = 240;
           // std::lock_guard lock(ui_data_mutex_);
-          ui_main_static_yaw->start_x = lines[1].first.x;
-          ui_main_static_yaw->start_y = lines[1].first.y;
-          ui_main_static_yaw->end_x = lines[1].second.x;
-          ui_main_static_yaw->end_y = lines[1].second.y;
-          ui_main_dynamic_pitch1->start_x = lines[1].first.x;
-          ui_main_dynamic_pitch1->start_y = lines[1].first.y;
-          ui_main_dynamic_pitch1->end_x = lines[1].second.x;
-          ui_main_dynamic_pitch1->end_y = lines[1].second.y;
-          ui_main_dynamic_pitch2->start_x = lines[2].first.x;
-          ui_main_dynamic_pitch2->start_y = lines[2].first.y;
-          ui_main_dynamic_pitch2->end_x = lines[2].second.x;
-          ui_main_dynamic_pitch2->end_y = lines[2].second.y;
+          ui_main_static_yaw->start_x = line1_coord_.first.x + kUIOffsetX;
+          ui_main_static_yaw->start_y = line1_coord_.first.y + kUIOffsetY;
+          ui_main_static_yaw->end_x = line1_coord_.second.x + kUIOffsetX;
+          ui_main_static_yaw->end_y = line1_coord_.second.y + kUIOffsetY;
+          ui_main_dynamic_pitch1->start_x = line2_coord_.first.x + kUIOffsetX;
+          ui_main_dynamic_pitch1->start_y = line2_coord_.first.y + kUIOffsetY;
+          ui_main_dynamic_pitch1->end_x = line2_coord_.second.x + kUIOffsetX;
+          ui_main_dynamic_pitch1->end_y = line2_coord_.second.y + kUIOffsetY;
+          ui_main_dynamic_pitch2->start_x = line3_coord_.first.x + kUIOffsetX;
+          ui_main_dynamic_pitch2->start_y = line3_coord_.first.y + kUIOffsetY;
+          ui_main_dynamic_pitch2->end_x = line3_coord_.second.x + kUIOffsetX;
+          ui_main_dynamic_pitch2->end_y = line3_coord_.second.y + kUIOffsetY;
           // oss << "rendered lines:\n"
           //     << "  0: (" << ui_main_static_yaw->start_x << ", " << ui_main_static_yaw->start_y << ") -> ("
           //     << ui_main_static_yaw->end_x << ", " << ui_main_static_yaw->end_y << ")\n"

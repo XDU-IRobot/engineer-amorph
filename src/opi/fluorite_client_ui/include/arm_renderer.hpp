@@ -31,7 +31,7 @@ class ArmRenderer {
   const int SCREEN_HEIGHT = 600;
 
   // 将三维坐标转换为屏幕坐标
-  Point project(const Point3D& p) const {
+  Point Project(const Point3D& p) const {
     const double theta = CAM_ANGLE * M_PI / 180.0;
 
     // 应用俯角旋转（绕X轴）
@@ -45,7 +45,7 @@ class ArmRenderer {
 
  public:
   // 输入关节角度，输出三条线段的屏幕坐标
-  std::array<std::pair<Point, Point>, 3> draw(double yaw, double pitch1, double pitch2) const {
+  std::array<std::pair<Point, Point>, 3> Draw(double yaw, double pitch1, double pitch2) const {
     // 转换为弧度
     const double rad_yaw = yaw;
     const double rad_p1 = pitch1;
@@ -62,10 +62,10 @@ class ArmRenderer {
                          joint2.z + ARM2_LENGTH * cos(rad_yaw) * cos(rad_p2));
 
     // 投影到屏幕坐标
-    const Point p0 = project(base);
-    const Point p1 = project(joint1);
-    const Point p2 = project(joint2);
-    const Point p3 = project(joint3);
+    const Point p0 = Project(base);
+    const Point p1 = Project(joint1);
+    const Point p2 = Project(joint2);
+    const Point p3 = Project(joint3);
 
     // 返回三条线段：立柱、后臂、前臂
     return {{
