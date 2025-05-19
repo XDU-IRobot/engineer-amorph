@@ -114,20 +114,9 @@ def generate_launch_description():
             }],),
         Node(
             package="fluorite_control",
-            executable="fluorite_control_chassis",
-            name="fluorite_control_chassis",
+            executable="fluorite_control_node",
             parameters=[os.path.join(get_package_share_directory(
                     'fluorite_control'), "config", "settings.yaml")],
-            output="screen"),
-        Node(
-            package="fluorite_control",
-            executable="fluorite_control_arm",
-            name="fluorite_control_arm",
-            parameters=[os.path.join(get_package_share_directory(
-                    'fluorite_control'), "config", "settings.yaml"),
-                moveit_config.robot_description,
-                moveit_config.robot_description_semantic,
-                moveit_config.robot_description_kinematics],
             output="screen"),
         Node(
             package="fluorite_vt_servo",

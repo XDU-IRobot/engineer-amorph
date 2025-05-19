@@ -31,6 +31,8 @@ class ActionCommandArmJointTrajectory : public BT::StatefulActionNode {
     if (!action_client.CheckServerOnline()) {
       return BT::NodeStatus::FAILURE;
     }
+    const auto current_joint_positions = MoveitHelper::GetInstance().GetMoveGroupInterface().getCurrentJointValues();
+    MoveitHelper::GetInstance().ReleaseMoveGroupInterface();
 
     BT::Optional<trajectory_msgs::msg::JointTrajectory> traj =
         getInput<trajectory_msgs::msg::JointTrajectory>("trajectory");
@@ -47,6 +49,12 @@ class ActionCommandArmJointTrajectory : public BT::StatefulActionNode {
     const auto action_goal = [&] {
       auto goal = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Goal>();
       goal->trajectory = TimeScaleTrajectory(traj.value(), playback_speed.value());
+      // TODO: 拉一坨先，最后一个小yaw关节先直接锁死，目前没有需要让行为树控制这个关节的需求
+      for (auto& point : goal->trajectory.points) {
+        point.positions[5] = current_joint_positions[5];
+        point.velocities[5] = 0.0;
+        point.accelerations[5] = 0.0;
+      }
       return goal;
     }();
 

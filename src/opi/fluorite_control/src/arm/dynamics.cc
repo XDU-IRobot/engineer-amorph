@@ -1,9 +1,9 @@
 
 #include "arm/dynamics.hpp"
 
-using Vec3 = fluorite::DynamicModel::Vec3;
+using Vec3 = fluorite::arm::DynamicModel::Vec3;
 
-Vec3 fluorite::DynamicModel::operator()(const Vec3& q, const Vec3& qd, bool logging) {
+Vec3 fluorite::arm::DynamicModel::operator()(const Vec3& q, const Vec3& qd, bool logging) {
   Vec3 ret;
   Vec3 qdd_differential = (qd - last_qd_.second) / (rclcpp::Clock().now() - last_qd_.first).seconds();
 
@@ -13,7 +13,7 @@ Vec3 fluorite::DynamicModel::operator()(const Vec3& q, const Vec3& qd, bool logg
   return ret;
 }
 
-Vec3 fluorite::DynamicModel::operator()(const Vec3& q, const Vec3& qd, const Vec3& qdd, bool logging) {
+Vec3 fluorite::arm::DynamicModel::operator()(const Vec3& q, const Vec3& qd, const Vec3& qdd, bool logging) {
   using rm::modules::algorithm::utils::DegToRad;
 
   double q2 = DegToRad(160) - q(1);

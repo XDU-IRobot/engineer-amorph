@@ -27,7 +27,7 @@ constexpr int kRcSwitchUp = 1;
 constexpr int kRcSwitchMiddle = 0;
 constexpr int kRcSwitchDown = -1;
 
-namespace fluorite {
+namespace fluorite::arm {
 
 namespace fsm {
 namespace event {
@@ -231,6 +231,7 @@ DeclareState(NoForce, GimbalBase);    ///< 大yaw轴无力
 namespace pneumatic_system {
 
 DeclareState(BehaviourTree, PneumaticSystem);  ///< 气动系统行为树控制
+DeclareState(Debug, PneumaticSystem);          ///< 气动系统手动控制
 DeclareState(Manual, PneumaticSystem);         ///< 气动系统手动控制
 DeclareState(Off, PneumaticSystem);            ///< 气动系统关闭
 

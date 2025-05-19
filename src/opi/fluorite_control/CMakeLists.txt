@@ -25,7 +25,7 @@ include_directories(include)
 add_subdirectory(libs)
 add_subdirectory(src)
 
-install(TARGETS ${PROJECT_NAME}_arm ${PROJECT_NAME}_chassis
+install(TARGETS ${PROJECT_NAME}_node
   DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME})

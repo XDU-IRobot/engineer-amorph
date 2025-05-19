@@ -6,7 +6,7 @@
 
     base_yaw_id: 1
     base_yaw_reverse: false
-    base_yaw_encoder_zero_offset: 5.33863639831543
+    base_yaw_encoder_zero_offset: 3.767839
 
 fluorite_control_chassis:
   ros__parameters:
@@ -80,7 +80,7 @@ fluorite_control_arm:
     pid_pitch_2_speed: [-2.8, 0.0, 0.0, 10.0, 10.0]
     pid_end_yaw_1_speed: [-0.6, 0.0, 0.0, 4.0, 4.0]
     pid_end_pitch_speed: [0.45, 0.0, 0.0, 4.0, 4.0]
-    pid_end_yaw_2_speed: [84.0, 0.0, 0.0, 6500.0, 6500.0]
+    pid_end_yaw_2_speed: [92.0, 0.0, 0.0, 6500.0, 6500.0]
     pid_base_yaw_position: [450.0, 0.0, 24000.0, 130.0, 130.0]
     pid_yaw_position: [40.0, 0.0, 230.0, 3.4, 3.4]
     pid_pitch_1_position: [85.0, 0.0, 1.0, 4.0, 4.0]

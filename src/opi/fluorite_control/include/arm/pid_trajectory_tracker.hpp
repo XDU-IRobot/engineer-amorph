@@ -18,7 +18,7 @@
 #include "common/logger.hpp"
 #include "common/debug_helpers.hpp"
 
-namespace fluorite {
+namespace fluorite::arm {
 
 template <int NJoints>
 class PidTrajectoryTracker {
@@ -93,12 +93,16 @@ class PidTrajectoryTracker {
       for (size_t i = 1; i < traj.points.size(); ++i) {
         const auto &point1 = traj.points[i - 1];
         const auto &point2 = traj.points[i];
-        constexpr double kMaxVelocity = 90.0 / 180.0 * M_PI;                   // 90度/s
+        constexpr double kMaxVelocity = 150.0 / 180.0 * M_PI;                   // 150度/s
         const double dt = (PointTimeMs(point2) - PointTimeMs(point1)) * 1e-3;  // ms to s
+        double max_vel = 0.0;
         for (size_t j = 0; j < NJoints; ++j) {
           const auto velocity = std::abs(point2.positions[j] - point1.positions[j]) / dt;
+          if (velocity > max_vel) {
+            max_vel = velocity;
+          }
           if (velocity > kMaxVelocity) {
-            warn("trajectory tracker: too large velocity in trajectory, rejecting!");
+            warn("trajectory tracker: too large velocity in trajectory, rejecting! max_vel = %f", max_vel);
             return;
           }
         }
@@ -117,12 +121,16 @@ class PidTrajectoryTracker {
       }
       const auto &point1 = traj.points[0];
       const auto &point2 = current_point_;
-      constexpr double kMaxVelocity = 90.0 / 180.0 * M_PI;                   // 90度/s
+      constexpr double kMaxVelocity = 150.0 / 180.0 * M_PI;                   // 150度/s
       const double dt = (PointTimeMs(point1) - PointTimeMs(point2)) * 1e-3;  // ms to s
+      double max_vel = 0.0;
       for (size_t j = 0; j < NJoints; ++j) {
         const auto velocity = std::abs(point1.positions[j] - point2.positions[j]) / dt;
+        if (velocity > max_vel) {
+          max_vel = velocity;
+        }
         if (velocity > kMaxVelocity) {
-          warn("trajectory tracker: too large velocity in trajectory, rejecting!");
+          warn("trajectory tracker: too large velocity to reach the first point, rejecting! max_vel = %f", max_vel);
           return;
         }
       }

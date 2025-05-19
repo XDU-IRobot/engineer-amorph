@@ -6,6 +6,8 @@
 #include <array>
 #include <string>
 
+namespace fluorite::chassis {
+
 struct RosParams {
   // can net interface names
   std::string chassis_can_port{};
@@ -62,5 +64,7 @@ struct RosParams {
   double control_sensitivity_vertical{};
   double control_sensitivity_horizontal{};
 };
+
+}  // namespace fluorite::chassis
 
 #endif  // CHASSIS_ROS_PARAMS_HPP

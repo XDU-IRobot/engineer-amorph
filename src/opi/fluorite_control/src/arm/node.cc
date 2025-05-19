@@ -21,11 +21,11 @@
 #include "common/logger.hpp"
 #include "common/debug_helpers.hpp"
 
-namespace fluorite {
+namespace fluorite::arm {
 
 using namespace std::chrono_literals;
 
-FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("fluorite_control_arm", options) {
+FluoriteArm::FluoriteArm(rclcpp::NodeOptions const &options) : rclcpp::Node("fluorite_control_arm", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
 #if __has_include("wiringPi.h")
   wiringPiSetup();  // 初始化wiringPi
@@ -46,7 +46,7 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
     ProcessSensorData();
     ParamHotUpdate();
     controller->kh.Poll();
-    fluorite::fsm::DispatchEvent(control_msg_);
+    fsm::DispatchEvent(control_msg_);
     rm::device::DjiMotor<>::SendCommand();
     rm::device::DirectDriveMotor::SendCommand();
   });
@@ -54,7 +54,7 @@ FluoriteArm::FluoriteArm(const rclcpp::NodeOptions &options) : rclcpp::Node("flu
 }
 
 FluoriteArm::~FluoriteArm() {
-  using namespace fluorite::fsm;
+  using namespace fsm;
   DispatchEvent(event::SwitchMode<state::arm::NoForce>{});
   DispatchEvent(event::SwitchMode<state::gimbal_base::NoForce>{});
 }
@@ -74,7 +74,7 @@ void FluoriteArm::InitializeShit() {
 
   // 这个can对象的生命周期和程序一样长，所以new一个就不管他了，不用delete
   auto *arm_can = new rm::hal::Can(ros_params_manager_.data().arm_can_port.c_str());
-  fluorite::controller = std::make_unique<fluorite::Controller>(
+  controller = std::make_unique<Controller>(
       PidTrajectoryTracker<6>{
           // pid controllers
           {
@@ -153,7 +153,7 @@ void FluoriteArm::InitializeShit() {
                  static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[3]),
                  static_cast<float>(ros_params_manager_.data().pid_base_yaw_position[4]), M_PI * 2},  // base_yaw 位置环
       std::move(tf_buffer_), this);
-  fluorite::actuator = std::make_unique<fluorite::Actuator>(
+  actuator = std::make_unique<Actuator>(
       Ddm{*arm_can, static_cast<size_t>(ros_params_manager_.data().base_yaw_id)},
       DmMit{*arm_can,
             DmSettingsMit{.master_id = ros_params_manager_.data().yaw_master_id,
@@ -209,8 +209,8 @@ void FluoriteArm::InitializeShit() {
                     Pin<OUTPUT>(ros_params_manager_.data().storage_right_valve_pin),
                     Pin<PWM_OUTPUT>(ros_params_manager_.data().storage_vaccum_pump_pin)});
 
-  arm_can->Begin();                  // 启动can总线接收
-  fluorite::fsm::fsm_list::start();  // 状态机开始监听事件
+  arm_can->Begin();        // 启动can总线接收
+  fsm::fsm_list::start();  // 状态机开始监听事件
   info("objects construction finished \033[32mmok\033[0m");
 }
 
@@ -221,9 +221,9 @@ void FluoriteArm::Ins() {
             (float)-msg->angular_velocity.y / 360 * 2 * M_PIf, (float)msg->angular_velocity.z / 360 * 2 * M_PIf,
             (float)msg->angular_velocity.x / 360 * 2 * M_PIf, (float)-msg->linear_acceleration.y,
             (float)msg->linear_acceleration.z, (float)msg->linear_acceleration.x});
-        fluorite::state.imu_yaw = mahony_.euler_angle().roll;
-        fluorite::state.imu_pitch = mahony_.euler_angle().yaw;
-        fluorite::state.imu_roll = mahony_.euler_angle().pitch;
+        state_msg.imu_yaw = mahony_.euler_angle().roll;
+        state_msg.imu_pitch = mahony_.euler_angle().yaw;
+        state_msg.imu_roll = mahony_.euler_angle().pitch;
       });
   info("ins \033[32mmok\033[0m");
 }
@@ -235,8 +235,8 @@ void FluoriteArm::UserInput() {
   sbus_sub_ = create_subscription<sbus_interface::msg::Sbus>(
       "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
         if (msg->failsafe) {
-          fluorite::fsm::DispatchEvent(fluorite::fsm::event::SwitchMode<fluorite::fsm::state::arm::NoForce>{});
-          fluorite::fsm::DispatchEvent(fluorite::fsm::event::SwitchMode<fluorite::fsm::state::gimbal_base::NoForce>{});
+          fsm::DispatchEvent(fsm::event::SwitchMode<fsm::state::arm::NoForce>{});
+          fsm::DispatchEvent(fsm::event::SwitchMode<fsm::state::gimbal_base::NoForce>{});
           return;
         }
         control_msg_.left_x = -(double)msg->mapped_channels[3] / 1000.0;
@@ -346,7 +346,7 @@ void FluoriteArm::Referee() {  // info("referee \033[32mmok\033[0m");
  * 发布一些调试信息，比如关节角度、速度、末端目标位置等等。没有实质性作用，不需要debug或者记录log的时候可以把这个timer关掉
  */
 void FluoriteArm::Blackbox() {
-  static auto PopulatePidMsg = [](fluorite_msgs::msg::Pid &msg, const fluorite::Controller::PosPID &pid) {
+  static auto PopulatePidMsg = [](fluorite_msgs::msg::Pid &msg, const Controller::PosPID &pid) {
     msg.kp = pid.kp_;
     msg.ki = pid.ki_;
     msg.kd = pid.kd_;
@@ -363,14 +363,14 @@ void FluoriteArm::Blackbox() {
   end_eff_target_pose_visual_pub_ = create_publisher<visualization_msgs::msg::Marker>(
       "fluorite/blackbox/end_effector_target_pose", rclcpp::SystemDefaultsQoS());
   blackbox_timer_ = create_wall_timer(20ms, [this] {
-    fluorite::state.header.stamp = now();
-    PopulatePidMsg(fluorite::state.pids[0], fluorite::controller->base_yaw_speed_pid);
-    PopulatePidMsg(fluorite::state.pids[1], fluorite::controller->base_yaw_position_pid);
+    state_msg.header.stamp = now();
+    PopulatePidMsg(state_msg.pids[0], controller->base_yaw_speed_pid);
+    PopulatePidMsg(state_msg.pids[1], controller->base_yaw_position_pid);
     for (size_t i = 0; i < 12; ++i) {
-      PopulatePidMsg(fluorite::state.pids[i + 2], *fluorite::controller->trajectory_tracker.pids()[i]);
+      PopulatePidMsg(state_msg.pids[i + 2], *controller->trajectory_tracker.pids()[i]);
     }
 
-    state.fsm_state = [&] {
+    state_msg.fsm_state = [&] {
       if (fsm::Arm::is_in_state<fsm::state::arm::NoForce>()) {
         return fluorite_msgs::msg::ArmState::FSM_STATE_NOFORCE;
       } else if (fsm::Arm::is_in_state<fsm::state::arm::CustomCtrlManual>()) {
@@ -385,7 +385,7 @@ void FluoriteArm::Blackbox() {
         return fluorite_msgs::msg::ArmState::FSM_STATE_UNKNOWN;
       }
     }();
-    state.arm_pump = [&] {
+    state_msg.arm_pump = [&] {
       switch (actuator->sucker_system.state()) {
         case SuckerSystem::SuckerState::kOff:
           return fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_OFF;
@@ -395,9 +395,9 @@ void FluoriteArm::Blackbox() {
           return fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_BLOW;
       }
     }();
-    state.left_storage = actuator->storage_system.left_state();
-    state.right_storage = actuator->storage_system.right_state();
-    blackbox_state_pub_->publish(fluorite::state);
+    state_msg.left_storage = actuator->storage_system.left_state();
+    state_msg.right_storage = actuator->storage_system.right_state();
+    blackbox_state_pub_->publish(state_msg);
 
     const auto marker = [&] {
       visualization_msgs::msg::Marker marker;
@@ -407,12 +407,11 @@ void FluoriteArm::Blackbox() {
       marker.id = 0;
       marker.type = visualization_msgs::msg::Marker::ARROW;
       marker.action = visualization_msgs::msg::Marker::ADD;
-      marker.pose.position = fluorite::state.target_end_effector_pose.position;
+      marker.pose.position = state_msg.target_end_effector_pose.position;
       const auto orientation = [&] {
-        Eigen::Quaterniond q(fluorite::state.target_end_effector_pose.orientation.w,
-                             fluorite::state.target_end_effector_pose.orientation.x,
-                             fluorite::state.target_end_effector_pose.orientation.y,
-                             fluorite::state.target_end_effector_pose.orientation.z);
+        Eigen::Quaterniond q(state_msg.target_end_effector_pose.orientation.w, state_msg.target_end_effector_pose.orientation.x,
+                             state_msg.target_end_effector_pose.orientation.y,
+                             state_msg.target_end_effector_pose.orientation.z);
         q = q * Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitY());
         geometry_msgs::msg::Quaternion o;
         o.x = q.x();
@@ -426,7 +425,7 @@ void FluoriteArm::Blackbox() {
       marker.scale.y = 0.05;
       marker.scale.z = 0.05;
       marker.color.a = 1.0;
-      if (fluorite::state.last_ik_success) {
+      if (state_msg.last_ik_success) {
         marker.color.r = 0.0;
         marker.color.g = 1.0;
         marker.color.b = 0.0;
@@ -456,7 +455,7 @@ void FluoriteArm::DeviceMonitor() {
 }
 
 /**
- * @brief 从电机对象里拿数据，做单位换算、范围处理、滤波器处理等等，最后更新fluorite::state
+ * @brief 从电机对象里拿数据，做单位换算、范围处理、滤波器处理等等，最后更新state
  */
 void FluoriteArm::ProcessSensorData() {
   // 初始化低通滤波器
@@ -480,27 +479,22 @@ void FluoriteArm::ProcessSensorData() {
     return ret;
   }();
 
-  fluorite::state.base_yaw_encoder = rm::modules::algorithm::utils::LoopConstrain(
-      fluorite::actuator->base_yaw.pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset, 0.0,
-      M_PI * 2.0);
-  fluorite::state.base_yaw_encoder_speed = fluorite::actuator->base_yaw.rpm();
-  fluorite::state.yaw_encoder = fluorite::actuator->yaw.pos() - ros_params_manager_.data().yaw_encoder_zero_offset;
-  fluorite::state.yaw_encoder_speed = fluorite::actuator->yaw.vel();
-  fluorite::state.pitch_1_encoder = fluorite::actuator->pitch_1.pos() * (2.0 / 3.0)  // 传动链条 减速比2:3
-                                    - ros_params_manager_.data().pitch_1_encoder_zero_offset;
-  fluorite::state.pitch_1_encoder_speed = fluorite::actuator->pitch_1.vel();
-  fluorite::state.pitch_2_encoder =
-      fluorite::actuator->pitch_2.pos() - ros_params_manager_.data().pitch_2_encoder_zero_offset;
-  fluorite::state.pitch_2_encoder_speed = fluorite::actuator->pitch_2.vel();
-  fluorite::state.end_yaw_1_encoder =
-      fluorite::actuator->end_yaw_1.pos() - ros_params_manager_.data().end_yaw_1_encoder_zero_offset;
-  fluorite::state.end_yaw_1_encoder_speed = fluorite::actuator->end_yaw_1.vel();
-  fluorite::state.end_pitch_encoder =
-      fluorite::actuator->end_pitch.pos() - ros_params_manager_.data().end_pitch_encoder_zero_offset;
-  fluorite::state.end_pitch_encoder_speed = fluorite::actuator->end_pitch.vel();
-  fluorite::state.end_yaw_2_encoder =
-      fluorite::actuator->end_yaw_2.pos_rad() - ros_params_manager_.data().end_yaw_2_encoder_zero_offset;
-  fluorite::state.end_yaw_2_encoder_speed = fluorite::actuator->end_yaw_2.rpm();
+  state_msg.base_yaw_encoder = rm::modules::algorithm::utils::LoopConstrain(
+      actuator->base_yaw.pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset, 0.0, M_PI * 2.0);
+  state_msg.base_yaw_encoder_speed = actuator->base_yaw.rpm();
+  state_msg.yaw_encoder = actuator->yaw.pos() - ros_params_manager_.data().yaw_encoder_zero_offset;
+  state_msg.yaw_encoder_speed = actuator->yaw.vel();
+  state_msg.pitch_1_encoder = actuator->pitch_1.pos() * (2.0 / 3.0)  // 传动链条 减速比2:3
+                          - ros_params_manager_.data().pitch_1_encoder_zero_offset;
+  state_msg.pitch_1_encoder_speed = actuator->pitch_1.vel();
+  state_msg.pitch_2_encoder = actuator->pitch_2.pos() - ros_params_manager_.data().pitch_2_encoder_zero_offset;
+  state_msg.pitch_2_encoder_speed = actuator->pitch_2.vel();
+  state_msg.end_yaw_1_encoder = actuator->end_yaw_1.pos() - ros_params_manager_.data().end_yaw_1_encoder_zero_offset;
+  state_msg.end_yaw_1_encoder_speed = actuator->end_yaw_1.vel();
+  state_msg.end_pitch_encoder = actuator->end_pitch.pos() - ros_params_manager_.data().end_pitch_encoder_zero_offset;
+  state_msg.end_pitch_encoder_speed = actuator->end_pitch.vel();
+  state_msg.end_yaw_2_encoder = actuator->end_yaw_2.pos_rad() - ros_params_manager_.data().end_yaw_2_encoder_zero_offset;
+  state_msg.end_yaw_2_encoder_speed = actuator->end_yaw_2.rpm();
 }
 
 /**
@@ -520,18 +514,18 @@ void FluoriteArm::JointStatesPublisher() {
   joint_state_msg_.velocity.resize(6);
   joint_state_pub_timer_ = create_wall_timer(20ms, [this] {
     joint_state_msg_.header.stamp = now();
-    joint_state_msg_.position[0] = fluorite::state.yaw_encoder;
-    joint_state_msg_.position[1] = fluorite::state.pitch_1_encoder;
-    joint_state_msg_.position[2] = fluorite::state.pitch_2_encoder;
-    joint_state_msg_.position[3] = fluorite::state.end_yaw_1_encoder;
-    joint_state_msg_.position[4] = fluorite::state.end_pitch_encoder;
-    joint_state_msg_.position[5] = fluorite::state.end_yaw_2_encoder;
-    joint_state_msg_.velocity[0] = fluorite::state.yaw_encoder_speed;
-    joint_state_msg_.velocity[1] = fluorite::state.pitch_1_encoder_speed;
-    joint_state_msg_.velocity[2] = fluorite::state.pitch_2_encoder_speed;
-    joint_state_msg_.velocity[3] = fluorite::state.end_yaw_1_encoder_speed;
-    joint_state_msg_.velocity[4] = fluorite::state.end_pitch_encoder_speed;
-    joint_state_msg_.velocity[5] = fluorite::state.end_yaw_2_encoder_speed;
+    joint_state_msg_.position[0] = state_msg.yaw_encoder;
+    joint_state_msg_.position[1] = state_msg.pitch_1_encoder;
+    joint_state_msg_.position[2] = state_msg.pitch_2_encoder;
+    joint_state_msg_.position[3] = state_msg.end_yaw_1_encoder;
+    joint_state_msg_.position[4] = state_msg.end_pitch_encoder;
+    joint_state_msg_.position[5] = state_msg.end_yaw_2_encoder;
+    joint_state_msg_.velocity[0] = state_msg.yaw_encoder_speed;
+    joint_state_msg_.velocity[1] = state_msg.pitch_1_encoder_speed;
+    joint_state_msg_.velocity[2] = state_msg.pitch_2_encoder_speed;
+    joint_state_msg_.velocity[3] = state_msg.end_yaw_1_encoder_speed;
+    joint_state_msg_.velocity[4] = state_msg.end_pitch_encoder_speed;
+    joint_state_msg_.velocity[5] = state_msg.end_yaw_2_encoder_speed;
     joint_state_pub_->publish(joint_state_msg_);
   });
   info("jsp \033[32mmok\033[0m");
@@ -546,7 +540,7 @@ void FluoriteArm::TFBroadcaster() {
   world_to_base_yaw_tf_.child_frame_id = "base_yaw_link";
   world_to_base_yaw_tf_broadcaster_timer_ = create_wall_timer(20ms, [this] {
     world_to_base_yaw_tf_.header.stamp = now();
-    world_to_base_yaw_tf_quat_.setRPY(0, 0, fluorite::state.imu_yaw - fluorite::state.yaw_encoder);
+    world_to_base_yaw_tf_quat_.setRPY(0, 0, state_msg.imu_yaw - state_msg.yaw_encoder);
     world_to_base_yaw_tf_.transform.rotation.x = world_to_base_yaw_tf_quat_.x();
     world_to_base_yaw_tf_.transform.rotation.y = world_to_base_yaw_tf_quat_.y();
     world_to_base_yaw_tf_.transform.rotation.z = world_to_base_yaw_tf_quat_.z();
@@ -564,12 +558,12 @@ void FluoriteArm::BehaviourTreeInterface() {
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   };
   arm_end_effector_cartesian_command_as_.cancel_callback = [this](auto goal_handle) {
-    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviorTreeCancelExecution{});
+    fsm::DispatchEvent(fsm::event::BehaviorTreeCancelExecution{});
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_end_effector_cartesian_command_as_.accepted_callback = [this](auto goal_handle) {
     arm_end_effector_cartesian_command_as_.current_goal_handle_ = goal_handle;
-    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+    fsm::DispatchEvent(fsm::event::BehaviourTreeCommand{
         *goal_handle->get_goal(),
         [&] {
           if (rclcpp::ok()) {
@@ -588,12 +582,12 @@ void FluoriteArm::BehaviourTreeInterface() {
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   };
   arm_joint_command_as_.cancel_callback = [this](auto goal_handle) {
-    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviorTreeCancelExecution{});
+    fsm::DispatchEvent(fsm::event::BehaviorTreeCancelExecution{});
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_joint_command_as_.accepted_callback = [this](auto goal_handle) {
     arm_joint_command_as_.current_goal_handle_ = goal_handle;
-    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+    fsm::DispatchEvent(fsm::event::BehaviourTreeCommand{
         *goal_handle->get_goal(),
         [&] {
           if (rclcpp::ok()) {
@@ -612,24 +606,24 @@ void FluoriteArm::BehaviourTreeInterface() {
     rclcpp_action::GoalResponse ret;
     info("RECEIVED TRAJECTORY:");
     Print(goal->trajectory);
-    if (fluorite::fsm::Arm::is_in_state<fluorite::fsm::state::arm::BehaviourTreeIdle>()) {
-      const std::vector current_joint_positions = {
-          fluorite::state.yaw_encoder,       fluorite::state.pitch_1_encoder,   fluorite::state.pitch_2_encoder,
-          fluorite::state.end_yaw_1_encoder, fluorite::state.end_pitch_encoder, fluorite::state.end_yaw_2_encoder};
-      for (size_t i = 0; i < 6; ++i) {
-        // 如果轨迹出现瞬移（第一个点和当前状态有任何一个关节差距大于25度）的情况，就拒绝执行
-        if (std::abs(current_joint_positions[i] - goal->trajectory.points[0].positions[i]) >
-            25.0 / 360.0 * 2.0 * M_PI) {
-          auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
-          result->success = false;
-          // arm_trajectory_command_as_.current_goal_handle_->succeed(result);
-          ret = rclcpp_action::GoalResponse::REJECT;
-          warn("NO TELEPORTING");
-          break;
-        }
-      }
+    if (fsm::Arm::is_in_state<fsm::state::arm::BehaviourTreeIdle>()) {
+      // const std::vector current_joint_positions = {
+      //     state.yaw_encoder,       state.pitch_1_encoder,   state.pitch_2_encoder,
+      //     state.end_yaw_1_encoder, state.end_pitch_encoder, state.end_yaw_2_encoder};
+      // for (size_t i = 0; i < 6; ++i) {
+      //   // 如果轨迹出现瞬移（第一个点和当前状态有任何一个关节差距大于25度）的情况，就拒绝执行
+      //   if (std::abs(current_joint_positions[i] - goal->trajectory.points[0].positions[i]) >
+      //       25.0 / 360.0 * 2.0 * M_PI) {
+      //     auto result = std::make_shared<fluorite_msgs::action::ArmTrajectoryCommand::Result>();
+      //     result->success = false;
+      //     // arm_trajectory_command_as_.current_goal_handle_->succeed(result);
+      //     ret = rclcpp_action::GoalResponse::REJECT;
+      //     warn("NO TELEPORTING");
+      //     break;
+      //   }
+      // }
       ret = rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-      fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviourTreeCommand{
+      fsm::DispatchEvent(fsm::event::BehaviourTreeCommand{
           *goal,
           [&] {
             if (rclcpp::ok()) {
@@ -652,7 +646,7 @@ void FluoriteArm::BehaviourTreeInterface() {
     return ret;
   };
   arm_trajectory_command_as_.cancel_callback = [this](auto goal_handle) {
-    fluorite::fsm::DispatchEvent(fluorite::fsm::event::BehaviorTreeCancelExecution{});
+    fsm::DispatchEvent(fsm::event::BehaviorTreeCancelExecution{});
     return rclcpp_action::CancelResponse::ACCEPT;
   };
   arm_trajectory_command_as_.accepted_callback = [this](auto goal_handle) {
@@ -664,11 +658,4 @@ void FluoriteArm::BehaviourTreeInterface() {
   arm_trajectory_command_as_.Create(this, "fluorite/arm/trajectory_command");
 }
 
-}  // namespace fluorite
-
-int main(int argc, char *argv[]) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<fluorite::FluoriteArm>());
-  rclcpp::shutdown();
-  return 0;
-}
+}  // namespace fluorite::arm

@@ -25,7 +25,7 @@
 #include "common/keypress_handler.hpp"
 #include "common/logger.hpp"
 
-namespace fluorite {
+namespace fluorite::chassis {
 
 namespace event {
 namespace chassis {
@@ -52,6 +52,8 @@ struct Control : tinyfsm::Event {
              keyboard_msgs::msg::Key::KEY_C,
              keyboard_msgs::msg::Key::KEY_V,
              keyboard_msgs::msg::Key::KEY_B,
+             keyboard_msgs::msg::Key::KEY_LSHIFT,
+             keyboard_msgs::msg::Key::KEY_LCTRL,
          }) {
       keyboard_key.try_emplace(keyboard_map_k, false);
     }
@@ -106,7 +108,7 @@ class Chassis : public tinyfsm::MooreMachine<Chassis> {
    * @note    角度单位rad，转速单位rpm
    * @note    先按定义、范围把数据处理好再填进来
    */
-  static fluorite_msgs::msg::ChassisState state;
+  static fluorite_msgs::msg::ChassisState state_msg;
 
   /**
    * @brief   执行器（电机）
@@ -153,6 +155,12 @@ class FollowGimbal : public fsm::Chassis {
   void react(event::chassis::Control const &control) override;
 };
 
+class Spin : public fsm::Chassis {
+ public:
+  void entry() override;
+  void react(event::chassis::Control const &control) override;
+};
+
 class NoForce : public fsm::Chassis {
  public:
   void entry() override;
@@ -160,6 +168,6 @@ class NoForce : public fsm::Chassis {
 };
 }  // namespace chassis
 }  // namespace state
-}  // namespace fluorite
+}  // namespace fluorite::chassis
 
 #endif

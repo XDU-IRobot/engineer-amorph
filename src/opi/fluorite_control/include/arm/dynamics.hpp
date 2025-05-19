@@ -13,7 +13,7 @@
 
 #include "common/logger.hpp"
 
-namespace fluorite {
+namespace fluorite::arm {
 
 /**
  * @brief   机械臂的动力学模型，用于在pitch1、pitch2两个关节上叠加重力补偿，改善PID控制器的性能

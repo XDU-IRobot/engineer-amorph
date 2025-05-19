@@ -9,6 +9,9 @@
 #include <rm2_referee_msgs/msg/remote_control.hpp>
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>
+
+#include <fluorite_msgs/msg/arm_state.hpp>
+
 #include <librm.hpp>
 
 #include "chassis/fsm.hpp"
@@ -16,14 +19,14 @@
 #include "common/device_monitor.hpp"
 #include "common/ros_params_manager.hpp"
 
-namespace fluorite {
+namespace fluorite::chassis {
 
 /**
  * @brief    控制节点
  */
 class FluoriteChassis final : public rclcpp::Node {
  public:
-  FluoriteChassis(const rclcpp::NodeOptions &options = rclcpp::NodeOptions()
+  explicit FluoriteChassis(rclcpp::NodeOptions const &options = rclcpp::NodeOptions()
                                                            .allow_undeclared_parameters(true)
                                                            .automatically_declare_parameters_from_overrides(true));
   ~FluoriteChassis() override;
@@ -89,6 +92,10 @@ class FluoriteChassis final : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr control_loop_timer_{nullptr};
   event::chassis::Control control_msg_;
   /** </control loop> **/
+
+  /** <arm state subscriber> **/
+  rclcpp::Subscription<fluorite_msgs::msg::ArmState>::SharedPtr arm_state_sub_{nullptr};
+  /** </arm state subscriber> **/
 };
 
 }  // namespace fluorite

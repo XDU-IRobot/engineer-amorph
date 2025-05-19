@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+namespace fluorite::arm {
+
 struct RosParams {
   // can net interface names
   std::string arm_can_port{};
@@ -81,5 +83,7 @@ struct RosParams {
   double control_sensitivity_vertical{};
   double control_sensitivity_horizontal{};
 };
+
+}  // namespace fluorite::arm
 
 #endif  // ARM_ROS_PARAMS_HPP

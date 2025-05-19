@@ -9,7 +9,7 @@
 
 #include "common/logger.hpp"
 
-namespace fluorite {
+namespace fluorite::arm {
 
 constexpr int OUTPUT = 0;
 constexpr int PWM_OUTPUT = 1;

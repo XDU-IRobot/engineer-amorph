@@ -9,7 +9,7 @@
 #include <wiringPi.h>
 #include <softPwm.h>
 
-namespace fluorite {
+namespace fluorite::arm {
 
 static bool wiringpi_initiallized = false;
 

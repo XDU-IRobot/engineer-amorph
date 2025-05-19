@@ -1,5 +1,5 @@
 
-// 使用tinyfsm之后，就没办法再使用oop的各种编程范式来写代码了，因为状态机类没有对象
+// 使用tinyfsm之后，就没办法再使用oop的各种编程范式来写代码了，因为状态机类没有对象，实际执行逻辑和ROS节点割裂了
 // 这里被迫创建了几个全局变量（定义都在fsm.cc里），用来存储状态机的外部依赖
 // 如果以后找到了更好的实现方式，可以考虑重构
 
@@ -24,11 +24,12 @@
 #include "arm/moveit_helper.hpp"
 #include "common/logger.hpp"
 
-namespace fluorite {
+namespace fluorite::arm {
+
 /**
  * @brief   机器人状态向量，由节点的各个传感器数据回调函数更新
  */
-extern fluorite_msgs::msg::ArmState state;
+extern fluorite_msgs::msg::ArmState state_msg;
 
 /**
  * @brief   执行器（电机、气泵、电磁阀）
@@ -94,4 +95,5 @@ struct Controller {
   KeypressHandler kh;
 };
 extern std::unique_ptr<Controller> controller;
+
 }  // namespace fluorite

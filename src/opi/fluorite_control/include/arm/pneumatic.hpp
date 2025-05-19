@@ -4,7 +4,7 @@
 
 #include "arm/gpio.hpp"
 
-namespace fluorite {
+namespace fluorite::arm {
 
 /**
  * @brief 机械臂末端吸盘
@@ -93,6 +93,7 @@ class StorageSystem {
   void SetLeft(bool state) {
     left_valve_.Write(state);
     left_state_ = state;
+    SetPumpPower();
   }
 
   void ToggleLeft() {
@@ -108,6 +109,7 @@ class StorageSystem {
   void SetRight(bool state) {
     right_valve_.Write(state);
     right_state_ = state;
+    SetPumpPower();
   }
 
   void ToggleRight() {

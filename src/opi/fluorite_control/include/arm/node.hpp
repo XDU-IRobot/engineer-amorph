@@ -32,14 +32,14 @@
 #include "common/ros_params_manager.hpp"
 #include "common/action_server.hpp"
 
-namespace fluorite {
+namespace fluorite::arm {
 
 /**
  * @brief    控制节点
  */
 class FluoriteArm final : public rclcpp::Node {
  public:
-  FluoriteArm(const rclcpp::NodeOptions &options = rclcpp::NodeOptions()
+  explicit FluoriteArm(rclcpp::NodeOptions const &options = rclcpp::NodeOptions()
                                                        .allow_undeclared_parameters(true)
                                                        .automatically_declare_parameters_from_overrides(true));
   ~FluoriteArm() override;
@@ -116,7 +116,7 @@ class FluoriteArm final : public rclcpp::Node {
 
   /** <control loop> **/
   rclcpp::TimerBase::SharedPtr control_loop_timer_{nullptr};
-  fluorite::fsm::event::Control control_msg_;
+  fsm::event::Control control_msg_;
   /** </control loop> **/
 
   /** <joint state publisher> **/

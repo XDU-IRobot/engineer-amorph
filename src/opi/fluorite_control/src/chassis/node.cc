@@ -15,16 +15,14 @@
 
 #include "chassis/fsm.hpp"
 #include "common/logger.hpp"
-#include "librm/device/actuator/directdrive_motor.hpp"
-#include "librm/modules/algorithm/utils.hpp"
 
-namespace fluorite {
+namespace fluorite::chassis {
 
 using namespace std::chrono_literals;
 using namespace rm;
 using namespace rm::modules::algorithm::utils;
 
-FluoriteChassis::FluoriteChassis(const rclcpp::NodeOptions &options)
+FluoriteChassis::FluoriteChassis(rclcpp::NodeOptions const &options)
     : rclcpp::Node("fluorite_control_chassis", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
   this->InitFsm();             // 初始化状态机
@@ -271,13 +269,12 @@ void FluoriteChassis::Referee() { info("referee ok"); }
 void FluoriteChassis::Blackbox() {
   blackbox_state_pub_ =
       this->create_publisher<fluorite_msgs::msg::ChassisState>("blackbox/chassis", rclcpp::SystemDefaultsQoS());
-  blackbox_timer_ = this->create_wall_timer(10ms, [this] { blackbox_state_pub_->publish(fsm::Chassis::state); });
+  blackbox_timer_ = this->create_wall_timer(10ms, [this] { blackbox_state_pub_->publish(fsm::Chassis::state_msg); });
   info("blackbox ok");
 }
 
 /**
  * @brief 设备在线状态监控
- * @note  因为irobotec还没有推进到这里所以暂时弄了一种很蹩脚的方法，只监控遥控器和imu
  */
 void FluoriteChassis::DeviceMonitor() {
   device_monitor_timer_ = this->create_wall_timer(300ms, [this] {
@@ -293,34 +290,27 @@ void FluoriteChassis::DeviceMonitor() {
  * @brief 把电机对象里的保存的电机状态复制到控制事件里
  */
 void FluoriteChassis::UpdateFsmState() {
-  fsm::Chassis::state.base_yaw_encoder = rm::modules::algorithm::utils::LoopConstrain(
+  fsm::Chassis::state_msg.base_yaw_encoder = rm::modules::algorithm::utils::LoopConstrain(
       fsm::Chassis::actuator.base_yaw->pos_rad() - ros_params_manager_.data().base_yaw_encoder_zero_offset, 0.0,
       M_PI * 2.0);
-  fsm::Chassis::state.lf_wheel_speed = fsm::Chassis::actuator.lf_wheel->rpm();
-  fsm::Chassis::state.rf_wheel_speed = fsm::Chassis::actuator.rf_wheel->rpm();
-  fsm::Chassis::state.lr_wheel_speed = fsm::Chassis::actuator.lr_wheel->rpm();
-  fsm::Chassis::state.rr_wheel_speed = fsm::Chassis::actuator.rr_wheel->rpm();
-  fsm::Chassis::state.lf_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+  fsm::Chassis::state_msg.lf_wheel_speed = fsm::Chassis::actuator.lf_wheel->rpm();
+  fsm::Chassis::state_msg.rf_wheel_speed = fsm::Chassis::actuator.rf_wheel->rpm();
+  fsm::Chassis::state_msg.lr_wheel_speed = fsm::Chassis::actuator.lr_wheel->rpm();
+  fsm::Chassis::state_msg.rr_wheel_speed = fsm::Chassis::actuator.rr_wheel->rpm();
+  fsm::Chassis::state_msg.lf_steer_position = rm::modules::algorithm::utils::LoopConstrain(
       fsm::Chassis::actuator.lf_steer->pos_rad() - ros_params_manager_.data().lf_steer_front_encoder, 0, 2 * M_PI);
-  fsm::Chassis::state.lr_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+  fsm::Chassis::state_msg.lr_steer_position = rm::modules::algorithm::utils::LoopConstrain(
       fsm::Chassis::actuator.lr_steer->pos_rad() - ros_params_manager_.data().lr_steer_front_encoder, 0, 2 * M_PI);
-  fsm::Chassis::state.rf_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+  fsm::Chassis::state_msg.rf_steer_position = rm::modules::algorithm::utils::LoopConstrain(
       fsm::Chassis::actuator.rf_steer->pos_rad() - ros_params_manager_.data().rf_steer_front_encoder, 0, 2 * M_PI);
-  fsm::Chassis::state.rr_steer_position = rm::modules::algorithm::utils::LoopConstrain(
+  fsm::Chassis::state_msg.rr_steer_position = rm::modules::algorithm::utils::LoopConstrain(
       fsm::Chassis::actuator.rr_steer->pos_rad() - ros_params_manager_.data().rr_steer_front_encoder, 0, 2 * M_PI);
-  fsm::Chassis::state.lf_steer_speed = fsm::Chassis::actuator.lf_steer->rpm();
-  fsm::Chassis::state.rf_steer_speed = fsm::Chassis::actuator.rf_steer->rpm();
-  fsm::Chassis::state.lr_steer_speed = fsm::Chassis::actuator.lr_steer->rpm();
-  fsm::Chassis::state.rr_steer_speed = fsm::Chassis::actuator.rr_steer->rpm();
+  fsm::Chassis::state_msg.lf_steer_speed = fsm::Chassis::actuator.lf_steer->rpm();
+  fsm::Chassis::state_msg.rf_steer_speed = fsm::Chassis::actuator.rf_steer->rpm();
+  fsm::Chassis::state_msg.lr_steer_speed = fsm::Chassis::actuator.lr_steer->rpm();
+  fsm::Chassis::state_msg.rr_steer_speed = fsm::Chassis::actuator.rr_steer->rpm();
 }
 
 void FluoriteChassis::ParamHotUpdate() {}
 
-}  // namespace fluorite
-
-int main(int argc, char *argv[]) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<fluorite::FluoriteChassis>());
-  rclcpp::shutdown();
-  return 0;
-}
+}  // namespace fluorite::chassis
