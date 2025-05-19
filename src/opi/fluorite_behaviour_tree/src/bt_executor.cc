@@ -108,26 +108,39 @@ class BTExecutorNode : public rclcpp::Node {
     // define keymap
     hotkeys_.retract.OnPress([&] {
       RCLCPP_INFO(this->get_logger(), "Retract arm key pressed");
-      if (ready_to_command_ && !tree_runner_.have_ongoing_tree()) {
-        tree_runner_.Run(tree_loader_.Load("retract"));
-      } else {
-        RCLCPP_WARN(this->get_logger(), "Not ready to command");
+      if (!CheckIsReadyToCommand()) {
+        return;
       }
+      tree_runner_.Run(tree_loader_.Load("retract"));
     });
-    hotkeys_.go_to_left_storage.OnPress([&] { RCLCPP_INFO(this->get_logger(), "Store to left key pressed"); });
+    hotkeys_.go_to_left_storage.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Store to left key pressed");
+      if (!CheckIsReadyToCommand()) {
+        return;
+      }
+      tree_runner_.Run(tree_loader_.Load("go_to_left_storage_direct"));
+    });
     hotkeys_.go_to_right_storage.OnPress([&] {
       RCLCPP_INFO(this->get_logger(), "Store to right key pressed");
-      if (ready_to_command_ && !tree_runner_.have_ongoing_tree()) {
-        tree_runner_.Run(tree_loader_.Load("go_to_right_storage_direct"));
-      } else {
-        RCLCPP_WARN(this->get_logger(), "Not ready to command");
+      if (!CheckIsReadyToCommand()) {
+        return;
       }
+      tree_runner_.Run(tree_loader_.Load("go_to_right_storage_direct"));
     });
 
     RCLCPP_INFO(this->get_logger(), "BT executor initialized");
   }
 
  private:
+  bool CheckIsReadyToCommand() {
+    if (ready_to_command_ && !tree_runner_.have_ongoing_tree()) {
+      RCLCPP_INFO(this->get_logger(), "Ready to command");
+      return true;
+    }
+    RCLCPP_WARN(this->get_logger(), "Not ready to command");
+    return false;
+  }
+
   std::atomic<bool> ready_to_command_{false};
   AsyncTreeRunner tree_runner_;
   BT::BehaviorTreeFactory bt_factory_;
