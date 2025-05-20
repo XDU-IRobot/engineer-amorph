@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="BehaviorTree">
+    <!-- ////////// -->
+    <BehaviorTree ID="BehaviorTree">
+        <Sequence>
+            <Action ID="ActionCommandSuckerSystem" command="suck"/>
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.5,&quot;positions&quot;:[-2.8,1.2489,0.4547,-0.1268,0.7374,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:2.5,&quot;positions&quot;:[-2.845,1.6091,0.87874,-0.1725,0.7403,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            <Delay delay_msec="700">
+                <Action ID="ActionCommandStorageSystem" left="nope" right="off"/>
+            </Delay>
+            <Delay delay_msec="800">
+                <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:0.8,&quot;positions&quot;:[-2.731,1.212,0.9007,-0.1725,0.3596,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:2.3,&quot;positions&quot;:[0.14,0.14,0.0,0.0,0.0,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            </Delay>
+        </Sequence>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <TreeNodesModel>
+        <Action ID="ActionCommandArmEndEffectorPose">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="std::string"/>
+        </Action>
+        <Action ID="ActionCommandArmJointPosition">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="std::string"/>
+        </Action>
+        <Action ID="ActionCommandArmJointTrajectory">
+            <input_port name="playback_speed" type="double"/>
+            <input_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
+        </Action>
+        <Action ID="ActionCommandChassis">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="std::string"/>
+        </Action>
+        <Action ID="ActionCommandStorageSystem"/>
+        <Action ID="ActionCommandSuckerSystem"/>
+        <Action ID="ActionPlanToEndEffectorPose">
+            <input_port name="srdf_pose_name" type="std::string"/>
+            <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
+        </Action>
+        <Action ID="ActionPlanToJointPosition">
+            <input_port name="joint_positions" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;"/>
+            <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
+        </Action>
+        <Action ID="ActionPlanToLiftEndEffector">
+            <input_port name="lift_distance" type="double"/>
+            <input_port name="max_linear_speed" type="double"/>
+            <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;"/>
+        </Action>
+        <Action ID="ActionSetNavigationTarget"/>
+    </TreeNodesModel>
+    <!-- ////////// -->
+</root>

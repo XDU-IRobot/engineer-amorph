@@ -49,7 +49,21 @@ class RosNodeSingleton {
     // create service clients
     storage_system_command_client_ =
         node_->create_client<fluorite_msgs::srv::StorageSystemCommand>("fluorite/arm/storage_system_command");
-    sucker_command_client_ = node_->create_client<fluorite_msgs::srv::SuckerCommand>("fluorite/arm/sucker_command");
+    sucker_command_client_ = node_->create_client<fluorite_msgs::srv::SuckerCommand>("fluorite/arm/sucker_system_command");
+    while (!storage_system_command_client_->wait_for_service(std::chrono::milliseconds(100))) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(node_->get_logger(), "Interrupted while waiting for the service. Exiting.");
+        return;
+      }
+      RCLCPP_INFO(node_->get_logger(), "Waiting for service storage_system_command...");
+    }
+    while (!sucker_command_client_->wait_for_service(std::chrono::milliseconds(100))) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(node_->get_logger(), "Interrupted while waiting for the service. Exiting.");
+        return;
+      }
+      RCLCPP_INFO(node_->get_logger(), "Waiting for service sucker_system_command...");
+    }
   }
   ~RosNodeSingleton() {
     executor_->cancel();

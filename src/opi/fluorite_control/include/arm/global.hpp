@@ -98,6 +98,9 @@ struct Controller {
     Hotkey toggle_arm_pump;
     Hotkey toggle_left_storage;
     Hotkey toggle_right_storage;
+    Hotkey force_finish_execution;
+    Hotkey ctrl_c_placeholder;
+    Hotkey ctrl_v_placeholder;
   } hotkeys;
   KeypressHandler kh;
 };

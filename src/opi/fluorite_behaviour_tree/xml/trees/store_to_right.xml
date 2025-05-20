@@ -3,7 +3,15 @@
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
         <Sequence>
-            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.5,&quot;positions&quot;:[-2.8002870750427246,1.6805654764175415,2.208725929260254,0.03293323516845703,-1.8764228820800781,0.6942110061645508],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:2.5,&quot;positions&quot;:[-2.86,1.9,2.142,-0.023,-1.832,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            <Action ID="ActionCommandStorageSystem" left="nope" right="on"/>
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.5,&quot;positions&quot;:[-2.8402870750427246,1.6805654764175415,2.208725929260254,0.03293323516845703,-1.8764228820800781,0.6942110061645508],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:2.5,&quot;positions&quot;:[-2.86,2.01,2.394,0.0,-1.96,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            <Delay delay_msec="550">
+                <Action ID="ActionCommandSuckerSystem" command="blow"/>
+            </Delay>
+            <Delay delay_msec="550">
+                <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.6,&quot;positions&quot;:[0.15,0.15,0.0,0.0,0.0,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:1.7,&quot;positions&quot;:[0.16,0.16,0.0,0.0,0.0,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            </Delay>
+            <Action ID="ActionCommandSuckerSystem" command="off"/>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->

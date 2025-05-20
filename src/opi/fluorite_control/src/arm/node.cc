@@ -40,7 +40,6 @@ FluoriteArm::FluoriteArm(rclcpp::NodeOptions const &options) : rclcpp::Node("flu
   control_loop_timer_ = create_wall_timer(3.0ms, [this] {
     ProcessSensorData();
     ParamHotUpdate();
-    controller->kh.Poll();
     fsm::DispatchEvent(control_msg_);
     rm::device::DjiMotor<>::SendCommand();
     rm::device::DirectDriveMotor::SendCommand();
@@ -279,7 +278,8 @@ void FluoriteArm::UserInput() {
       "/rm2_referee/remote_control", rclcpp::SensorDataQoS(), [&](const rm2_referee_msgs::msg::RemoteControl msg) {
         control_msg_.mouse_x = msg.mouse_x / 1000.0;
         control_msg_.mouse_y = msg.mouse_y / 1000.0;
-        control_msg_.mouse_wheel = msg.mouse_z / 10.0;
+        control_msg_.mouse_wheel = msg.mouse_z / 100;
+        controller->kh.Poll(msg.keyboard_value);
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_W] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_W;
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_S] =
@@ -288,9 +288,9 @@ void FluoriteArm::UserInput() {
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_A;
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_D] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_D;
-        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LSHIFT] =
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_LSHIFT] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LSHIFT;
-        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LCTRL] =
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_LCTRL] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL;
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_Q] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Q;
@@ -319,17 +319,20 @@ void FluoriteArm::UserInput() {
       });
 
   // setup keymap
-  controller->hotkeys.toggle_custom_ctrl =
-      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_G).load(); }};
-  controller->hotkeys.toggle_arm_pump =
-      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_V).load(); }};
-  controller->hotkeys.toggle_left_storage =
-      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_C).load(); }};
-  controller->hotkeys.toggle_right_storage =
-      Hotkey{[this] { return control_msg_.keyboard_key.at(keyboard_msgs::msg::Key::KEY_B).load(); }};
+  controller->hotkeys.toggle_custom_ctrl = Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_G};
+  controller->hotkeys.toggle_arm_pump = Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_V};
+  controller->hotkeys.toggle_left_storage = Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_C};
+  controller->hotkeys.toggle_right_storage = Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_B};
+  controller->hotkeys.force_finish_execution =
+      Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_B | rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL};
+  controller->hotkeys.ctrl_c_placeholder =
+      Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_C | rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL};
+  controller->hotkeys.ctrl_v_placeholder =
+      Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_V | rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL};
   controller->kh << controller->hotkeys.toggle_custom_ctrl << controller->hotkeys.toggle_arm_pump
-                 << controller->hotkeys.toggle_left_storage << controller->hotkeys.toggle_right_storage;
-
+                 << controller->hotkeys.toggle_left_storage << controller->hotkeys.toggle_right_storage
+                 << controller->hotkeys.force_finish_execution << controller->hotkeys.ctrl_c_placeholder
+                 << controller->hotkeys.ctrl_v_placeholder;
   info("user input subscribers spawned \033[32mmok\033[0m");
 }
 

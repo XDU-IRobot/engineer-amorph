@@ -18,7 +18,8 @@ class ActionCommandStorageSystem : public BT::SyncActionNode {
     return {BT::InputPort<std::string>("left"), BT::InputPort<std::string>("right")};
   }
 
-  ActionCommandStorageSystem(const std::string& name) : BT::SyncActionNode(name, {}) {}
+  ActionCommandStorageSystem(const std::string& name, const BT::NodeConfiguration& config)
+      : BT::SyncActionNode(name, config) {}
 
   BT::NodeStatus tick() override {
     BT::Optional<std::string> left = getInput<std::string>("left");
@@ -53,8 +54,9 @@ class ActionCommandStorageSystem : public BT::SyncActionNode {
       throw BT::RuntimeError("invalid input [right]: ", right.value());
     }
 
-    ros_node.storage_system_command_client_->async_send_request(
+    auto result_future = ros_node.storage_system_command_client_->async_send_request(
         service_request, [this](rclcpp::Client<fluorite_msgs::srv::StorageSystemCommand>::SharedFuture) {});
+    result_future.wait();
     return BT::NodeStatus::SUCCESS;
   }
 };

@@ -78,7 +78,7 @@ fluorite_control_arm:
     end_yaw_2_id: 1
 
     # pid param
-    pid_base_yaw_speed: [0.16, 0.0, 0.0, 20.0, 20.0]
+    pid_base_yaw_speed: [0.005, 0.0, 0.0, 20.0, 20.0]
     # pid_base_yaw_speed: [0.02, 0.0, 0.0, 20.0, 20.0]
     pid_yaw_speed: [-3.5, 0.0, 0.0, 13.0, 13.0]
     pid_pitch_1_speed: [3.56, 0.0, 0.0, 20.0, 20.0]
@@ -86,7 +86,7 @@ fluorite_control_arm:
     pid_end_yaw_1_speed: [-0.6, 0.0, 0.0, 4.0, 4.0]
     pid_end_pitch_speed: [0.45, 0.0, 0.0, 4.0, 4.0]
     pid_end_yaw_2_speed: [92.0, 0.0, 0.0, 6500.0, 6500.0]
-    pid_base_yaw_position: [400.0, 0.0, 15000.0, 500.0, 500.0]
+    pid_base_yaw_position: [8000.0, 0.0, 550000.0, 5000.0, 5000.0]
     # pid_base_yaw_position: [400.0, 0.0, 15000.0, 500.0, 500.0]
     # pid_base_yaw_position: [3000.0, 0.0, 80000.0, 500.0, 500.0]
     pid_yaw_position: [40.0, 0.0, 230.0, 3.4, 3.4]

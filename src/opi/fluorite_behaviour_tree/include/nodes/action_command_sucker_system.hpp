@@ -15,7 +15,8 @@ class ActionCommandSuckerSystem : public BT::SyncActionNode {
 
   static BT::PortsList providedPorts() { return {BT::InputPort<std::string>("command")}; }
 
-  ActionCommandSuckerSystem(const std::string& name) : BT::SyncActionNode(name, {}) {}
+  ActionCommandSuckerSystem(const std::string& name, const BT::NodeConfiguration& config)
+      : BT::SyncActionNode(name, config) {}
 
   BT::NodeStatus tick() override {
     BT::Optional<std::string> command = getInput<std::string>("command");
@@ -35,8 +36,9 @@ class ActionCommandSuckerSystem : public BT::SyncActionNode {
       throw BT::RuntimeError("invalid input [command]: ", command.value());
     }
 
-    ros_node.sucker_command_client_->async_send_request(
+    auto result_future = ros_node.sucker_command_client_->async_send_request(
         service_request, [this](rclcpp::Client<fluorite_msgs::srv::SuckerCommand>::SharedFuture) {});
+    result_future.wait();
 
     return BT::NodeStatus::SUCCESS;
   }

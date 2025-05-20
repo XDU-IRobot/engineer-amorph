@@ -99,33 +99,65 @@ class BTExecutorNode : public rclcpp::Node {
         });
     fpv_link_input_sub_ = create_subscription<rm2_referee_msgs::msg::RemoteControl>(
         "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
-        [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
-          hotkeys_.retract.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_R);
-          hotkeys_.go_to_left_storage.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Z);
-          hotkeys_.go_to_right_storage.Poll(msg->keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_X);
-        });
+        [&](const rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) { kh_.Poll(msg->keyboard_value); });
+
+    hotkeys_.retract =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_R};
+    hotkeys_.take_silver =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_F};
+    hotkeys_.store_to_right =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_C};
+    hotkeys_.pick_from_right =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_V};
+    hotkeys_.store_to_left =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_Z};
+    hotkeys_.pick_from_left =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_X};
+    kh_ << hotkeys_.retract << hotkeys_.take_silver << hotkeys_.store_to_right << hotkeys_.pick_from_right
+        << hotkeys_.store_to_left << hotkeys_.pick_from_left;
 
     // define keymap
     hotkeys_.retract.OnPress([&] {
-      RCLCPP_INFO(this->get_logger(), "Retract arm key pressed");
+      RCLCPP_INFO(this->get_logger(), "Retract arm!");
       if (!CheckIsReadyToCommand()) {
         return;
       }
       tree_runner_.Run(tree_loader_.Load("retract"));
     });
-    hotkeys_.go_to_left_storage.OnPress([&] {
-      RCLCPP_INFO(this->get_logger(), "Store to left key pressed");
+    hotkeys_.take_silver.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Take silver!");
       if (!CheckIsReadyToCommand()) {
         return;
       }
-      tree_runner_.Run(tree_loader_.Load("go_to_left_storage_direct"));
+      tree_runner_.Run(tree_loader_.Load("take_silver"));
     });
-    hotkeys_.go_to_right_storage.OnPress([&] {
-      RCLCPP_INFO(this->get_logger(), "Store to right key pressed");
+    hotkeys_.store_to_right.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Store to right!");
       if (!CheckIsReadyToCommand()) {
         return;
       }
-      tree_runner_.Run(tree_loader_.Load("go_to_right_storage_direct"));
+      tree_runner_.Run(tree_loader_.Load("store_to_right"));
+    });
+    hotkeys_.pick_from_right.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Pick from right!");
+      if (!CheckIsReadyToCommand()) {
+        return;
+      }
+      tree_runner_.Run(tree_loader_.Load("pick_from_right"));
+    });
+    hotkeys_.store_to_left.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Store to left!");
+      if (!CheckIsReadyToCommand()) {
+        return;
+      }
+      tree_runner_.Run(tree_loader_.Load("store_to_left"));
+    });
+    hotkeys_.pick_from_left.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Pick from left!");
+      if (!CheckIsReadyToCommand()) {
+        return;
+      }
+      tree_runner_.Run(tree_loader_.Load("pick_from_left"));
     });
 
     RCLCPP_INFO(this->get_logger(), "BT executor initialized");
@@ -152,10 +184,14 @@ class BTExecutorNode : public rclcpp::Node {
   /** </user input subscribers> **/
 
   struct {
-    Hotkey retract,           // R
-        go_to_left_storage,   // Z
-        go_to_right_storage;  // X
+    Hotkey retract,       // R
+        take_silver,      // F
+        store_to_right,   // C
+        pick_from_right,  // V
+        store_to_left,    // Z
+        pick_from_left;   // X
   } hotkeys_;
+  KeypressHandler kh_;
 };
 
 int main(int argc, char* argv[]) {

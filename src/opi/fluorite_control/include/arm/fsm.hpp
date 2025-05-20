@@ -8,7 +8,6 @@
 #define ARM_FSM_HPP
 
 #include <cstddef>
-#include <tinyfsm.hpp>
 #include <utility>
 
 #include "keyboard_msgs/msg/key.hpp"
@@ -17,6 +16,8 @@
 #include "fluorite_msgs/action/arm_trajectory_command.hpp"
 #include "fluorite_msgs/srv/storage_system_command.hpp"
 #include "fluorite_msgs/srv/sucker_command.hpp"
+
+#include <tinyfsm.hpp>
 
 #include "common/keypress_handler.hpp"
 #include "common/action_server.hpp"
@@ -30,6 +31,7 @@ constexpr int kRcSwitchDown = -1;
 namespace fluorite::arm {
 
 namespace fsm {
+
 namespace event {
 
 /**
@@ -61,7 +63,7 @@ struct Control : public tinyfsm::Event {
   }
   std::atomic<double> mouse_x;                      ///< 鼠标左右，范围[-1, 1] * horizontal_sensitivity
   std::atomic<double> mouse_y;                      ///< 鼠标上下，范围[-1, 1] * vertical_sensitivity
-  std::atomic<double> mouse_wheel;                  ///< 鼠标滚轮，范围[-1, 1]
+  std::atomic<int> mouse_wheel;                     ///< 鼠标滚轮，每1个单位为滚一格，上正下负
   std::atomic<double> left_x;                       ///< 左摇杆左右，范围[-1, 1] * horizontal_sensitivity
   std::atomic<double> left_y;                       ///< 左摇杆上下，范围[-1, 1] * vertical_sensitivity
   std::atomic<double> right_x;                      ///< 右摇杆左右，范围[-1, 1] * horizontal_sensitivity
@@ -69,6 +71,7 @@ struct Control : public tinyfsm::Event {
   std::atomic<double> ld, rd;                       ///< 左右旋钮，范围[-1, 1]，逆负顺正
   std::atomic<double> ls, rs;                       ///< 遥控器背面的左右滑块，范围[-1, 1]，下负上正
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
+  std::atomic<uint16_t> keyboard_raw_keycode;       ///< 键盘输入的原始按键码
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
 
   bool arm_pump;

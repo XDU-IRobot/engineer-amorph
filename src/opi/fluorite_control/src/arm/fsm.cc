@@ -348,6 +348,18 @@ void CustomCtrlManual::react(event::Control const &control) {
   }
 }
 void BehaviourTreeIdle::react(event::Control const &control) {
+  if (control.mouse_wheel != 0) {
+    const auto target_joint_positions = [&] {
+      trajectory_msgs::msg::JointTrajectoryPoint p;
+      p.velocities.resize(6);
+      p.positions = {state_msg.yaw_encoder,       state_msg.pitch_1_encoder + control.mouse_wheel * 0.033,
+                     state_msg.pitch_2_encoder,   state_msg.end_yaw_1_encoder,
+                     state_msg.end_pitch_encoder, state_msg.end_yaw_2_encoder};
+      return p;
+    }();
+    controller->trajectory_tracker.SwitchReferenceTrajectory(target_joint_positions);
+  }
+
   Arm::CalcPidAndExecute();
 
   // state transition
@@ -416,9 +428,11 @@ void BehaviourTreeIdle::react(event::BehaviourTreeCommand<fluorite_msgs::action:
   DispatchEvent(event::SwitchMode<BehaviourTreeExecuting>{});
 }
 void BehaviourTreeExecuting::react(event::Control const &control) {
-  if (controller->trajectory_tracker.execution_finished()) {
+  if (controller->trajectory_tracker.execution_finished() ||
+      controller->hotkeys.force_finish_execution.have_pressed()) {
     if (execution_finished_callback_) {
       execution_finished_callback_();
+      execution_finished_callback_ = nullptr;
     }
     DispatchEvent(event::SwitchMode<BehaviourTreeIdle>{});
   }
