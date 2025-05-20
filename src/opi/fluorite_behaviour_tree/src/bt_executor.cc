@@ -109,12 +109,16 @@ class BTExecutorNode : public rclcpp::Node {
         Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_C};
     hotkeys_.pick_from_right =
         Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_V};
+    hotkeys_.pick_from_right_top =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LSHIFT | rm2_referee_msgs::msg::RemoteControl::KEY_V};
     hotkeys_.store_to_left =
         Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_Z};
     hotkeys_.pick_from_left =
         Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_X};
-    kh_ << hotkeys_.retract << hotkeys_.take_silver << hotkeys_.store_to_right << hotkeys_.pick_from_right
-        << hotkeys_.store_to_left << hotkeys_.pick_from_left;
+    hotkeys_.pick_from_left_top =
+        Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LSHIFT | rm2_referee_msgs::msg::RemoteControl::KEY_X};
+    kh_ << hotkeys_.retract << hotkeys_.take_silver << hotkeys_.store_to_right << hotkeys_.pick_from_right << hotkeys_.pick_from_right_top
+        << hotkeys_.store_to_left << hotkeys_.pick_from_left << hotkeys_.pick_from_left_top;
 
     // define keymap
     hotkeys_.retract.OnPress([&] {
@@ -159,6 +163,20 @@ class BTExecutorNode : public rclcpp::Node {
       }
       tree_runner_.Run(tree_loader_.Load("pick_from_left"));
     });
+    hotkeys_.pick_from_left_top.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Pick from left top!");
+      if (!CheckIsReadyToCommand()) {
+        return;
+      }
+      tree_runner_.Run(tree_loader_.Load("pick_from_left_top"));
+    });
+    hotkeys_.pick_from_right_top.OnPress([&] {
+      RCLCPP_INFO(this->get_logger(), "Pick from right top!");
+      if (!CheckIsReadyToCommand()) {
+        return;
+      }
+      tree_runner_.Run(tree_loader_.Load("pick_from_right_top"));
+    });
 
     RCLCPP_INFO(this->get_logger(), "BT executor initialized");
   }
@@ -184,12 +202,14 @@ class BTExecutorNode : public rclcpp::Node {
   /** </user input subscribers> **/
 
   struct {
-    Hotkey retract,       // R
-        take_silver,      // F
-        store_to_right,   // C
-        pick_from_right,  // V
-        store_to_left,    // Z
-        pick_from_left;   // X
+    Hotkey retract,           // LCTRL + R
+        take_silver,          // LCTRL + F
+        store_to_right,       // LCTRL + C
+        pick_from_right,      // LCTRL + V
+        pick_from_right_top,  // LSHIFT + V
+        store_to_left,        // LCTRL + Z
+        pick_from_left,       // LCTRL + X
+        pick_from_left_top;   // LSHIFT + X
   } hotkeys_;
   KeypressHandler kh_;
 };

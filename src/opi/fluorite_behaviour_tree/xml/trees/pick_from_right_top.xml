@@ -4,12 +4,12 @@
     <BehaviorTree ID="BehaviorTree">
         <Sequence>
             <Action ID="ActionCommandSuckerSystem" command="suck"/>
-            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.5,&quot;positions&quot;:[-2.787,1.457,0.632,-0.699,0.877,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:2.5,&quot;positions&quot;:[-2.787,1.457,0.632,-0.699,0.877,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
-            <Delay delay_msec="700">
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.75,&quot;positions&quot;:[-2.8802870750427246,1.6805654764175415,2.208725929260254,0.03293323516845703,-1.8764228820800781,0.6942110061645508],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:3.1,&quot;positions&quot;:[-2.883,2.01,2.394,0.0,-1.96,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            <Delay delay_msec="550">
                 <Action ID="ActionCommandStorageSystem" left="nope" right="off"/>
             </Delay>
-            <Delay delay_msec="800">
-                <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.5,&quot;positions&quot;:[0.15,0.15,0.0,0.0,0.0,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:1.6,&quot;positions&quot;:[0.14,0.14,0.0,0.0,0.0,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            <Delay delay_msec="500">
+                <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.6,&quot;positions&quot;:[0.0,0.15,0.15,0.0,0.0,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:1.7,&quot;positions&quot;:[0.0,0.16,0.16,0.0,0.0,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
             </Delay>
         </Sequence>
     </BehaviorTree>

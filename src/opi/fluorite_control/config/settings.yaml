@@ -97,12 +97,12 @@ fluorite_control_arm:
     pid_end_pitch_position: [40.0, 0.0, 30.0, 2.0, 2.0]
     pid_end_yaw_2_position: [600.0, 0.0, 0.0, 40.0, 40.0]
     ###########################
-    pd_yaw: [90.0, 35.0]
+    pd_yaw: [90.0, 37.0]
     pd_pitch_1: [85.0, 35.0]
     pd_pitch_2: [70.0, 30.0]
     pd_end_yaw_1: [70.0, 30.0]
     pd_end_pitch: [70.0, 30.0]
-    dynamic_model_feedforward_multiplier: 0.65
+    dynamic_model_feedforward_multiplier: 0.67
 
     # low-pass filter settings
     ## 截止频率应该小于采样频率的一半！(anti-aliasing)

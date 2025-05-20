@@ -129,7 +129,7 @@ void FluoriteArm::InitializeShit() {
           },
           // joint limits
           {
-              std::make_pair(-2.8798, 2.8798),
+              std::make_pair(-2.93, 2.93),
               std::make_pair(0.0, 2.7911),
               std::make_pair(0.0, 2.7911),
               std::make_pair(-2.6167, 2.6167),
