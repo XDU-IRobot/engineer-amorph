@@ -21,8 +21,8 @@ class ArmRenderer {
  private:
   // 机械臂参数
   const int BASE_HEIGHT = 100;
-  const int ARM1_LENGTH = 80;
-  const int ARM2_LENGTH = 60;
+  const int ARM1_LENGTH = 85;
+  const int ARM2_LENGTH = 85;
 
   // 相机参数
   const double CAM_ANGLE = 30.0;      // 俯角（度）

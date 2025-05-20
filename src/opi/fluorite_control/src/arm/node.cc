@@ -167,7 +167,7 @@ void FluoriteArm::InitializeShit() {
       DmMit{*arm_can,
             DmSettingsMit{.master_id = ros_params_manager_.data().pitch_1_master_id,
                           .slave_id = ros_params_manager_.data().pitch_1_slave_id,
-                          .p_max = 6.283185f,
+                          .p_max = 3.141592f,
                           .v_max = 45.f,
                           .t_max = 54.f,
                           .kp_range = {0, 500},

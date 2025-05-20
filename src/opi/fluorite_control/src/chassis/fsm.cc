@@ -56,13 +56,13 @@ void Spin::entry() {}
 void NoForce::entry() {}
 
 void FollowGimbal::react(event::chassis::Control const &control) {
-  double speed_multiplier = 4000.0;
+  double speed_multiplier = 4300.0;
   if (arm::fsm::Arm::is_in_state<arm::fsm::state::arm::BehaviourTreeExecuting>() ||
       arm::fsm::Arm::is_in_state<arm::fsm::state::arm::CustomCtrlManual>()) {
     speed_multiplier = 1000.0;
   }
-  if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT)) {
-    speed_multiplier *= 1.3;
+  if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT).load()) {
+    speed_multiplier *= 2.1;
   }
   const double vy = -std::clamp(control.left_x + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
                                                   control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A)),
@@ -105,13 +105,13 @@ void FollowGimbal::react(event::chassis::Control const &control) {
   UpdateState();
 }
 void Spin::react(const event::chassis::Control &control) {
-  double speed_multiplier = 4000.0;
+  double speed_multiplier = 4500.0;
   if (arm::fsm::Arm::is_in_state<arm::fsm::state::arm::BehaviourTreeExecuting>() ||
       arm::fsm::Arm::is_in_state<arm::fsm::state::arm::CustomCtrlManual>()) {
     speed_multiplier = 1000.0;
   }
   if (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_LSHIFT)) {
-    speed_multiplier *= 1.3;
+    speed_multiplier *= 1.9;
   }
   const double vx = std::clamp(control.left_x + (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_D) -
                                                  control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_A)),
@@ -160,7 +160,9 @@ void NoForce::react(const event::chassis::Control &control) {
   actuator.rf_steer->SetCurrent(0);
   actuator.lr_steer->SetCurrent(0);
   actuator.rr_steer->SetCurrent(0);
-  UpdateState();
+  if (!control.remote_failsafe.load()) {
+    UpdateState();
+  }
 }
 }  // namespace chassis
 }  // namespace state

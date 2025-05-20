@@ -76,6 +76,8 @@ struct Control : public tinyfsm::Event {
   bool right_storage;
 
   custom_controller::JointCommand custom_controller_command;
+
+  bool remote_failsafe{true};  ///< 遥控器失联标志
 };
 template <typename T>
 struct SwitchMode : public tinyfsm::Event {};

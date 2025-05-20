@@ -316,7 +316,7 @@ class PidTrajectoryTracker {
     if (current_trajectory_.empty()) {
       return true;
     }
-    constexpr double kDiffThreshold = 13.5 / 360.0 * 2.0 * M_PI;  // 4度
+    constexpr double kDiffThreshold = 3.0 / 360.0 * 2.0 * M_PI;  // 4度
     const auto &last_point = current_trajectory_[current_trajectory_.size() - 1];
     // 计算上一次传入的关节位置和目标轨迹最后一个点的位置的差值，如果所有关节的误差都小于阈值，则认为执行完毕
     for (size_t i = 0; i < NJoints; ++i) {

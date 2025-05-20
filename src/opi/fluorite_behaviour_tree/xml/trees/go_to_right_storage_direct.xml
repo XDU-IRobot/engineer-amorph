@@ -3,7 +3,7 @@
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
         <Sequence>
-            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.5,&quot;positions&quot;:[-2.85,1.162,1.7,-0.014,-1.4,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:2.5,&quot;positions&quot;:[-2.87,1.904,1.96,-0.005,-1.75,0.03375],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
+            <Action ID="ActionCommandArmJointTrajectory" playback_speed="1.0" trajectory="'{&quot;points&quot;:[{&quot;time_from_start&quot;:1.5,&quot;positions&quot;:[-2.8002870750427246,1.6805654764175415,2.208725929260254,0.03293323516845703,-1.8764228820800781,0.6942110061645508],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]},{&quot;time_from_start&quot;:2.5,&quot;positions&quot;:[-2.86,1.9,2.142,-0.023,-1.832,0.0],&quot;velocities&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;accelerations&quot;:[0.0,0.0,0.0,0.0,0.0,0.0],&quot;effort&quot;:[0.0,0.0,0.0,0.0,0.0,0.0]}]}'"/>
         </Sequence>
     </BehaviorTree>
     <!-- ////////// -->

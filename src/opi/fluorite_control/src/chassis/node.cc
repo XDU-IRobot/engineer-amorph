@@ -188,7 +188,10 @@ void FluoriteChassis::UserInput() {
       "/sbus", rclcpp::SensorDataQoS(), [&](const sbus_interface::msg::Sbus::SharedPtr msg) {
         if (msg->failsafe) {
           fsm::DispatchEvent(event::chassis::SwitchMode<state::chassis::NoForce>{});
+          control_msg_.remote_failsafe.store(true);
           return;
+        } else {
+          control_msg_.remote_failsafe.store(false);
         }
 
         control_msg_.left_x = -(double)msg->mapped_channels[3] / 1000.0;
@@ -232,9 +235,9 @@ void FluoriteChassis::UserInput() {
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_A;
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_D] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_D;
-        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LSHIFT] =
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_LSHIFT] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LSHIFT;
-        control_msg_.keyboard_key[keyboard_msgs::msg::Key::MODIFIER_LCTRL] =
+        control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_LCTRL] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL;
         control_msg_.keyboard_key[keyboard_msgs::msg::Key::KEY_Q] =
             msg.keyboard_value & rm2_referee_msgs::msg::RemoteControl::KEY_Q;
