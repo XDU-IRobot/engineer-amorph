@@ -56,16 +56,16 @@ void Arm::CalcPidAndExecute() {
   // apply output torque
   const auto kOutputTorque = controller->trajectory_tracker.output_torque();
   const auto kDesiredPosition = controller->trajectory_tracker.current_point().positions;
-  // actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
-  // actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-  //                                         0, 0.65 * kCompensateTorques[1], 85, 35);
-  // actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
-  // actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
-  actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 40, 30);
+  actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
   actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-                                0, 0.65 * kCompensateTorques[1], 40, 30);
-  actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 40, 30);
-  actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 40, 30);
+                                          0, 0.65 * kCompensateTorques[1], 85, 35);
+  actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
+  actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
+  // actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 40, 30);
+  // actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
+  //                               0, 0.65 * kCompensateTorques[1], 40, 30);
+  // actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 40, 30);
+  // actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 40, 30);
   actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 70, 30);
   actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
 }
@@ -558,8 +558,8 @@ void FollowImu::entry() {
 void NoForce::entry() { actuator->base_yaw.Enable(false); }
 
 void FollowImu::react(event::Control const &control) {
-  const double keyboard_q_e = 0.003 * (control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_E) -
-                                       control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_Q));
+  const double keyboard_q_e = 0.003 * (static_cast<int>(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_E)) -
+                                       static_cast<int>(control.keyboard_key.at(keyboard_msgs::msg::Key::KEY_Q)));
   state_msg.imu_yaw_target = rm::modules::algorithm::utils::LoopConstrain(
       state_msg.imu_yaw_target - keyboard_q_e - control.right_x * 0.006 - control.mouse_x, -M_PIf, M_PIf);
 

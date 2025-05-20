@@ -21,12 +21,12 @@ class SuckerSystem {
       case SuckerState::kSuck:
         in_valve_.Write(HIGH);
         out_valve_.Write(HIGH);
-        vaccum_pump_.Write(0.7);
+        vaccum_pump_.Write(kPumpPower);
         break;
       case SuckerState::kBlow:
         in_valve_.Write(LOW);
         out_valve_.Write(LOW);
-        vaccum_pump_.Write(0.7);
+        vaccum_pump_.Write(kPumpPower);
         break;
       case SuckerState::kOff:
         in_valve_.Write(HIGH);
@@ -42,7 +42,7 @@ class SuckerSystem {
       case SuckerState::kSuck:
         in_valve_.Write(LOW);
         out_valve_.Write(LOW);
-        vaccum_pump_.Write(0.7);
+        vaccum_pump_.Write(kPumpPower);
         state_ = SuckerState::kBlow;
         break;
       case SuckerState::kBlow:
@@ -54,7 +54,7 @@ class SuckerSystem {
       case SuckerState::kOff:
         in_valve_.Write(HIGH);
         out_valve_.Write(HIGH);
-        vaccum_pump_.Write(0.7);
+        vaccum_pump_.Write(kPumpPower);
         state_ = SuckerState::kSuck;
         break;
     }
@@ -63,6 +63,7 @@ class SuckerSystem {
   auto state() const { return state_; }
 
  private:
+  constexpr static double kPumpPower = 0.9;
   SuckerState state_{SuckerState::kOff};
   OutputPin out_valve_;
   OutputPin in_valve_;
@@ -127,13 +128,14 @@ class StorageSystem {
    */
   void SetPumpPower() {
     if (left_state_ || right_state_) {
-      vaccum_pump_.Write(0.7);
+      vaccum_pump_.Write(kPumpPower);
     } else {
       vaccum_pump_.Write(0.0);
     }
     // vaccum_pump_.Write(std::abs(power));
   }
 
+  constexpr static double kPumpPower = 0.8;
   bool left_state_{false}, right_state_{false};
   OutputPin left_valve_;
   OutputPin right_valve_;

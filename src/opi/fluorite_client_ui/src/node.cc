@@ -27,6 +27,7 @@ MsgTxCallback StdFunctionToFnPtr(std::function<void(const uint8_t *, int)> fn) {
 class FluoriteClientUINode : public rclcpp::Node {
  public:
   std::pair<Point, Point> line1_coord_, line2_coord_, line3_coord_;
+  static double Radians(double degree) { return degree * M_PI / 180.0; }
   explicit FluoriteClientUINode(
       const rclcpp::NodeOptions &options =
           rclcpp::NodeOptions().allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(true))
@@ -38,28 +39,28 @@ class FluoriteClientUINode : public rclcpp::Node {
           static ArmRenderer renderer;
           // RCLCPP_INFO(get_logger(), "joint positions: %f %f %f", msg->position[0], msg->position[1],
           // msg->position[2]);
-          const auto lines = renderer.Draw(msg->position[0], msg->position[1], msg->position[2]);
-          line1_coord_ = lines[0];
-          line2_coord_ = lines[1];
-          line3_coord_ = lines[2];
+          const auto lines =
+              renderer.Draw(msg->position[0], Radians(20.0) + msg->position[1], Radians(160.0) - msg->position[2]);
+          line1_coord_ = lines[0];  //
+          line2_coord_ = lines[1];  //
+          line3_coord_ = lines[2];  // 不要把这几行看似搬了两次的冗余逻辑改掉，编译器优化会把直接赋值优化掉，导致ui画不出来直线
 
-          std::ostringstream oss;
+          // std::ostringstream oss;
 
-          constexpr int kUIOffsetX = 580;
-          constexpr int kUIOffsetY = 240;
-          // std::lock_guard lock(ui_data_mutex_);
+          constexpr int kUIOffsetX = 800;
+          constexpr int kUIOffsetY = 200;
           ui_main_static_yaw->start_x = line1_coord_.first.x + kUIOffsetX;
-          ui_main_static_yaw->start_y = line1_coord_.first.y + kUIOffsetY;
+          ui_main_static_yaw->start_y = (600 - line1_coord_.first.y) + kUIOffsetY;
           ui_main_static_yaw->end_x = line1_coord_.second.x + kUIOffsetX;
-          ui_main_static_yaw->end_y = line1_coord_.second.y + kUIOffsetY;
+          ui_main_static_yaw->end_y = (600 - line1_coord_.second.y) + kUIOffsetY;
           ui_main_dynamic_pitch1->start_x = line2_coord_.first.x + kUIOffsetX;
-          ui_main_dynamic_pitch1->start_y = line2_coord_.first.y + kUIOffsetY;
+          ui_main_dynamic_pitch1->start_y = (600 - line2_coord_.first.y) + kUIOffsetY;
           ui_main_dynamic_pitch1->end_x = line2_coord_.second.x + kUIOffsetX;
-          ui_main_dynamic_pitch1->end_y = line2_coord_.second.y + kUIOffsetY;
+          ui_main_dynamic_pitch1->end_y = (600 - line2_coord_.second.y) + kUIOffsetY;
           ui_main_dynamic_pitch2->start_x = line3_coord_.first.x + kUIOffsetX;
-          ui_main_dynamic_pitch2->start_y = line3_coord_.first.y + kUIOffsetY;
+          ui_main_dynamic_pitch2->start_y = (600 - line3_coord_.first.y) + kUIOffsetY;
           ui_main_dynamic_pitch2->end_x = line3_coord_.second.x + kUIOffsetX;
-          ui_main_dynamic_pitch2->end_y = line3_coord_.second.y + kUIOffsetY;
+          ui_main_dynamic_pitch2->end_y = (600 - line3_coord_.second.y) + kUIOffsetY;
           // oss << "rendered lines:\n"
           //     << "  0: (" << ui_main_static_yaw->start_x << ", " << ui_main_static_yaw->start_y << ") -> ("
           //     << ui_main_static_yaw->end_x << ", " << ui_main_static_yaw->end_y << ")\n"
@@ -72,7 +73,6 @@ class FluoriteClientUINode : public rclcpp::Node {
     arm_state_sub_ = create_subscription<fluorite_msgs::msg::ArmState>(
         "/fluorite/blackbox/arm_state", rclcpp::SystemDefaultsQoS(),
         [&](const fluorite_msgs::msg::ArmState::SharedPtr msg) {
-          // std::lock_guard lock(ui_data_mutex_);
           ui_main_dynamic_arm_pump->color = [&] {
             switch (msg->arm_pump) {
               case fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_OFF:
@@ -150,7 +150,6 @@ class FluoriteClientUINode : public rclcpp::Node {
       } else {
       }
     });
-    ui_self_id = 102;
     ui_init_main();
   }
 
@@ -165,8 +164,6 @@ class FluoriteClientUINode : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr ui_update_timer_{};
   rclcpp::TimerBase::SharedPtr tx_timer_{};
   std::deque<std::vector<uint8_t>> tx_queue_{};
-
-  // std::mutex ui_data_mutex_{};
 };
 
 int main(int argc, char *argv[]) {
