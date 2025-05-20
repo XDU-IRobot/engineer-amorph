@@ -58,7 +58,7 @@ void Arm::CalcPidAndExecute() {
   const auto kDesiredPosition = controller->trajectory_tracker.current_point().positions;
   actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
   actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-                                          0, 0.65 * kCompensateTorques[1], 85, 35);
+                                0, 0.65 * kCompensateTorques[1], 85, 35);
   actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
   actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
   // actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 40, 30);

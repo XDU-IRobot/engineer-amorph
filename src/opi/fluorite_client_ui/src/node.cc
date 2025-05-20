@@ -43,7 +43,8 @@ class FluoriteClientUINode : public rclcpp::Node {
               renderer.Draw(msg->position[0], Radians(20.0) + msg->position[1], Radians(160.0) - msg->position[2]);
           line1_coord_ = lines[0];  //
           line2_coord_ = lines[1];  //
-          line3_coord_ = lines[2];  // 不要把这几行看似搬了两次的冗余逻辑改掉，编译器优化会把直接赋值优化掉，导致ui画不出来直线
+          line3_coord_ =
+              lines[2];  // 不要把这几行看似搬了两次的冗余逻辑改掉，编译器优化会把直接赋值优化掉，导致ui画不出来直线
 
           // std::ostringstream oss;
 
