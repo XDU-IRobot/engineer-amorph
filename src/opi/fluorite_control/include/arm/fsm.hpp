@@ -66,7 +66,7 @@ struct Control : public tinyfsm::Event {
   std::atomic<double> left_y;                       ///< 左摇杆上下，范围[-1, 1] * vertical_sensitivity
   std::atomic<double> right_x;                      ///< 右摇杆左右，范围[-1, 1] * horizontal_sensitivity
   std::atomic<double> right_y;                      ///< 右摇杆上下，范围[-1, 1] * vertical_sensitivity
-  std::atomic<double> ld, rd;                       ///< 左右旋钮，范围[-1, 1]，逆负顺正s
+  std::atomic<double> ld, rd;                       ///< 左右旋钮，范围[-1, 1]，逆负顺正
   std::atomic<double> ls, rs;                       ///< 遥控器背面的左右滑块，范围[-1, 1]，下负上正
   std::atomic<int> sa, sb, sc, sd, se, sf, sg, sh;  ///< 拨杆，上1中0下-1
   std::unordered_map<uint16_t, std::atomic<bool>> keyboard_key;  ///< 键盘按键
@@ -162,6 +162,9 @@ class PneumaticSystem : public tinyfsm::MooreMachine<PneumaticSystem> {
   void react(tinyfsm::Event const &event);
   virtual void react(event::Control const &control) = 0;
 
+  virtual void react(event::BehaviourTreeCommand<fluorite_msgs::srv::StorageSystemCommand::Request> const &e) {}
+  virtual void react(event::BehaviourTreeCommand<fluorite_msgs::srv::SuckerCommand::Request> const &e) {}
+
   template <typename Mode>
   void react(event::SwitchMode<Mode> const &) {
     if constexpr (std::is_base_of_v<PneumaticSystem, Mode>) {  // 首先判断这个模式属不属于这个状态机
@@ -232,8 +235,14 @@ namespace pneumatic_system {
 
 DeclareState(BehaviourTree, PneumaticSystem);  ///< 气动系统行为树控制
 DeclareState(Debug, PneumaticSystem);          ///< 气动系统手动控制
-DeclareState(Manual, PneumaticSystem);         ///< 气动系统手动控制
-DeclareState(Off, PneumaticSystem);            ///< 气动系统关闭
+class Normal : public PneumaticSystem {
+ public:
+  void react(event::Control const &control) override;
+  void react(event::BehaviourTreeCommand<fluorite_msgs::srv::StorageSystemCommand::Request> const &e) override;
+  void react(event::BehaviourTreeCommand<fluorite_msgs::srv::SuckerCommand::Request> const &e) override;
+  void entry() override;
+};
+DeclareState(Off, PneumaticSystem);  ///< 气动系统关闭
 
 }  // namespace pneumatic_system
 

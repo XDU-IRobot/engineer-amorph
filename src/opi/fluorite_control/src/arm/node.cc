@@ -657,6 +657,25 @@ void FluoriteArm::BehaviourTreeInterface() {
   arm_end_effector_cartesian_command_as_.Create(this, "fluorite/arm/end_effector_cartesian_command");
   arm_joint_command_as_.Create(this, "fluorite/arm/joint_command");
   arm_trajectory_command_as_.Create(this, "fluorite/arm/trajectory_command");
+
+  storage_system_command_srv_ = create_service<fluorite_msgs::srv::StorageSystemCommand>(
+      "fluorite/arm/storage_system_command",
+      [this](const std::shared_ptr<fluorite_msgs::srv::StorageSystemCommand::Request> request,
+             std::shared_ptr<fluorite_msgs::srv::StorageSystemCommand::Response> response) {
+        RCLCPP_INFO(this->get_logger(), "Received storage system command");
+        fsm::DispatchEvent(
+            fsm::event::BehaviourTreeCommand{*request, []{}, []{}});
+        response->success = true;
+      });
+  sucker_command_srv_ = create_service<fluorite_msgs::srv::SuckerCommand>(
+      "fluorite/arm/sucker_system_command",
+      [this](const std::shared_ptr<fluorite_msgs::srv::SuckerCommand::Request> request,
+             std::shared_ptr<fluorite_msgs::srv::SuckerCommand::Response> response) {
+        RCLCPP_INFO(this->get_logger(), "Received sucker system command");
+        fsm::DispatchEvent(
+            fsm::event::BehaviourTreeCommand{*request, []{}, []{}});
+        response->success = true;
+      });
 }
 
 }  // namespace fluorite::arm

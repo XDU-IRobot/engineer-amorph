@@ -129,6 +129,8 @@ class FluoriteArm final : public rclcpp::Node {
   ActionServer<fluorite_msgs::action::ArmEndEffectorCartesianCommand> arm_end_effector_cartesian_command_as_;
   ActionServer<fluorite_msgs::action::ArmJointCommand> arm_joint_command_as_;
   ActionServer<fluorite_msgs::action::ArmTrajectoryCommand> arm_trajectory_command_as_;
+  rclcpp::Service<fluorite_msgs::srv::StorageSystemCommand>::SharedPtr storage_system_command_srv_{nullptr};
+  rclcpp::Service<fluorite_msgs::srv::SuckerCommand>::SharedPtr sucker_command_srv_{nullptr};
   /** </behaviour tree interface> **/
 };
 

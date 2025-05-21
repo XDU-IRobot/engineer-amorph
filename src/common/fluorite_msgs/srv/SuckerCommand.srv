@@ -1,6 +1,10 @@
 # 控制机械臂末端的吸盘
 
-float32 power # 吸或者吹，正为吸，负为吹
+uint8 SUCKER_OFF = 0
+uint8 SUCKER_SUCK = 1
+uint8 SUCKER_BLOW = 2
+
+uint8 command
 
 ---
 

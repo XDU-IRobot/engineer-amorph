@@ -1,7 +1,11 @@
 # 控制存矿机构
 
-bool left
-bool right
+uint8 STORAGE_DONT_CHANGE = 0
+uint8 STORAGE_ON = 1
+uint8 STORAGE_OFF = 2
+
+uint8 left
+uint8 right
 
 ---
 

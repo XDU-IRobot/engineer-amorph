@@ -28,6 +28,8 @@ class RosNodeSingleton {
   ActionClient<fluorite_msgs::action::ArmEndEffectorCartesianCommand> arm_end_effector_cartesian_command_ac_;
   ActionClient<fluorite_msgs::action::ArmJointCommand> arm_joint_command_ac_;
   ActionClient<fluorite_msgs::action::ArmTrajectoryCommand> arm_trajectory_command_ac_;
+  rclcpp::Client<fluorite_msgs::srv::StorageSystemCommand>::SharedPtr storage_system_command_client_;
+  rclcpp::Client<fluorite_msgs::srv::SuckerCommand>::SharedPtr sucker_command_client_;
 
  private:
   RosNodeSingleton()
@@ -43,6 +45,11 @@ class RosNodeSingleton {
     arm_end_effector_cartesian_command_ac_.CheckServerOnline();
     arm_joint_command_ac_.CheckServerOnline();
     arm_trajectory_command_ac_.CheckServerOnline();
+
+    // create service clients
+    storage_system_command_client_ =
+        node_->create_client<fluorite_msgs::srv::StorageSystemCommand>("fluorite/arm/storage_system_command");
+    sucker_command_client_ = node_->create_client<fluorite_msgs::srv::SuckerCommand>("fluorite/arm/sucker_command");
   }
   ~RosNodeSingleton() {
     executor_->cancel();

@@ -268,7 +268,7 @@ void FluoriteChassis::Referee() { info("referee ok"); }
  */
 void FluoriteChassis::Blackbox() {
   blackbox_state_pub_ =
-      this->create_publisher<fluorite_msgs::msg::ChassisState>("blackbox/chassis", rclcpp::SystemDefaultsQoS());
+      this->create_publisher<fluorite_msgs::msg::ChassisState>("fluorite/chassis/chassis_state", rclcpp::SystemDefaultsQoS());
   blackbox_timer_ = this->create_wall_timer(10ms, [this] { blackbox_state_pub_->publish(fsm::Chassis::state_msg); });
   info("blackbox ok");
 }

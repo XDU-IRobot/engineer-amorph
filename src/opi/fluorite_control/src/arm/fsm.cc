@@ -589,7 +589,7 @@ namespace pneumatic_system {
       if (control.sf == kRcSwitchUp) {              \
         DispatchEvent(event::SwitchMode<Debug>{});  \
       } else {                                      \
-        DispatchEvent(event::SwitchMode<Manual>{}); \
+        DispatchEvent(event::SwitchMode<Normal>{}); \
       }                                             \
       break;                                        \
     }                                               \
@@ -603,7 +603,7 @@ namespace pneumatic_system {
     }                                               \
   }
 
-void Manual::entry() {
+void Normal::entry() {
   actuator->sucker_system.Set(SuckerSystem::SuckerState::kOff);
   actuator->storage_system.SetLeft(false);
   actuator->storage_system.SetRight(false);
@@ -615,7 +615,7 @@ void Off::entry() {
   actuator->storage_system.SetRight(false);
 }
 
-void Manual::react(event::Control const &control) {
+void Normal::react(event::Control const &control) {
   if (controller->hotkeys.toggle_arm_pump.have_pressed()) {
     actuator->sucker_system.CycleMode();
   }
@@ -626,6 +626,50 @@ void Manual::react(event::Control const &control) {
     actuator->storage_system.ToggleRight();
   }
   UpdateState();
+}
+void Normal::react(event::BehaviourTreeCommand<fluorite_msgs::srv::StorageSystemCommand::Request> const &e) {
+  switch (e.command.left) {
+    case fluorite_msgs::srv::StorageSystemCommand::Request::STORAGE_DONT_CHANGE: {
+      break;
+    }
+    case fluorite_msgs::srv::StorageSystemCommand::Request::STORAGE_ON: {
+      actuator->storage_system.SetLeft(true);
+      break;
+    }
+    case fluorite_msgs::srv::StorageSystemCommand::Request::STORAGE_OFF: {
+      actuator->storage_system.SetLeft(false);
+      break;
+    }
+  }
+  switch (e.command.right) {
+    case fluorite_msgs::srv::StorageSystemCommand::Request::STORAGE_DONT_CHANGE: {
+      break;
+    }
+    case fluorite_msgs::srv::StorageSystemCommand::Request::STORAGE_ON: {
+      actuator->storage_system.SetRight(true);
+      break;
+    }
+    case fluorite_msgs::srv::StorageSystemCommand::Request::STORAGE_OFF: {
+      actuator->storage_system.SetRight(false);
+      break;
+    }
+  }
+}
+void Normal::react(event::BehaviourTreeCommand<fluorite_msgs::srv::SuckerCommand::Request> const &e) {
+  switch (e.command.command) {
+    case fluorite_msgs::srv::SuckerCommand::Request::SUCKER_OFF: {
+      actuator->sucker_system.Set(SuckerSystem::SuckerState::kOff);
+      break;
+    }
+    case fluorite_msgs::srv::SuckerCommand::Request::SUCKER_SUCK: {
+      actuator->sucker_system.Set(SuckerSystem::SuckerState::kSuck);
+      break;
+    }
+    case fluorite_msgs::srv::SuckerCommand::Request::SUCKER_BLOW: {
+      actuator->sucker_system.Set(SuckerSystem::SuckerState::kBlow);
+      break;
+    }
+  }
 }
 void Debug::react(event::Control const &control) {
   if (control.ld > 0.5) {
