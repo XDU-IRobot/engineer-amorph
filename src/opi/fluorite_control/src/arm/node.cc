@@ -663,8 +663,7 @@ void FluoriteArm::BehaviourTreeInterface() {
       [this](const std::shared_ptr<fluorite_msgs::srv::StorageSystemCommand::Request> request,
              std::shared_ptr<fluorite_msgs::srv::StorageSystemCommand::Response> response) {
         RCLCPP_INFO(this->get_logger(), "Received storage system command");
-        fsm::DispatchEvent(
-            fsm::event::BehaviourTreeCommand{*request, []{}, []{}});
+        fsm::DispatchEvent(fsm::event::BehaviourTreeCommand{*request, [] {}, [] {}});
         response->success = true;
       });
   sucker_command_srv_ = create_service<fluorite_msgs::srv::SuckerCommand>(
@@ -672,8 +671,7 @@ void FluoriteArm::BehaviourTreeInterface() {
       [this](const std::shared_ptr<fluorite_msgs::srv::SuckerCommand::Request> request,
              std::shared_ptr<fluorite_msgs::srv::SuckerCommand::Response> response) {
         RCLCPP_INFO(this->get_logger(), "Received sucker system command");
-        fsm::DispatchEvent(
-            fsm::event::BehaviourTreeCommand{*request, []{}, []{}});
+        fsm::DispatchEvent(fsm::event::BehaviourTreeCommand{*request, [] {}, [] {}});
         response->success = true;
       });
 }
