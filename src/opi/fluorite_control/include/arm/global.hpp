@@ -34,7 +34,7 @@ extern fluorite_msgs::msg::ArmState state_msg;
 
 /**
  * @brief   本节点的所有ROS参数，每个控制循环更新一次
- * 
+ *
  */
 extern RosParams ros_params;
 
