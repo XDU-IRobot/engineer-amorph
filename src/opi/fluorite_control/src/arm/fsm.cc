@@ -59,13 +59,16 @@ void Arm::CalcPidAndExecute() {
   // apply output torque
   const auto kOutputTorque = controller->trajectory_tracker.output_torque();
   const auto kDesiredPosition = controller->trajectory_tracker.current_point().positions;
-  actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
+  actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, ros_params.pd_yaw[0], ros_params.pd_yaw[1]);
   actuator->pitch_1.SetPosition(
       (kDesiredPosition[1] + ros_params.pitch_1_encoder_zero_offset) * 1.5,  // 传动链条 减速比2:3
-      0, 0.65 * kCompensateTorques[1], 85, 35);
-  actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
-  actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
-  actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 70, 30);
+      0, ros_params.dynamic_model_feedforward_multiplier * kCompensateTorques[1], ros_params.pd_pitch_1[0],
+      ros_params.pd_pitch_1[1]);
+  actuator->pitch_2.SetPosition(kDesiredPosition[2], 0,
+                                ros_params.dynamic_model_feedforward_multiplier * kCompensateTorques[2],
+                                ros_params.pd_pitch_2[0], ros_params.pd_pitch_2[1]);
+  actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, ros_params.pd_end_yaw_1[0], ros_params.pd_end_yaw_1[1]);
+  actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, ros_params.pd_end_pitch[0], ros_params.pd_end_pitch[1]);
   actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
 }
 
@@ -352,9 +355,12 @@ void BehaviourTreeIdle::react(event::Control const &control) {
     const auto target_joint_positions = [&] {
       trajectory_msgs::msg::JointTrajectoryPoint p;
       p.velocities.resize(6);
-      p.positions = {state_msg.yaw_encoder,       state_msg.pitch_1_encoder + control.mouse_wheel * 0.033,
-                     state_msg.pitch_2_encoder,   state_msg.end_yaw_1_encoder,
-                     state_msg.end_pitch_encoder, state_msg.end_yaw_2_encoder};
+      p.positions = {state_msg.yaw_encoder,
+                     state_msg.pitch_1_encoder + control.mouse_wheel * ros_params.control_mouse_wheel_sensitivity,
+                     state_msg.pitch_2_encoder,
+                     state_msg.end_yaw_1_encoder,
+                     state_msg.end_pitch_encoder,
+                     state_msg.end_yaw_2_encoder};
       return p;
     }();
     controller->trajectory_tracker.SwitchReferenceTrajectory(target_joint_positions);

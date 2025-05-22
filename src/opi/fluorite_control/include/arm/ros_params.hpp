@@ -40,6 +40,12 @@ struct RosParams {
   std::vector<double> pid_end_yaw_1_position{};
   std::vector<double> pid_end_pitch_position{};
   std::vector<double> pid_end_yaw_2_position{};
+  std::vector<double> pd_yaw{};
+  std::vector<double> pd_pitch_1{};
+  std::vector<double> pd_pitch_2{};
+  std::vector<double> pd_end_yaw_1{};
+  std::vector<double> pd_end_pitch{};
+  double dynamic_model_feedforward_multiplier{};
 
   // low-pass filter settings
   int lpf_sample_rate{};
@@ -82,6 +88,7 @@ struct RosParams {
   bool control_invert_horizontal{};
   double control_sensitivity_vertical{};
   double control_sensitivity_horizontal{};
+  double control_mouse_wheel_sensitivity{};
 };
 
 }  // namespace fluorite::arm

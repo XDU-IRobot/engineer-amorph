@@ -80,21 +80,29 @@ fluorite_control_arm:
     # pid param
     pid_base_yaw_speed: [0.005, 0.0, 0.0, 20.0, 20.0]
     # pid_base_yaw_speed: [0.02, 0.0, 0.0, 20.0, 20.0]
+    pid_base_yaw_position: [8000.0, 0.0, 550000.0, 5000.0, 5000.0]
+    # pid_base_yaw_position: [400.0, 0.0, 15000.0, 500.0, 500.0]
+    # pid_base_yaw_position: [3000.0, 0.0, 80000.0, 500.0, 500.0]
+    ####### DEPRECATED #######
     pid_yaw_speed: [-3.5, 0.0, 0.0, 13.0, 13.0]
     pid_pitch_1_speed: [3.56, 0.0, 0.0, 20.0, 20.0]
     pid_pitch_2_speed: [-2.8, 0.0, 0.0, 10.0, 10.0]
     pid_end_yaw_1_speed: [-0.6, 0.0, 0.0, 4.0, 4.0]
     pid_end_pitch_speed: [0.45, 0.0, 0.0, 4.0, 4.0]
     pid_end_yaw_2_speed: [92.0, 0.0, 0.0, 6500.0, 6500.0]
-    pid_base_yaw_position: [8000.0, 0.0, 550000.0, 5000.0, 5000.0]
-    # pid_base_yaw_position: [400.0, 0.0, 15000.0, 500.0, 500.0]
-    # pid_base_yaw_position: [3000.0, 0.0, 80000.0, 500.0, 500.0]
     pid_yaw_position: [40.0, 0.0, 230.0, 3.4, 3.4]
     pid_pitch_1_position: [85.0, 0.0, 1.0, 4.0, 4.0]
     pid_pitch_2_position: [30.0, 0.0, 0.0, 4.0, 4.0]
     pid_end_yaw_1_position: [30.0, 0.0, 0.0, 2.5, 2.5]
     pid_end_pitch_position: [40.0, 0.0, 30.0, 2.0, 2.0]
     pid_end_yaw_2_position: [600.0, 0.0, 0.0, 40.0, 40.0]
+    ###########################
+    pd_yaw: [90.0, 35.0]
+    pd_pitch_1: [85.0, 35.0]
+    pd_pitch_2: [70.0, 30.0]
+    pd_end_yaw_1: [70.0, 30.0]
+    pd_end_pitch: [70.0, 30.0]
+    dynamic_model_feedforward_multiplier: 0.65
 
     # low-pass filter settings
     ## 截止频率应该小于采样频率的一半！(anti-aliasing)
@@ -137,3 +145,4 @@ fluorite_control_arm:
     control_invert_horizontal: true
     control_sensitivity_vertical: 1.0
     control_sensitivity_horizontal: 1.0
+    control_mouse_wheel_sensitivity: 0.05
