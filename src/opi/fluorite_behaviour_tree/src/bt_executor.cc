@@ -117,8 +117,9 @@ class BTExecutorNode : public rclcpp::Node {
         Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LCTRL | rm2_referee_msgs::msg::RemoteControl::KEY_X};
     hotkeys_.pick_from_left_top =
         Hotkey{rm2_referee_msgs::msg::RemoteControl::KEY_LSHIFT | rm2_referee_msgs::msg::RemoteControl::KEY_X};
-    kh_ << hotkeys_.retract << hotkeys_.take_silver << hotkeys_.store_to_right << hotkeys_.pick_from_right << hotkeys_.pick_from_right_top
-        << hotkeys_.store_to_left << hotkeys_.pick_from_left << hotkeys_.pick_from_left_top;
+    kh_ << hotkeys_.retract << hotkeys_.take_silver << hotkeys_.store_to_right << hotkeys_.pick_from_right
+        << hotkeys_.pick_from_right_top << hotkeys_.store_to_left << hotkeys_.pick_from_left
+        << hotkeys_.pick_from_left_top;
 
     // define keymap
     hotkeys_.retract.OnPress([&] {
