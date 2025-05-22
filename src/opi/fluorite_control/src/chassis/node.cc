@@ -27,12 +27,12 @@ FluoriteChassis::FluoriteChassis(rclcpp::NodeOptions const &options)
     : rclcpp::Node("fluorite_control_chassis", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
   ros_params = ros_params_manager_.data();
-  this->InitFsm();             // 初始化状态机
-  this->DeviceMonitor();       // 设备在线状态监控
-  this->UserInput();           // 启动遥控器接收
-  this->Referee();             // 启动裁判系统接收
-  this->Navigation();          // 启动和导航节点的通信
-  this->Blackbox();            // 启动黑匣子（广播state和control）
+  this->InitFsm();        // 初始化状态机
+  this->DeviceMonitor();  // 设备在线状态监控
+  this->UserInput();      // 启动遥控器接收
+  this->Referee();        // 启动裁判系统接收
+  this->Navigation();     // 启动和导航节点的通信
+  this->Blackbox();       // 启动黑匣子（广播state和control）
 
   // 启动控制循环
   info("control node initialize ok");
