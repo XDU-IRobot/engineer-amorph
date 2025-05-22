@@ -22,7 +22,10 @@ inline void InitWiringPi() {
 
 class OutputPin {
  public:
-  explicit OutputPin(int pin_num) : pin_num_{pin_num} { pinMode(pin_num, OUTPUT); }
+  explicit OutputPin(int pin_num) : pin_num_{pin_num} {
+    InitWiringPi();
+    pinMode(pin_num, OUTPUT);
+  }
 
   void Write(int value) {
     digitalWrite(pin_num_, value);

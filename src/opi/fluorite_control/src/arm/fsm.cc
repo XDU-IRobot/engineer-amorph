@@ -11,14 +11,17 @@
 
 #include <Eigen/Dense>
 
+#include "arm/ros_params.hpp"
 #include "keyboard_msgs/msg/key.hpp"
 #include "tinyfsm.hpp"
 
 namespace fluorite::arm {
 
+// 这几个全局变量用于ROS节点和下面的几个状态机通信，extern声明在arm/global.hpp里
 fluorite_msgs::msg::ArmState state_msg{};
 std::unique_ptr<Actuator> actuator{nullptr};
 std::unique_ptr<Controller> controller{nullptr};
+RosParams ros_params;
 
 namespace fsm {
 
@@ -57,15 +60,11 @@ void Arm::CalcPidAndExecute() {
   const auto kOutputTorque = controller->trajectory_tracker.output_torque();
   const auto kDesiredPosition = controller->trajectory_tracker.current_point().positions;
   actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 90, 35);
-  actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-                                0, 0.65 * kCompensateTorques[1], 85, 35);
+  actuator->pitch_1.SetPosition(
+      (kDesiredPosition[1] + ros_params.pitch_1_encoder_zero_offset) * 1.5,  // 传动链条 减速比2:3
+      0, 0.65 * kCompensateTorques[1], 85, 35);
   actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 70, 30);
   actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 70, 30);
-  // actuator->yaw.SetPosition(kDesiredPosition[0], 0, 0, 40, 30);
-  // actuator->pitch_1.SetPosition(kDesiredPosition[1] * 1.5,  // 传动链条 减速比2:3
-  //                               0, 0.65 * kCompensateTorques[1], 40, 30);
-  // actuator->pitch_2.SetPosition(kDesiredPosition[2], 0, 0.65 * kCompensateTorques[2], 40, 30);
-  // actuator->end_yaw_1.SetPosition(kDesiredPosition[3], 0, 0, 40, 30);
   actuator->end_pitch.SetPosition(kDesiredPosition[4], 0, 0, 70, 30);
   actuator->end_yaw_2.SetCurrent(kOutputTorque[5]);
 }

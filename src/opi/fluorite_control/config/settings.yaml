@@ -51,6 +51,10 @@ fluorite_control_chassis:
     lr_steer_front_encoder: 3.2992281913757324
     rr_steer_front_encoder: 4.350900650024414
 
+    base_move_speed_multiplier: 4200.0
+    boost_move_speed_multiplier: 2.1
+    slow_move_speed_multiplier: 1000.0
+
     # input settings
     control_use_fpv_channel: false # 使用图传链路控制
     control_invert_vertical: true

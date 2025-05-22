@@ -57,6 +57,10 @@ struct RosParams {
   double lr_steer_front_encoder{};
   double rr_steer_front_encoder{};
 
+  double base_move_speed_multiplier{};
+  double boost_move_speed_multiplier{};
+  double slow_move_speed_multiplier{};
+
   // input settings
   bool control_use_fpv_channel{};
   bool control_invert_vertical{};

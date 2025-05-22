@@ -14,6 +14,7 @@
 #include <tinyfsm.hpp>
 
 #include "chassis/fsm.hpp"
+#include "chassis/global.hpp"
 #include "common/logger.hpp"
 
 namespace fluorite::chassis {
@@ -25,6 +26,7 @@ using namespace rm::modules::algorithm::utils;
 FluoriteChassis::FluoriteChassis(rclcpp::NodeOptions const &options)
     : rclcpp::Node("fluorite_control_chassis", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
+  ros_params = ros_params_manager_.data();
   this->InitFsm();             // 初始化状态机
   this->DeviceMonitor();       // 设备在线状态监控
   this->UserInput();           // 启动遥控器接收

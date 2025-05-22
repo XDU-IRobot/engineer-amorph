@@ -10,6 +10,7 @@
 #include <Eigen/Dense>
 
 #include "arm/fsm.hpp"
+#include "chassis/ros_params.hpp"
 #include "common/logger.hpp"
 
 namespace fluorite::chassis {
@@ -21,6 +22,7 @@ constexpr int kRcSwitchDown = -1;
 fluorite_msgs::msg::ChassisState fsm::Chassis::state_msg{};
 fsm::Chassis::Actuator fsm::Chassis::actuator{};
 fsm::Chassis::Controller fsm::Chassis::controller{};
+RosParams ros_params;
 
 namespace fsm {
 

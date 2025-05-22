@@ -13,9 +13,6 @@
 #include <fo_lpf.h>
 #include <librm.hpp>
 #include <tinyfsm.hpp>
-#if __has_include("wiringPi.h")
-#include <wiringPi.h>
-#endif
 
 #include "arm/fsm.hpp"
 #include "common/logger.hpp"
@@ -27,9 +24,7 @@ using namespace std::chrono_literals;
 
 FluoriteArm::FluoriteArm(rclcpp::NodeOptions const &options) : rclcpp::Node("fluorite_control_arm", options) {
   ros_params_manager_.Init();  // 读取yaml文件中的参数、启动参数服务器
-#if __has_include("wiringPi.h")
-  wiringPiSetup();  // 初始化wiringPi
-#endif
+  ros_params = ros_params_manager_.data();
   InitializeShit();          // 初始化状态机
   DeviceMonitor();           // 设备在线状态监控
   Ins();                     // 启动IMU接收
