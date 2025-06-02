@@ -52,7 +52,7 @@ fluorite_control_chassis:
     rr_steer_front_encoder: 4.350900650024414
 
     base_move_speed_multiplier: 4200.0
-    boost_move_speed_multiplier: 2.1
+    boost_move_speed_multiplier: 2.25
     slow_move_speed_multiplier: 1000.0
 
     # input settings
@@ -98,7 +98,7 @@ fluorite_control_arm:
     pid_end_yaw_2_position: [600.0, 0.0, 0.0, 40.0, 40.0]
     ###########################
     pd_yaw: [90.0, 37.0]
-    pd_pitch_1: [85.0, 35.0]
+    pd_pitch_1: [72.0, 30.0]
     pd_pitch_2: [70.0, 30.0]
     pd_end_yaw_1: [70.0, 30.0]
     pd_end_pitch: [70.0, 30.0]
@@ -145,4 +145,4 @@ fluorite_control_arm:
     control_invert_horizontal: true
     control_sensitivity_vertical: 1.0
     control_sensitivity_horizontal: 1.0
-    control_mouse_wheel_sensitivity: 0.05
+    control_mouse_wheel_sensitivity: 0.09

@@ -135,7 +135,7 @@ class StorageSystem {
     // vaccum_pump_.Write(std::abs(power));
   }
 
-  constexpr static double kPumpPower = 0.8;
+  constexpr static double kPumpPower = 0.9;
   bool left_state_{false}, right_state_{false};
   OutputPin left_valve_;
   OutputPin right_valve_;
