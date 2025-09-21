@@ -45,3 +45,6 @@
 [submodule "src/opi/fluorite_control/libs/libInterpolate"]
 	path = src/opi/fluorite_control/libs/libInterpolate
 	url = https://github.com/CD3/libInterpolate.git
+[submodule "src/stm32/amorph_arm_controller/libs/librm"]
+	path = src/stm32/amorph_arm_controller/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
