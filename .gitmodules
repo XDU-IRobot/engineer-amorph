@@ -1,6 +1,3 @@
-[submodule "src/robomaster2"]
-	path = src/common/robomaster2
-	url = https://github.com/XDU-IRobot/robomaster2.git
 [submodule "src/fluorite_control/libs/pfr"]
 	path = src/opi/fluorite_control/libs/pfr
 	url = https://github.com/boostorg/pfr.git
@@ -14,28 +11,12 @@
 [submodule "src/fluorite_control/libs/tinyfsm"]
 	path = src/opi/fluorite_control/libs/tinyfsm
 	url = https://github.com/digint/tinyfsm.git
-[submodule "src/common/sbus_ros2"]
-	path = src/common/sbus_ros2
-	url = https://github.com/eryeden/sbus_ros2.git
-[submodule "src/opi/witmotion_ros2_driver"]
-	path = src/opi/witmotion_ros2_driver
-	url = https://github.com/lunarifish/witmotion_ros2_driver.git
 [submodule "src/opi/ros2-keyboard"]
 	path = src/opi/ros2-keyboard
 	url = https://github.com/cmower/ros2-keyboard.git
 [submodule "src/opi/trac_ik"]
 	path = src/opi/trac_ik
 	url = https://github.com/lunarifish/trac_ik.git
-[submodule "src/common/backward_ros"]
-	path = src/common/backward_ros
-	url = https://github.com/pal-robotics/backward_ros.git
-	branch = foxy-devel
-[submodule "src/custom_controller/t265/libs/librm"]
-	path = src/custom_controller/t265/libs/librm
-	url = https://github.com/XDU-IRobot/librm.git
-[submodule "src/custom_controller/t265/libs/spdlog"]
-	path = src/custom_controller/t265/libs/spdlog
-	url = https://github.com/gabime/spdlog.git
 [submodule "src/opi/fluorite_behaviour_tree/libs/rapidjson"]
 	path = src/opi/fluorite_behaviour_tree/libs/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
