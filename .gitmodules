@@ -17,9 +17,6 @@
 [submodule "src/common/sbus_ros2"]
 	path = src/common/sbus_ros2
 	url = https://github.com/eryeden/sbus_ros2.git
-[submodule "src/opi/ros2-keyboard"]
-	path = src/opi/ros2-keyboard
-	url = https://github.com/cmower/ros2-keyboard.git
 [submodule "src/opi/fluorite_behaviour_tree/libs/rapidjson"]
 	path = src/opi/fluorite_behaviour_tree/libs/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
