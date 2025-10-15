@@ -55,7 +55,7 @@
 void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void AppMain(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -104,7 +104,7 @@ int main(void) {
   MX_SPI6_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
-
+  AppMain();
   /* USER CODE END 2 */
 
   /* Infinite loop */

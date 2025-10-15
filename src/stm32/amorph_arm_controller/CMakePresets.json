@@ -18,6 +18,13 @@
             }
         },
         {
+            "name": "RelWithDebInfo",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "Release",
             "inherits": "default",
             "cacheVariables": {
