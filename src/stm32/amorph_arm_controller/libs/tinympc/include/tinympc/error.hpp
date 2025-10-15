@@ -14,11 +14,11 @@ extern "C" {
 // #define ERROR_MSG(exit_code, format, ...) error(exit_code, errno, format, ##__VA_ARGS__)
 
 // #elif defined(__APPLE__) || defined(__MACH__) // Check if macOS
-#define ERROR_MSG(exit_code, format, ...) \
-        { \
-        fprintf(stderr, format ": %s\n", ##__VA_ARGS__, strerror(errno)); \
-        exit(exit_code); \
-        }
+#define ERROR_MSG(exit_code, format, ...)                             \
+  {                                                                   \
+    fprintf(stderr, format ": %s\n", ##__VA_ARGS__, strerror(errno)); \
+    exit(exit_code);                                                  \
+  }
 
 // #else
 // #error "Unsupported operating system"
