@@ -1,5 +1,5 @@
 [submodule "src/robomaster2"]
-	path = src/common/robomaster2
+	path = src/opi/robomaster2
 	url = https://github.com/XDU-IRobot/robomaster2.git
 [submodule "src/fluorite_control/libs/pfr"]
 	path = src/opi/fluorite_control/libs/pfr
@@ -15,7 +15,7 @@
 	path = src/opi/fluorite_control/libs/tinyfsm
 	url = https://github.com/digint/tinyfsm.git
 [submodule "src/common/sbus_ros2"]
-	path = src/common/sbus_ros2
+	path = src/opi/sbus_ros2
 	url = https://github.com/eryeden/sbus_ros2.git
 [submodule "src/opi/fluorite_behaviour_tree/libs/rapidjson"]
 	path = src/opi/fluorite_behaviour_tree/libs/rapidjson
