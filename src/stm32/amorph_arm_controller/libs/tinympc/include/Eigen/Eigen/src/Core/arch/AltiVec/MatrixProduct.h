@@ -1775,10 +1775,10 @@ EIGEN_ALWAYS_INLINE void bcouple(PacketBlock<Packet, N>& taccReal, PacketBlock<P
     }                                                    \
   }
 
-#define MICRO_ADD_PEEL_ROW                                                                                 \
-  MICRO_ADD_PEEL(4, 0)                                                                                     \
-  MICRO_ADD_PEEL(5, 1) MICRO_ADD_PEEL(6, 2) MICRO_ADD_PEEL(7, 3) MICRO_ADD_PEEL(2, 0) MICRO_ADD_PEEL(3, 1) \
-      MICRO_ADD_PEEL(1, 0)
+#define MICRO_ADD_PEEL_ROW \
+  MICRO_ADD_PEEL(4, 0)     \
+  MICRO_ADD_PEEL(5, 1)     \
+  MICRO_ADD_PEEL(6, 2) MICRO_ADD_PEEL(7, 3) MICRO_ADD_PEEL(2, 0) MICRO_ADD_PEEL(3, 1) MICRO_ADD_PEEL(1, 0)
 
 #define MICRO_PREFETCHN1(ptr, N)               \
   EIGEN_POWER_PREFETCH(MICRO_RHS(ptr, 0));     \

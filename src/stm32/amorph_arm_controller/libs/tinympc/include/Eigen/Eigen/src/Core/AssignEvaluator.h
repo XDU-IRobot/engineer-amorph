@@ -368,7 +368,7 @@ struct unaligned_dense_assignment_loop<false> {
   static EIGEN_DONT_INLINE void run(Kernel& kernel, Index start, Index end)
 #else
   template <typename Kernel>
-  EIGEN_DEVICE_FUNC static EIGEN_STRONG_INLINE EIGEN_CONSTEXPR void run(Kernel &kernel, Index start, Index end)
+  EIGEN_DEVICE_FUNC static EIGEN_STRONG_INLINE EIGEN_CONSTEXPR void run(Kernel& kernel, Index start, Index end)
 #endif
   {
     for (Index index = start; index < end; ++index) kernel.assignCoeff(index);
