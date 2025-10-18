@@ -33,3 +33,7 @@
 	path = src/opi/trac_ik
 	url = https://bitbucket.org/traclabs/trac_ik.git
 	branch = jazzy
+[submodule "src/stm32/amorph_custom_controller/libs/librm"]
+	path = src/stm32/amorph_custom_controller/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
+	branch = feature/time-system
