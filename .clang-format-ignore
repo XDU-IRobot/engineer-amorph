@@ -1,1 +1,11 @@
 ./src/opi/fluorite_control/libs/*
+
+./src/stm32/amorph_arm_controller/Core/*
+./src/stm32/amorph_arm_controller/Drivers/*
+./src/stm32/amorph_arm_controller/Middlewares/*
+./src/stm32/amorph_arm_controller/USB_DEVICE/*
+./src/stm32/amorph_arm_controller/libs/*
+
+./src/stm32/amorph_custom_controller/Core/*
+./src/stm32/amorph_custom_controller/Drivers/*
+./src/stm32/amorph_custom_controller/libs/*
