@@ -58,9 +58,11 @@
 
 /* USER CODE END 0 */
 /**
- * Initializes the Global MSP.
- */
-void HAL_MspInit(void) {
+  * Initializes the Global MSP.
+  */
+void HAL_MspInit(void)
+{
+
   /* USER CODE BEGIN MspInit 0 */
 
   /* USER CODE END MspInit 0 */

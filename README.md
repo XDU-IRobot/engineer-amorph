@@ -2,34 +2,7 @@
 
 ## CI status
 
-<table>
-<tr>
-<td>foxy</td>
-<td rowspan=2>
-    <a href="https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_eol.yaml">
-        <img src="https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_eol.yaml/badge.svg">
-    </a>
-</td>
-</tr>
-<tr>
-<td>galactic</td>
-</tr>
-<tr>
-<td>humble</td>
-<td rowspan=4>
-    <a href="https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build.yaml">
-        <img src="https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build.yaml/badge.svg">
-    </a>
-</td>
-</tr>
-<tr>
-<td>iron</td>
-</tr>
-<tr>
-<td>jazzy</td>
-</tr>
-<tr>
-<td>rolling</td>
-</tr>
-</table>
+[![build_host](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_host.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_host.yaml)
+[![build_custom_ctrller](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_custom_ctrller.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_custom_ctrller.yaml)
+[![build_arm_ctrller](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_arm_ctrller.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_arm_ctrller.yaml)
 

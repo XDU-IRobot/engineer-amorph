@@ -1,11 +1,7 @@
 .idea
 .vscode
 build
-cmake
 cmake-build*
-Drivers
-Middlewares
-USB_DEVICE
 
 .venv
 __pycache__

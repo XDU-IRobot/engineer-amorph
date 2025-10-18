@@ -1,0 +1,21 @@
+name: build_arm_ctrller
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: arm-none-eabi-gcc GNU Arm Embedded Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+      - name: Build
+        run: |
+          cmake src/stm32/amorph_arm_controller -DCMAKE_BUILD_TYPE=$BUILD_TYPE -Bbuild -G "Unix Makefiles"
+          cd build && make -j
