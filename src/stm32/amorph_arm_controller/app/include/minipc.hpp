@@ -10,9 +10,8 @@
 
 class CdcMessenger {
  public:
-  void Transmit() {
+  void Transmit() {}
 
-  }
  private:
   static constexpr size_t kMaxQueuedMsgs = 256;
   etl::circular_buffer<etl::span<uint8_t>, kMaxQueuedMsgs> tx_queue_;

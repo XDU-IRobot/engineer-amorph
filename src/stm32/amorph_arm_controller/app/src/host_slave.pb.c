@@ -8,19 +8,10 @@
 
 PB_BIND(LogMessage, LogMessage, AUTO)
 
-
 PB_BIND(Duration, Duration, AUTO)
-
 
 PB_BIND(JointTrajectoryPoint, JointTrajectoryPoint, AUTO)
 
-
 PB_BIND(JointTrajectory, JointTrajectory, AUTO)
 
-
 PB_BIND(SbusFrame, SbusFrame, AUTO)
-
-
-
-
-

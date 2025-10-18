@@ -49,4 +49,3 @@ void MX_UART5_Init(void);
 #endif
 
 #endif /* __USART_H__ */
-

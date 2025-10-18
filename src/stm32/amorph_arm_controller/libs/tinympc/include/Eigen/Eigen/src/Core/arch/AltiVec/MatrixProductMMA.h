@@ -212,9 +212,10 @@ EIGEN_ALWAYS_INLINE void ploadLhsMMA(const double* lhs, __vector_pair& lhsV) { p
   type rhsV[8];                                                                             \
   MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 0)                                                \
   MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 1)                                                \
-  MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 2) MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 3)     \
-      MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 4) MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 5) \
-          MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 6) MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 7)
+  MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 2)                                                \
+  MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 3) MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 4)     \
+      MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 5) MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 6) \
+          MICRO_MMA_TYPE_PEEL(funcw, funcl, type, 7)
 #else
 #define MICRO_MMA_TYPE_PEEL2(funcw1, funcl1, funcw2, funcl2, type, peel1, peel2)               \
   if (PEEL_MMA > peel2) {                                                                      \

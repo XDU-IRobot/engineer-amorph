@@ -28,9 +28,7 @@ UART_HandleTypeDef huart5;
 DMA_HandleTypeDef hdma_uart5_rx;
 
 /* UART5 init function */
-void MX_UART5_Init(void)
-{
-
+void MX_UART5_Init(void) {
   /* USER CODE BEGIN UART5_Init 0 */
 
   /* USER CODE END UART5_Init 0 */
@@ -49,45 +47,36 @@ void MX_UART5_Init(void)
   huart5.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart5.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   huart5.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart5) != HAL_OK)
-  {
+  if (HAL_UART_Init(&huart5) != HAL_OK) {
     Error_Handler();
   }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart5, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart5, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK) {
     Error_Handler();
   }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart5, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart5, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK) {
     Error_Handler();
   }
-  if (HAL_UARTEx_DisableFifoMode(&huart5) != HAL_OK)
-  {
+  if (HAL_UARTEx_DisableFifoMode(&huart5) != HAL_OK) {
     Error_Handler();
   }
   /* USER CODE BEGIN UART5_Init 2 */
 
   /* USER CODE END UART5_Init 2 */
-
 }
 
-void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
-{
-
+void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle) {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-  if(uartHandle->Instance==UART5)
-  {
-  /* USER CODE BEGIN UART5_MspInit 0 */
+  if (uartHandle->Instance == UART5) {
+    /* USER CODE BEGIN UART5_MspInit 0 */
 
-  /* USER CODE END UART5_MspInit 0 */
+    /* USER CODE END UART5_MspInit 0 */
 
-  /** Initializes the peripherals clock
-  */
+    /** Initializes the peripherals clock
+     */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_UART5;
     PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
       Error_Handler();
     }
 
@@ -126,30 +115,26 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     hdma_uart5_rx.Init.Mode = DMA_NORMAL;
     hdma_uart5_rx.Init.Priority = DMA_PRIORITY_HIGH;
     hdma_uart5_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    if (HAL_DMA_Init(&hdma_uart5_rx) != HAL_OK)
-    {
+    if (HAL_DMA_Init(&hdma_uart5_rx) != HAL_OK) {
       Error_Handler();
     }
 
-    __HAL_LINKDMA(uartHandle,hdmarx,hdma_uart5_rx);
+    __HAL_LINKDMA(uartHandle, hdmarx, hdma_uart5_rx);
 
     /* UART5 interrupt Init */
     HAL_NVIC_SetPriority(UART5_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(UART5_IRQn);
-  /* USER CODE BEGIN UART5_MspInit 1 */
+    /* USER CODE BEGIN UART5_MspInit 1 */
 
-  /* USER CODE END UART5_MspInit 1 */
+    /* USER CODE END UART5_MspInit 1 */
   }
 }
 
-void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
-{
+void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle) {
+  if (uartHandle->Instance == UART5) {
+    /* USER CODE BEGIN UART5_MspDeInit 0 */
 
-  if(uartHandle->Instance==UART5)
-  {
-  /* USER CODE BEGIN UART5_MspDeInit 0 */
-
-  /* USER CODE END UART5_MspDeInit 0 */
+    /* USER CODE END UART5_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_UART5_CLK_DISABLE();
 
@@ -166,9 +151,9 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
     /* UART5 interrupt Deinit */
     HAL_NVIC_DisableIRQ(UART5_IRQn);
-  /* USER CODE BEGIN UART5_MspDeInit 1 */
+    /* USER CODE BEGIN UART5_MspDeInit 1 */
 
-  /* USER CODE END UART5_MspDeInit 1 */
+    /* USER CODE END UART5_MspDeInit 1 */
   }
 }
 
