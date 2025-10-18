@@ -29,7 +29,9 @@ FDCAN_HandleTypeDef hfdcan2;
 FDCAN_HandleTypeDef hfdcan3;
 
 /* FDCAN1 init function */
-void MX_FDCAN1_Init(void) {
+void MX_FDCAN1_Init(void)
+{
+
   /* USER CODE BEGIN FDCAN1_Init 0 */
 
   /* USER CODE END FDCAN1_Init 0 */
@@ -65,15 +67,19 @@ void MX_FDCAN1_Init(void) {
   hfdcan1.Init.TxFifoQueueElmtsNbr = 0;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   hfdcan1.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
-  if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK) {
+  if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN1_Init 2 */
 
   /* USER CODE END FDCAN1_Init 2 */
+
 }
 /* FDCAN2 init function */
-void MX_FDCAN2_Init(void) {
+void MX_FDCAN2_Init(void)
+{
+
   /* USER CODE BEGIN FDCAN2_Init 0 */
 
   /* USER CODE END FDCAN2_Init 0 */
@@ -109,15 +115,19 @@ void MX_FDCAN2_Init(void) {
   hfdcan2.Init.TxFifoQueueElmtsNbr = 16;
   hfdcan2.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   hfdcan2.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
-  if (HAL_FDCAN_Init(&hfdcan2) != HAL_OK) {
+  if (HAL_FDCAN_Init(&hfdcan2) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN2_Init 2 */
 
   /* USER CODE END FDCAN2_Init 2 */
+
 }
 /* FDCAN3 init function */
-void MX_FDCAN3_Init(void) {
+void MX_FDCAN3_Init(void)
+{
+
   /* USER CODE BEGIN FDCAN3_Init 0 */
 
   /* USER CODE END FDCAN3_Init 0 */
@@ -153,25 +163,30 @@ void MX_FDCAN3_Init(void) {
   hfdcan3.Init.TxFifoQueueElmtsNbr = 16;
   hfdcan3.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   hfdcan3.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
-  if (HAL_FDCAN_Init(&hfdcan3) != HAL_OK) {
+  if (HAL_FDCAN_Init(&hfdcan3) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN3_Init 2 */
 
   /* USER CODE END FDCAN3_Init 2 */
+
 }
 
-static uint32_t HAL_RCC_FDCAN_CLK_ENABLED = 0;
+static uint32_t HAL_RCC_FDCAN_CLK_ENABLED=0;
 
-void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle) {
+void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle)
+{
+
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if (fdcanHandle->Instance == FDCAN1) {
-    /* USER CODE BEGIN FDCAN1_MspInit 0 */
+  if(fdcanHandle->Instance==FDCAN1)
+  {
+  /* USER CODE BEGIN FDCAN1_MspInit 0 */
 
-    /* USER CODE END FDCAN1_MspInit 0 */
+  /* USER CODE END FDCAN1_MspInit 0 */
     /* FDCAN1 clock enable */
     HAL_RCC_FDCAN_CLK_ENABLED++;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 1) {
+    if(HAL_RCC_FDCAN_CLK_ENABLED==1){
       __HAL_RCC_FDCAN_CLK_ENABLE();
     }
 
@@ -180,23 +195,25 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle) {
     PD0     ------> FDCAN1_RX
     PD1     ------> FDCAN1_TX
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF9_FDCAN1;
     HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-    /* USER CODE BEGIN FDCAN1_MspInit 1 */
+  /* USER CODE BEGIN FDCAN1_MspInit 1 */
 
-    /* USER CODE END FDCAN1_MspInit 1 */
-  } else if (fdcanHandle->Instance == FDCAN2) {
-    /* USER CODE BEGIN FDCAN2_MspInit 0 */
+  /* USER CODE END FDCAN1_MspInit 1 */
+  }
+  else if(fdcanHandle->Instance==FDCAN2)
+  {
+  /* USER CODE BEGIN FDCAN2_MspInit 0 */
 
-    /* USER CODE END FDCAN2_MspInit 0 */
+  /* USER CODE END FDCAN2_MspInit 0 */
     /* FDCAN2 clock enable */
     HAL_RCC_FDCAN_CLK_ENABLED++;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 1) {
+    if(HAL_RCC_FDCAN_CLK_ENABLED==1){
       __HAL_RCC_FDCAN_CLK_ENABLE();
     }
 
@@ -205,7 +222,7 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle) {
     PB5     ------> FDCAN2_RX
     PB6     ------> FDCAN2_TX
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_5 | GPIO_PIN_6;
+    GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -217,16 +234,18 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle) {
     HAL_NVIC_EnableIRQ(FDCAN2_IT0_IRQn);
     HAL_NVIC_SetPriority(FDCAN2_IT1_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(FDCAN2_IT1_IRQn);
-    /* USER CODE BEGIN FDCAN2_MspInit 1 */
+  /* USER CODE BEGIN FDCAN2_MspInit 1 */
 
-    /* USER CODE END FDCAN2_MspInit 1 */
-  } else if (fdcanHandle->Instance == FDCAN3) {
-    /* USER CODE BEGIN FDCAN3_MspInit 0 */
+  /* USER CODE END FDCAN2_MspInit 1 */
+  }
+  else if(fdcanHandle->Instance==FDCAN3)
+  {
+  /* USER CODE BEGIN FDCAN3_MspInit 0 */
 
-    /* USER CODE END FDCAN3_MspInit 0 */
+  /* USER CODE END FDCAN3_MspInit 0 */
     /* FDCAN3 clock enable */
     HAL_RCC_FDCAN_CLK_ENABLED++;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 1) {
+    if(HAL_RCC_FDCAN_CLK_ENABLED==1){
       __HAL_RCC_FDCAN_CLK_ENABLE();
     }
 
@@ -235,7 +254,7 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle) {
     PD12     ------> FDCAN3_RX
     PD13     ------> FDCAN3_TX
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_13;
+    GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -247,20 +266,23 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle) {
     HAL_NVIC_EnableIRQ(FDCAN3_IT0_IRQn);
     HAL_NVIC_SetPriority(FDCAN3_IT1_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(FDCAN3_IT1_IRQn);
-    /* USER CODE BEGIN FDCAN3_MspInit 1 */
+  /* USER CODE BEGIN FDCAN3_MspInit 1 */
 
-    /* USER CODE END FDCAN3_MspInit 1 */
+  /* USER CODE END FDCAN3_MspInit 1 */
   }
 }
 
-void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle) {
-  if (fdcanHandle->Instance == FDCAN1) {
-    /* USER CODE BEGIN FDCAN1_MspDeInit 0 */
+void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle)
+{
 
-    /* USER CODE END FDCAN1_MspDeInit 0 */
+  if(fdcanHandle->Instance==FDCAN1)
+  {
+  /* USER CODE BEGIN FDCAN1_MspDeInit 0 */
+
+  /* USER CODE END FDCAN1_MspDeInit 0 */
     /* Peripheral clock disable */
     HAL_RCC_FDCAN_CLK_ENABLED--;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 0) {
+    if(HAL_RCC_FDCAN_CLK_ENABLED==0){
       __HAL_RCC_FDCAN_CLK_DISABLE();
     }
 
@@ -268,18 +290,20 @@ void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle) {
     PD0     ------> FDCAN1_RX
     PD1     ------> FDCAN1_TX
     */
-    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_0 | GPIO_PIN_1);
+    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_0|GPIO_PIN_1);
 
-    /* USER CODE BEGIN FDCAN1_MspDeInit 1 */
+  /* USER CODE BEGIN FDCAN1_MspDeInit 1 */
 
-    /* USER CODE END FDCAN1_MspDeInit 1 */
-  } else if (fdcanHandle->Instance == FDCAN2) {
-    /* USER CODE BEGIN FDCAN2_MspDeInit 0 */
+  /* USER CODE END FDCAN1_MspDeInit 1 */
+  }
+  else if(fdcanHandle->Instance==FDCAN2)
+  {
+  /* USER CODE BEGIN FDCAN2_MspDeInit 0 */
 
-    /* USER CODE END FDCAN2_MspDeInit 0 */
+  /* USER CODE END FDCAN2_MspDeInit 0 */
     /* Peripheral clock disable */
     HAL_RCC_FDCAN_CLK_ENABLED--;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 0) {
+    if(HAL_RCC_FDCAN_CLK_ENABLED==0){
       __HAL_RCC_FDCAN_CLK_DISABLE();
     }
 
@@ -287,21 +311,23 @@ void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle) {
     PB5     ------> FDCAN2_RX
     PB6     ------> FDCAN2_TX
     */
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_5 | GPIO_PIN_6);
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_5|GPIO_PIN_6);
 
     /* FDCAN2 interrupt Deinit */
     HAL_NVIC_DisableIRQ(FDCAN2_IT0_IRQn);
     HAL_NVIC_DisableIRQ(FDCAN2_IT1_IRQn);
-    /* USER CODE BEGIN FDCAN2_MspDeInit 1 */
+  /* USER CODE BEGIN FDCAN2_MspDeInit 1 */
 
-    /* USER CODE END FDCAN2_MspDeInit 1 */
-  } else if (fdcanHandle->Instance == FDCAN3) {
-    /* USER CODE BEGIN FDCAN3_MspDeInit 0 */
+  /* USER CODE END FDCAN2_MspDeInit 1 */
+  }
+  else if(fdcanHandle->Instance==FDCAN3)
+  {
+  /* USER CODE BEGIN FDCAN3_MspDeInit 0 */
 
-    /* USER CODE END FDCAN3_MspDeInit 0 */
+  /* USER CODE END FDCAN3_MspDeInit 0 */
     /* Peripheral clock disable */
     HAL_RCC_FDCAN_CLK_ENABLED--;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 0) {
+    if(HAL_RCC_FDCAN_CLK_ENABLED==0){
       __HAL_RCC_FDCAN_CLK_DISABLE();
     }
 
@@ -309,14 +335,14 @@ void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle) {
     PD12     ------> FDCAN3_RX
     PD13     ------> FDCAN3_TX
     */
-    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_12 | GPIO_PIN_13);
+    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_12|GPIO_PIN_13);
 
     /* FDCAN3 interrupt Deinit */
     HAL_NVIC_DisableIRQ(FDCAN3_IT0_IRQn);
     HAL_NVIC_DisableIRQ(FDCAN3_IT1_IRQn);
-    /* USER CODE BEGIN FDCAN3_MspDeInit 1 */
+  /* USER CODE BEGIN FDCAN3_MspDeInit 1 */
 
-    /* USER CODE END FDCAN3_MspDeInit 1 */
+  /* USER CODE END FDCAN3_MspDeInit 1 */
   }
 }
 

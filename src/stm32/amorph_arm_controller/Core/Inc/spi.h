@@ -52,3 +52,4 @@ void MX_SPI6_Init(void);
 #endif
 
 #endif /* __SPI_H__ */
+

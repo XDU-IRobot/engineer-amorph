@@ -3,8 +3,8 @@
  * 2011 Petteri Aimonen <jpa@kapsi.fi>
  */
 
-#include "../include/nanopb/pb_encode.h"
-#include "../include/nanopb/pb.h"
+#include "pb_encode.h"
+#include "pb.h"
 #include "pb_common.h"
 
 /* Use the GCC warn_unused_result attribute to check that all return values

@@ -3,7 +3,7 @@
  * 2014 Petteri Aimonen <jpa@kapsi.fi>
  */
 
-#include "../include/nanopb/pb_common.h"
+#include "pb_common.h"
 
 static bool load_descriptor_values(pb_field_iter_t *iter) {
   uint32_t word0;

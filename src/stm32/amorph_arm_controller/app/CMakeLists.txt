@@ -1,8 +1,8 @@
 
 add_executable(arm_controller)
 file(GLOB_RECURSE ARM_CONTROLLER_SOURCES
-        ./*.c
-        ./*.cc
+        ./src/*.c
+        ./src/*.cc
 )
 target_sources(arm_controller PRIVATE
         ${ARM_CONTROLLER_SOURCES}

@@ -1,4 +1,6 @@
 
+set(BUILD_TESTS OFF)
+
 add_subdirectory(nanopb)
 
 add_subdirectory(librm)

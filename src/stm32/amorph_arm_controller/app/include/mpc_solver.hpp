@@ -2,6 +2,7 @@
 #pragma once
 
 #include "tinympc/types.hpp"
+#include "tinympc/tiny_api.hpp"
 
 struct MpcSolver {
   /* Solution */
@@ -1418,5 +1419,7 @@ struct MpcSolver {
       0,                             // solve iteration
   };
 
-  TinySolver instance{&solution, &settings, &cache, &work};
+  TinySolver instance;
+
+  MpcSolver() : instance{&solution, &settings, &cache, &work} {}
 };

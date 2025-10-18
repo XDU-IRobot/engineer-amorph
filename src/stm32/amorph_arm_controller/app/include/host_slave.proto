@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+enum LogLevel {
+  DEBUG = 0;
+  INFO = 1;
+  WARN = 2;
+  ERROR = 3;
+  FATAL = 4;
+}
+
+message LogMessage {
+  string str = 1;
+  LogLevel log_level = 2;
+}
+
+message Duration {
+  int64 seconds = 1;
+  int32 nanoseconds = 2;
+}
+
+message JointTrajectoryPoint {
+  repeated float positions = 1;
+  repeated float velocities = 2;
+  repeated float accelerations = 3;
+  repeated float effort = 4;
+  Duration time_from_start = 5;
+}
+
+message JointTrajectory {
+  repeated JointTrajectoryPoint points = 1;
+}
+
+message SbusFrame {
+  repeated float ch = 1;
+}
