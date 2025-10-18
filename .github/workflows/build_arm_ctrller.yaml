@@ -15,11 +15,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: arm-none-eabi-gcc GNU Arm Embedded Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
-      - name: Install dependencies
-        shell: bash
-        run: sudo apt update && sudo apt install -y ninja-build
       - name: Build
         run: |
           cd src/stm32/amorph_arm_controller
-          cmake --preset $BUILD_TYPE
-          cmake --build build
+          cmake --preset $BUILD_TYPE -G "Unix Makefiles"
+          cmake --build ./build/Release --target arm_controller -- -j
