@@ -1114,7 +1114,7 @@ HAL_StatusTypeDef HAL_UART_UnRegisterRxEventCallback(UART_HandleTypeDef *huart)
   * @param huart   UART handle.
   * @param pData   Pointer to data buffer (u8 or u16 data elements).
   * @param Size    Amount of data elements (u8 or u16) to be sent.
-  * @param Timeout Timeout Duration.
+  * @param Timeout Timeout duration.
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size, uint32_t Timeout)
@@ -1204,7 +1204,7 @@ HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef *huart, const uint8_t *pD
   * @param huart   UART handle.
   * @param pData   Pointer to data buffer (u8 or u16 data elements).
   * @param Size    Amount of data elements (u8 or u16) to be received.
-  * @param Timeout Timeout Duration.
+  * @param Timeout Timeout duration.
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_UART_Receive(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout)
@@ -3430,7 +3430,7 @@ HAL_StatusTypeDef UART_CheckIdleState(UART_HandleTypeDef *huart)
   * @param Flag      Specifies the UART flag to check
   * @param Status    The actual Flag status (SET or RESET)
   * @param Tickstart Tick start value
-  * @param Timeout   Timeout Duration
+  * @param Timeout   Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef UART_WaitOnFlagUntilTimeout(UART_HandleTypeDef *huart, uint32_t Flag, FlagStatus Status,

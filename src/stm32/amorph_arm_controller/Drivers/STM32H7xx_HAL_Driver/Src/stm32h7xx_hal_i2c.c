@@ -1113,7 +1113,7 @@ HAL_StatusTypeDef HAL_I2C_UnRegisterAddrCallback(I2C_HandleTypeDef *hi2c)
   *         in datasheet must be shifted to the left before calling the interface
   * @param  pData Pointer to data buffer
   * @param  Size Amount of data to be sent
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData,
@@ -1254,7 +1254,7 @@ HAL_StatusTypeDef HAL_I2C_Master_Transmit(I2C_HandleTypeDef *hi2c, uint16_t DevA
   *         in datasheet must be shifted to the left before calling the interface
   * @param  pData Pointer to data buffer
   * @param  Size Amount of data to be sent
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_I2C_Master_Receive(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint8_t *pData,
@@ -1372,7 +1372,7 @@ HAL_StatusTypeDef HAL_I2C_Master_Receive(I2C_HandleTypeDef *hi2c, uint16_t DevAd
   *                the configuration information for the specified I2C.
   * @param  pData Pointer to data buffer
   * @param  Size Amount of data to be sent
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_I2C_Slave_Transmit(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size,
@@ -1559,7 +1559,7 @@ HAL_StatusTypeDef HAL_I2C_Slave_Transmit(I2C_HandleTypeDef *hi2c, uint8_t *pData
   *                the configuration information for the specified I2C.
   * @param  pData Pointer to data buffer
   * @param  Size Amount of data to be sent
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_I2C_Slave_Receive(I2C_HandleTypeDef *hi2c, uint8_t *pData, uint16_t Size,
@@ -2517,7 +2517,7 @@ HAL_StatusTypeDef HAL_I2C_Slave_Receive_DMA(I2C_HandleTypeDef *hi2c, uint8_t *pD
   * @param  MemAddSize Size of internal memory address
   * @param  pData Pointer to data buffer
   * @param  Size Amount of data to be sent
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress,
@@ -2654,7 +2654,7 @@ HAL_StatusTypeDef HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress
   * @param  MemAddSize Size of internal memory address
   * @param  pData Pointer to data buffer
   * @param  Size Amount of data to be sent
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress,
@@ -3257,7 +3257,7 @@ HAL_StatusTypeDef HAL_I2C_Mem_Read_DMA(I2C_HandleTypeDef *hi2c, uint16_t DevAddr
   * @param  DevAddress Target device address: The device 7 bits address value
   *         in datasheet must be shifted to the left before calling the interface
   * @param  Trials Number of trials
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_I2C_IsDeviceReady(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint32_t Trials,
@@ -5827,7 +5827,7 @@ static HAL_StatusTypeDef I2C_Slave_ISR_DMA(struct __I2C_HandleTypeDef *hi2c, uin
   *         in datasheet must be shifted to the left before calling the interface
   * @param  MemAddress Internal memory address
   * @param  MemAddSize Size of internal memory address
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @param  Tickstart Tick start value
   * @retval HAL status
   */
@@ -5882,7 +5882,7 @@ static HAL_StatusTypeDef I2C_RequestMemoryWrite(I2C_HandleTypeDef *hi2c, uint16_
   *         in datasheet must be shifted to the left before calling the interface
   * @param  MemAddress Internal memory address
   * @param  MemAddSize Size of internal memory address
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @param  Tickstart Tick start value
   * @retval HAL status
   */
@@ -6983,7 +6983,7 @@ static void I2C_DMAAbort(DMA_HandleTypeDef *hdma)
   *                the configuration information for the specified I2C.
   * @param  Flag Specifies the I2C flag to check.
   * @param  Status The actual Flag status (SET or RESET).
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @param  Tickstart Tick start value
   * @retval HAL status
   */
@@ -7023,7 +7023,7 @@ static HAL_StatusTypeDef I2C_WaitOnFlagUntilTimeout(I2C_HandleTypeDef *hi2c, uin
   * @brief  This function handles I2C Communication Timeout for specific usage of TXIS flag.
   * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
   *                the configuration information for the specified I2C.
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @param  Tickstart Tick start value
   * @retval HAL status
   */
@@ -7064,7 +7064,7 @@ static HAL_StatusTypeDef I2C_WaitOnTXISFlagUntilTimeout(I2C_HandleTypeDef *hi2c,
   * @brief  This function handles I2C Communication Timeout for specific usage of STOP flag.
   * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
   *                the configuration information for the specified I2C.
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @param  Tickstart Tick start value
   * @retval HAL status
   */
@@ -7102,7 +7102,7 @@ static HAL_StatusTypeDef I2C_WaitOnSTOPFlagUntilTimeout(I2C_HandleTypeDef *hi2c,
   * @brief  This function handles I2C Communication Timeout for specific usage of RXNE flag.
   * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
   *                the configuration information for the specified I2C.
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @param  Tickstart Tick start value
   * @retval HAL status
   */
@@ -7179,7 +7179,7 @@ static HAL_StatusTypeDef I2C_WaitOnRXNEFlagUntilTimeout(I2C_HandleTypeDef *hi2c,
   * @brief  This function handles errors detection during an I2C Communication.
   * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
   *                the configuration information for the specified I2C.
-  * @param  Timeout Timeout Duration
+  * @param  Timeout Timeout duration
   * @param  Tickstart Tick start value
   * @retval HAL status
   */

@@ -1309,7 +1309,7 @@ HAL_StatusTypeDef HAL_MDMA_Abort_IT(MDMA_HandleTypeDef *hmdma)
   * @param  hmdma:          pointer to a MDMA_HandleTypeDef structure that contains
   *                        the configuration information for the specified MDMA Channel.
   * @param  CompleteLevel: Specifies the MDMA level complete.
-  * @param  Timeout:       Timeout Duration.
+  * @param  Timeout:       Timeout duration.
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_MDMA_PollForTransfer(MDMA_HandleTypeDef *hmdma, HAL_MDMA_LevelCompleteTypeDef CompleteLevel, uint32_t Timeout)

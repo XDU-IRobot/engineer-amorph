@@ -11,7 +11,7 @@
 
 #include "joint_space_interpolator.hpp"
 #include "logging.hpp"
-#include "proto.hpp"
+#include "typedefs.hpp"
 
 namespace fluorite::arm {
 
@@ -23,8 +23,8 @@ using namespace rm::modules::angle_literals;
  */
 template <int NJoints>
 class TrajectoryTracker {
-  using Trajectory = proto::JointTrajectory;
-  using Point = proto::JointTrajectoryPoint;
+  using Trajectory = JointTrajectory;
+  using Point = JointTrajectoryPoint;
   using Duration = std::chrono::duration<int, std::milli>;
 
  public:
@@ -253,7 +253,7 @@ class TrajectoryTracker {
     current_point_ = joint_space_interpolator_(elapsed_time);
   }
 
-  const auto &trajoctory() const { return current_trajectory_; }
+  const auto &trajectory() const { return current_trajectory_; }
   const auto &current_point() const {
     // Update();
     if (current_trajectory_.empty()) {
@@ -285,8 +285,8 @@ class TrajectoryTracker {
 
   Point current_point_{[] {
     Point p;
-    p.velocities.resize(6);
-    p.positions = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    p.velocities.resize(NJoints);
+    p.positions.resize(NJoints);
     return p;
   }()};
   std::vector<Point> current_trajectory_{};

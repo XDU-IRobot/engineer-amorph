@@ -707,7 +707,7 @@ HAL_StatusTypeDef HAL_UARTEx_SetRxFifoThreshold(UART_HandleTypeDef *huart, uint3
   * @param Size    Amount of data elements (uint8_t or uint16_t) to be received.
   * @param RxLen   Number of data elements finally received
   *                (could be lower than Size, in case reception ends on IDLE event)
-  * @param Timeout Timeout Duration expressed in ms (covers the whole reception sequence).
+  * @param Timeout Timeout duration expressed in ms (covers the whole reception sequence).
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint16_t *RxLen,

@@ -818,7 +818,7 @@ HAL_StatusTypeDef HAL_SPI_UnRegisterCallback(SPI_HandleTypeDef *hspi, HAL_SPI_Ca
   *                  the configuration information for SPI module.
   * @param  pData  : pointer to data buffer
   * @param  Size   : amount of data to be sent
-  * @param  Timeout: Timeout Duration
+  * @param  Timeout: Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_SPI_Transmit(SPI_HandleTypeDef *hspi, const uint8_t *pData, uint16_t Size, uint32_t Timeout)
@@ -1042,7 +1042,7 @@ HAL_StatusTypeDef HAL_SPI_Transmit(SPI_HandleTypeDef *hspi, const uint8_t *pData
   *                  the configuration information for SPI module.
   * @param  pData  : pointer to data buffer
   * @param  Size   : amount of data to be received
-  * @param  Timeout: Timeout Duration
+  * @param  Timeout: Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint16_t Size, uint32_t Timeout)
@@ -1312,7 +1312,7 @@ HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint1
   * @param  pTxData: pointer to transmission data buffer
   * @param  pRxData: pointer to reception data buffer
   * @param  Size   : amount of data to be sent and received
-  * @param  Timeout: Timeout Duration
+  * @param  Timeout: Timeout duration
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi, const uint8_t *pTxData, uint8_t *pRxData,
@@ -3965,7 +3965,7 @@ static void SPI_CloseTransfer(SPI_HandleTypeDef *hspi)
   *              the configuration information for SPI module.
   * @param Flag: SPI flag to check
   * @param Status: flag state to check
-  * @param Timeout: Timeout Duration
+  * @param Timeout: Timeout duration
   * @param Tickstart: Tick start value
   * @retval HAL status
   */

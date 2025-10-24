@@ -99,7 +99,7 @@ HAL_TickFreqTypeDef uwTickFreq = HAL_TICK_FREQ_DEFAULT;  /* 1KHz */
         (++) SysTick timer is used by default as source of time base, but user
              can eventually implement his proper time base source (a general purpose
              timer for example or other time source), keeping in mind that Time base
-             Duration should be kept 1ms since PPP_TIMEOUT_VALUEs are defined and
+             duration should be kept 1ms since PPP_TIMEOUT_VALUEs are defined and
              handled in milliseconds basis.
         (++) Time base configuration function (HAL_InitTick ()) is called automatically
              at the beginning of the program after reset by HAL_Init() or at any time

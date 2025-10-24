@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "spline_1d_interp.hpp"
-#include "proto.hpp"
+#include "typedefs.hpp"
 
 /**
  * @brief 多关节轨迹插值器类
@@ -20,9 +20,9 @@
  */
 template <size_t NJoints>
 class JointSpaceInterpolator {
-  using Trajectory = proto::JointTrajectory;                ///< 轨迹类型别名
-  using Point = proto::JointTrajectoryPoint;                ///< 轨迹点类型别名
-  using Duration = std::chrono::duration<int, std::milli>;  ///< 时间类型别名（毫秒）
+  using Trajectory = JointTrajectory;  ///< 轨迹
+  using Point = JointTrajectoryPoint;  ///< 轨迹点
+  using Duration = std::chrono::duration<int, std::milli>;
 
  public:
   /**

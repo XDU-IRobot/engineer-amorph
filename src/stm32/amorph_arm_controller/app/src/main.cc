@@ -1,19 +1,14 @@
 
 #include "main.h"
 
-#include <chrono>
-
 #include <librm.hpp>
 
-#include "mpc_solver.hpp"
-#include "pbf_bridge.hpp"
+#include "rpc/usbcdc_transport.hpp"
 
 extern "C" {
 
-[[noreturn]] void AppMain(void) {
-  rm::device::Referee<rm::device::RefereeRevision::kV170> ref;
-  for (;;) {
-    HAL_Delay(HAL_MAX_DELAY);
-  }
-}
+extern USBD_HandleTypeDef hUsbDeviceHS;
+
+void AppMain(void) { rm::hal::Can can; }
+
 }

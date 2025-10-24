@@ -11353,7 +11353,7 @@ typedef struct
 /******************  Bit definition for FMC_BTRx registers (x=1..4)  *********/
 #define FMC_BTRx_ADDSET_Pos        (0U)
 #define FMC_BTRx_ADDSET_Msk        (0xFUL << FMC_BTRx_ADDSET_Pos)              /*!< 0x0000000F */
-#define FMC_BTRx_ADDSET            FMC_BTRx_ADDSET_Msk                         /*!<ADDSET[3:0] bits (Address setup phase Duration) */
+#define FMC_BTRx_ADDSET            FMC_BTRx_ADDSET_Msk                         /*!<ADDSET[3:0] bits (Address setup phase duration) */
 #define FMC_BTRx_ADDSET_0          (0x1UL << FMC_BTRx_ADDSET_Pos)               /*!< 0x00000001 */
 #define FMC_BTRx_ADDSET_1          (0x2UL << FMC_BTRx_ADDSET_Pos)               /*!< 0x00000002 */
 #define FMC_BTRx_ADDSET_2          (0x4UL << FMC_BTRx_ADDSET_Pos)               /*!< 0x00000004 */
@@ -11361,7 +11361,7 @@ typedef struct
 
 #define FMC_BTRx_ADDHLD_Pos        (4U)
 #define FMC_BTRx_ADDHLD_Msk        (0xFUL << FMC_BTRx_ADDHLD_Pos)              /*!< 0x000000F0 */
-#define FMC_BTRx_ADDHLD            FMC_BTRx_ADDHLD_Msk                         /*!<ADDHLD[3:0] bits (Address-hold phase Duration)  */
+#define FMC_BTRx_ADDHLD            FMC_BTRx_ADDHLD_Msk                         /*!<ADDHLD[3:0] bits (Address-hold phase duration)  */
 #define FMC_BTRx_ADDHLD_0          (0x1UL << FMC_BTRx_ADDHLD_Pos)               /*!< 0x00000010 */
 #define FMC_BTRx_ADDHLD_1          (0x2UL << FMC_BTRx_ADDHLD_Pos)               /*!< 0x00000020 */
 #define FMC_BTRx_ADDHLD_2          (0x4UL << FMC_BTRx_ADDHLD_Pos)               /*!< 0x00000040 */
@@ -11369,7 +11369,7 @@ typedef struct
 
 #define FMC_BTRx_DATAST_Pos        (8U)
 #define FMC_BTRx_DATAST_Msk        (0xFFUL << FMC_BTRx_DATAST_Pos)             /*!< 0x0000FF00 */
-#define FMC_BTRx_DATAST            FMC_BTRx_DATAST_Msk                         /*!<DATAST [3:0] bits (Data-phase Duration) */
+#define FMC_BTRx_DATAST            FMC_BTRx_DATAST_Msk                         /*!<DATAST [3:0] bits (Data-phase duration) */
 #define FMC_BTRx_DATAST_0          (0x01UL << FMC_BTRx_DATAST_Pos)              /*!< 0x00000100 */
 #define FMC_BTRx_DATAST_1          (0x02UL << FMC_BTRx_DATAST_Pos)              /*!< 0x00000200 */
 #define FMC_BTRx_DATAST_2          (0x04UL << FMC_BTRx_DATAST_Pos)              /*!< 0x00000400 */
@@ -11381,7 +11381,7 @@ typedef struct
 
 #define FMC_BTRx_BUSTURN_Pos       (16U)
 #define FMC_BTRx_BUSTURN_Msk       (0xFUL << FMC_BTRx_BUSTURN_Pos)             /*!< 0x000F0000 */
-#define FMC_BTRx_BUSTURN           FMC_BTRx_BUSTURN_Msk                        /*!<BUSTURN[3:0] bits (Bus turnaround phase Duration) */
+#define FMC_BTRx_BUSTURN           FMC_BTRx_BUSTURN_Msk                        /*!<BUSTURN[3:0] bits (Bus turnaround phase duration) */
 #define FMC_BTRx_BUSTURN_0         (0x1UL << FMC_BTRx_BUSTURN_Pos)              /*!< 0x00010000 */
 #define FMC_BTRx_BUSTURN_1         (0x2UL << FMC_BTRx_BUSTURN_Pos)              /*!< 0x00020000 */
 #define FMC_BTRx_BUSTURN_2         (0x4UL << FMC_BTRx_BUSTURN_Pos)              /*!< 0x00040000 */
@@ -11412,7 +11412,7 @@ typedef struct
 /******************  Bit definition for FMC_BWTRx registers (x=1..4)  *********/
 #define FMC_BWTRx_ADDSET_Pos       (0U)
 #define FMC_BWTRx_ADDSET_Msk       (0xFUL << FMC_BWTRx_ADDSET_Pos)             /*!< 0x0000000F */
-#define FMC_BWTRx_ADDSET           FMC_BWTRx_ADDSET_Msk                        /*!<ADDSET[3:0] bits (Address setup phase Duration) */
+#define FMC_BWTRx_ADDSET           FMC_BWTRx_ADDSET_Msk                        /*!<ADDSET[3:0] bits (Address setup phase duration) */
 #define FMC_BWTRx_ADDSET_0         (0x1UL << FMC_BWTRx_ADDSET_Pos)              /*!< 0x00000001 */
 #define FMC_BWTRx_ADDSET_1         (0x2UL << FMC_BWTRx_ADDSET_Pos)              /*!< 0x00000002 */
 #define FMC_BWTRx_ADDSET_2         (0x4UL << FMC_BWTRx_ADDSET_Pos)              /*!< 0x00000004 */
@@ -11420,7 +11420,7 @@ typedef struct
 
 #define FMC_BWTRx_ADDHLD_Pos       (4U)
 #define FMC_BWTRx_ADDHLD_Msk       (0xFUL << FMC_BWTRx_ADDHLD_Pos)             /*!< 0x000000F0 */
-#define FMC_BWTRx_ADDHLD           FMC_BWTRx_ADDHLD_Msk                        /*!<ADDHLD[3:0] bits (Address-hold phase Duration) */
+#define FMC_BWTRx_ADDHLD           FMC_BWTRx_ADDHLD_Msk                        /*!<ADDHLD[3:0] bits (Address-hold phase duration) */
 #define FMC_BWTRx_ADDHLD_0         (0x1UL << FMC_BWTRx_ADDHLD_Pos)              /*!< 0x00000010 */
 #define FMC_BWTRx_ADDHLD_1         (0x2UL << FMC_BWTRx_ADDHLD_Pos)              /*!< 0x00000020 */
 #define FMC_BWTRx_ADDHLD_2         (0x4UL << FMC_BWTRx_ADDHLD_Pos)              /*!< 0x00000040 */
@@ -11428,7 +11428,7 @@ typedef struct
 
 #define FMC_BWTRx_DATAST_Pos       (8U)
 #define FMC_BWTRx_DATAST_Msk       (0xFFUL << FMC_BWTRx_DATAST_Pos)            /*!< 0x0000FF00 */
-#define FMC_BWTRx_DATAST           FMC_BWTRx_DATAST_Msk                        /*!<DATAST [3:0] bits (Data-phase Duration) */
+#define FMC_BWTRx_DATAST           FMC_BWTRx_DATAST_Msk                        /*!<DATAST [3:0] bits (Data-phase duration) */
 #define FMC_BWTRx_DATAST_0         (0x01UL << FMC_BWTRx_DATAST_Pos)             /*!< 0x00000100 */
 #define FMC_BWTRx_DATAST_1         (0x02UL << FMC_BWTRx_DATAST_Pos)             /*!< 0x00000200 */
 #define FMC_BWTRx_DATAST_2         (0x04UL << FMC_BWTRx_DATAST_Pos)             /*!< 0x00000400 */
@@ -11440,7 +11440,7 @@ typedef struct
 
 #define FMC_BWTRx_BUSTURN_Pos      (16U)
 #define FMC_BWTRx_BUSTURN_Msk      (0xFUL << FMC_BWTRx_BUSTURN_Pos)            /*!< 0x000F0000 */
-#define FMC_BWTRx_BUSTURN          FMC_BWTRx_BUSTURN_Msk                       /*!<BUSTURN[3:0] bits (Bus turnaround phase Duration) */
+#define FMC_BWTRx_BUSTURN          FMC_BWTRx_BUSTURN_Msk                       /*!<BUSTURN[3:0] bits (Bus turnaround phase duration) */
 #define FMC_BWTRx_BUSTURN_0        (0x1UL << FMC_BWTRx_BUSTURN_Pos)             /*!< 0x00010000 */
 #define FMC_BWTRx_BUSTURN_1        (0x2UL << FMC_BWTRx_BUSTURN_Pos)             /*!< 0x00020000 */
 #define FMC_BWTRx_BUSTURN_2        (0x4UL << FMC_BWTRx_BUSTURN_Pos)             /*!< 0x00040000 */

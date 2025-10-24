@@ -975,7 +975,7 @@ HAL_StatusTypeDef HAL_DMA_Abort_IT(DMA_HandleTypeDef *hdma)
   * @note   The polling mode is kept in this version for legacy. it is recommended to use the IT model instead.
   *         This model could be used for debug purpose.
   * @note   The HAL_DMA_PollForTransfer API cannot be used in circular and double buffering mode (automatic circular mode).
-  * @param  Timeout:       Timeout Duration.
+  * @param  Timeout:       Timeout duration.
   * @retval HAL status
   */
 HAL_StatusTypeDef HAL_DMA_PollForTransfer(DMA_HandleTypeDef *hdma, HAL_DMA_LevelCompleteTypeDef CompleteLevel, uint32_t Timeout)
