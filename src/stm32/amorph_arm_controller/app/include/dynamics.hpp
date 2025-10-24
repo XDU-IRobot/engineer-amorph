@@ -57,8 +57,8 @@ class DynamicModel {
     m_data_[8] = i3 + a2;
 
     // 计算科里奥利矩阵 n_
-    n_data_[0] = -0.5f * a1 * dq2 * sin_2q2 - 0.5f * a2 * (dq2 + dq3) * sin_2q2_2q3 - 
-                  a3 * dq2 * sin_2q2_q3 - a3 * dq3 * cos_q2 * sin_q2_q3;
+    n_data_[0] = -0.5f * a1 * dq2 * sin_2q2 - 0.5f * a2 * (dq2 + dq3) * sin_2q2_2q3 - a3 * dq2 * sin_2q2_q3 -
+                 a3 * dq3 * cos_q2 * sin_q2_q3;
     n_data_[1] = -0.5f * a1 * dq1 * sin_2q2 - 0.5f * a2 * dq1 * sin_2q2_2q3 - a3 * dq1 * sin_2q2_q3;
     n_data_[2] = -0.5f * a1 * dq1 * sin_2q2_2q3 - a3 * dq1 * cos_q2 * sin_q2_q3;
     n_data_[3] = 0.5f * a1 * dq1 * sin_2q2 + 0.5f * a2 * dq1 * sin_2q2_2q3 + a3 * dq1 * sin_2q2_q3;
@@ -101,7 +101,7 @@ class DynamicModel {
     float result_data[3];
     arm_matrix_instance_f32 result_cmsis;
     arm_mat_init_f32(&result_cmsis, 3, 1, result_data);
-    
+
     // 先计算 m_ * qdd + n_ * qd
     arm_mat_add_f32(&temp_vec_cmsis_, &temp_vec_cmsis_, &result_cmsis);
     // 再加上 g_
@@ -116,7 +116,7 @@ class DynamicModel {
 
     // 使用CMSIS-DSP计算 m_ 的逆矩阵
     arm_mat_inverse_f32(&m_cmsis_, &m_inv_cmsis_);
-    
+
     // 计算 -m_.inverse() * n_
     arm_mat_mult_f32(&m_inv_cmsis_, &n_cmsis_, &temp_mat_cmsis_);
     arm_mat_scale_f32(&temp_mat_cmsis_, -1.0f, &temp_mat_cmsis_);
@@ -125,13 +125,13 @@ class DynamicModel {
     ss_model_.A.setZero();
     // 左上角3x3为零矩阵
     // 右上角3x3为负单位矩阵
-    ss_model_.A.block<3,3>(0,3) = -eye;
+    ss_model_.A.block<3, 3>(0, 3) = -eye;
     // 左下角3x3为零矩阵
     // 右下角3x3为 -m_.inverse() * n_
-    ss_model_.A.block<3,3>(3,3) = Eigen::Map<Mat3x3>(temp_mat_data_);
+    ss_model_.A.block<3, 3>(3, 3) = Eigen::Map<Mat3x3>(temp_mat_data_);
 
     ss_model_.B.setZero();
-    ss_model_.B.block<3,3>(3,0) = eye;
+    ss_model_.B.block<3, 3>(3, 0) = eye;
     return ss_model_;
   }
 
@@ -154,7 +154,7 @@ class DynamicModel {
   arm_matrix_instance_f32 temp_vec_cmsis_;
   arm_matrix_instance_f32 temp_mat_cmsis_;
   arm_matrix_instance_f32 m_inv_cmsis_;
-  
+
   float m_data_[9];
   float n_data_[9];
   float g_data_[3];
