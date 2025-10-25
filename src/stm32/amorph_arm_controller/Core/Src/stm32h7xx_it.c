@@ -55,7 +55,6 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern PCD_HandleTypeDef hpcd_USB_OTG_HS;
 extern FDCAN_HandleTypeDef hfdcan1;
 extern FDCAN_HandleTypeDef hfdcan2;
 extern FDCAN_HandleTypeDef hfdcan3;
@@ -63,11 +62,8 @@ extern DMA_HandleTypeDef hdma_spi2_rx;
 extern DMA_HandleTypeDef hdma_spi2_tx;
 extern SPI_HandleTypeDef hspi2;
 extern TIM_HandleTypeDef htim13;
-extern TIM_HandleTypeDef htim14;
 extern DMA_HandleTypeDef hdma_uart5_rx;
 extern UART_HandleTypeDef huart5;
-extern TIM_HandleTypeDef htim7;
-
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -151,6 +147,19 @@ void UsageFault_Handler(void)
 }
 
 /**
+  * @brief This function handles System service call via SWI instruction.
+  */
+void SVC_Handler(void)
+{
+  /* USER CODE BEGIN SVCall_IRQn 0 */
+
+  /* USER CODE END SVCall_IRQn 0 */
+  /* USER CODE BEGIN SVCall_IRQn 1 */
+
+  /* USER CODE END SVCall_IRQn 1 */
+}
+
+/**
   * @brief This function handles Debug monitor.
   */
 void DebugMon_Handler(void)
@@ -161,6 +170,33 @@ void DebugMon_Handler(void)
   /* USER CODE BEGIN DebugMonitor_IRQn 1 */
 
   /* USER CODE END DebugMonitor_IRQn 1 */
+}
+
+/**
+  * @brief This function handles Pendable request for system service.
+  */
+void PendSV_Handler(void)
+{
+  /* USER CODE BEGIN PendSV_IRQn 0 */
+
+  /* USER CODE END PendSV_IRQn 0 */
+  /* USER CODE BEGIN PendSV_IRQn 1 */
+
+  /* USER CODE END PendSV_IRQn 1 */
+}
+
+/**
+  * @brief This function handles System tick timer.
+  */
+void SysTick_Handler(void)
+{
+  /* USER CODE BEGIN SysTick_IRQn 0 */
+
+  /* USER CODE END SysTick_IRQn 0 */
+  HAL_IncTick();
+  /* USER CODE BEGIN SysTick_IRQn 1 */
+
+  /* USER CODE END SysTick_IRQn 1 */
 }
 
 /******************************************************************************/
@@ -285,20 +321,6 @@ void TIM8_UP_TIM13_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles TIM8 trigger and commutation interrupts and TIM14 global interrupt.
-  */
-void TIM8_TRG_COM_TIM14_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM8_TRG_COM_TIM14_IRQn 0 */
-
-  /* USER CODE END TIM8_TRG_COM_TIM14_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim14);
-  /* USER CODE BEGIN TIM8_TRG_COM_TIM14_IRQn 1 */
-
-  /* USER CODE END TIM8_TRG_COM_TIM14_IRQn 1 */
-}
-
-/**
   * @brief This function handles UART5 global interrupt.
   */
 void UART5_IRQHandler(void)
@@ -310,34 +332,6 @@ void UART5_IRQHandler(void)
   /* USER CODE BEGIN UART5_IRQn 1 */
 
   /* USER CODE END UART5_IRQn 1 */
-}
-
-/**
-  * @brief This function handles TIM7 global interrupt.
-  */
-void TIM7_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM7_IRQn 0 */
-
-  /* USER CODE END TIM7_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim7);
-  /* USER CODE BEGIN TIM7_IRQn 1 */
-
-  /* USER CODE END TIM7_IRQn 1 */
-}
-
-/**
-  * @brief This function handles USB On The Go HS global interrupt.
-  */
-void OTG_HS_IRQHandler(void)
-{
-  /* USER CODE BEGIN OTG_HS_IRQn 0 */
-
-  /* USER CODE END OTG_HS_IRQn 0 */
-  HAL_PCD_IRQHandler(&hpcd_USB_OTG_HS);
-  /* USER CODE BEGIN OTG_HS_IRQn 1 */
-
-  /* USER CODE END OTG_HS_IRQn 1 */
 }
 
 /**

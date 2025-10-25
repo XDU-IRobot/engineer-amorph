@@ -10,8 +10,7 @@
 #include <librm.hpp>
 
 #include "joint_space_interpolator.hpp"
-#include "logging.hpp"
-#include "typedefs.hpp"
+#include "rpc/rpc.hpp"
 
 namespace fluorite::arm {
 
@@ -31,7 +30,7 @@ class TrajectoryTracker {
   explicit TrajectoryTracker(std::initializer_list<std::pair<float, float>> joint_limits)
       : joint_limits_(joint_limits) {
     if (joint_limits_.size() != NJoints) {
-      logging::fatal("trajectory tracker: number of pairs of joint limit mismatch! expected {}, got {}", NJoints,
+      globals->rpc.Fatal("trajectory tracker: number of pairs of joint limit mismatch! expected {}, got {}", NJoints,
                      joint_limits_.size());
     }
   }

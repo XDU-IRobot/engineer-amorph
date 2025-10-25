@@ -40,3 +40,6 @@
 [submodule "src/stm32/amorph_arm_controller/libs/rpc_core"]
 	path = src/stm32/amorph_arm_controller/libs/rpc_core
 	url = https://github.com/shuai132/rpc_core.git
+[submodule "src/stm32/amorph_arm_controller/libs/CMSIS-DSP"]
+	path = src/stm32/amorph_arm_controller/libs/CMSIS-DSP
+	url = https://github.com/ARM-software/CMSIS-DSP.git

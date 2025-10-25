@@ -1,13 +1,27 @@
 
-#include "main.h"
+#include "tim.h"
 
-#include <librm.hpp>
+#include "globals.hpp"
 
-#include "rpc/usbcdc_transport.hpp"
+Globals *globals{nullptr};
 
 extern "C" {
 
-extern USBD_HandleTypeDef hUsbDeviceHS;
+[[noreturn]] void AppMain(void) {
+  globals = new Globals;
 
-void AppMain(void) { rm::hal::Can can; }
+  auto fdcan_transport = std::make_shared<FdCanTransport>(globals->rpc_can, 0x23, 0x33);
+  globals->rpc.AttachToConnection(fdcan_transport);
+
+  globals->motor_can1.Begin();
+  globals->motor_can2.Begin();
+  globals->rpc_can.Begin();
+  globals->rc.Begin();
+
+  HAL_TIM_Base_Start_IT(&htim13);
+
+  for (;;) {
+    __WFI();
+  }
+}
 }

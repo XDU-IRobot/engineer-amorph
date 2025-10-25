@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "spline_1d_interp.hpp"
-#include "typedefs.hpp"
+#include "rpc/typedefs.hpp"
 
 /**
  * @brief 多关节轨迹插值器类

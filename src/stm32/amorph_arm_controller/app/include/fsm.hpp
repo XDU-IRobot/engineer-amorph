@@ -5,10 +5,10 @@
 
 namespace fsm {
 
-constexpr inline etl::message_router_id_t kMotorControl = 0;
+constexpr inline etl::message_router_id_t kArmMRId = 0;
 class Arm : public etl::fsm {
  public:
-  Arm() : fsm(kMotorControl) {}
+  Arm() : fsm(kArmMRId) {}
 
   void LogUnknownEvent(etl::imessage& msg) {}
 };
