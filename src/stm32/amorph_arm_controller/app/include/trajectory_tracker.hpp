@@ -31,7 +31,7 @@ class TrajectoryTracker {
       : joint_limits_(joint_limits) {
     if (joint_limits_.size() != NJoints) {
       globals->rpc.Fatal("trajectory tracker: number of pairs of joint limit mismatch! expected {}, got {}", NJoints,
-                     joint_limits_.size());
+                         joint_limits_.size());
     }
   }
   TrajectoryTracker(const TrajectoryTracker &) = default;
