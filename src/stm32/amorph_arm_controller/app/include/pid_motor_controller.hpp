@@ -28,7 +28,8 @@ class PIDMotorController {
 
   /**
    * @brief 启用或禁用速度环PID控制器
-   * @param enable 如果为true，则启用速度环PID控制器，实现双环控制；如果为false，则禁用速度环PID控制器，仅使用位置环PID控制器，实现单环控制
+   * @param enable
+   * 如果为true，则启用速度环PID控制器，实现双环控制；如果为false，则禁用速度环PID控制器，仅使用位置环PID控制器，实现单环控制
    */
   void EnableSpeedPID(bool enable) { enable_speed_pid_ = enable; }
 
