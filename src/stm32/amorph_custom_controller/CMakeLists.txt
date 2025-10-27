@@ -66,7 +66,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
-    rm
+    ${PROJECT_NAME}_libs
 )
 
 add_subdirectory(app)

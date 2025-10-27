@@ -13,8 +13,8 @@ l3 = 0.37;
 %% initial condition
 
 q0 = 0;
-q1 = 0;
-q2 = 0;
+q1 = 0.2;
+q2 = 0.2;
 dq0 = 0;
 dq1 = 0;
 dq2 = 0;
