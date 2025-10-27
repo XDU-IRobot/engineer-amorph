@@ -10,14 +10,12 @@ extern "C" {
 
 [[noreturn]] void AppMain(void) {
   globals.Init();
-  globals.led(0xffffff00);
 
   // HAL_TIM_Base_Start_IT(&htim10);  // 启动姿态解算
   // HAL_Delay(2);                    // 等待姿态收敛
 
   HAL_TIM_Base_Start_IT(&htim13);  // 启动主循环
   AsyncBuzzerBeep(2);
-  globals.led(0xff00ff00);
 
   for (;;) {
     __WFI();

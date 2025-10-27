@@ -10,11 +10,11 @@
 #include "rgb_led.hpp"
 
 struct Globals {
-  rm::device::BMI088 *imu;
-  rm::modules::MahonyAhrs ahrs;
+  rm::device::BMI088 *imu;       ///< 修正基座倾斜用的IMU，暂时用不上
+  rm::modules::MahonyAhrs ahrs;  //
 
-  rm::hal::Serial *dbus;
-  rm::device::DR16 *rc;
+  rm::hal::Serial *dbus;  //
+  rm::device::DR16 *rc;   ///< 遥控器，调试用的，自定义控制器就别给他整个遥控器了
 
   rm::hal::Can *motor_can;
   DynamicModel dynamic_model;
