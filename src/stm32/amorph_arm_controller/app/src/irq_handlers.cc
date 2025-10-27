@@ -8,7 +8,7 @@
 /**
  * @brief   定频1khz运行主逻辑
  */
-void TIM13_1000hz() {
+static void TIM13_1000hz() {
   static etl::cyclic_value<int, 0, 100> prescale_10hz;
 
   // 10hz维护RPC连接

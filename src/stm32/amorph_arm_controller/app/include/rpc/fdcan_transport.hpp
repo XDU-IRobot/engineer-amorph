@@ -8,7 +8,16 @@
 
 #include "rng.h"
 
+/**
+ * @brief 基于CAN FD实现的一种rpc_core框架的传输层
+ */
 class FdCanTransport : public rpc_core::connection {
+  /**
+   * @brief 基于CAN FD总线的大数据传输类
+   *
+   * 该类实现了一个基于CAN FD总线的大数据传输协议，支持将大数据包分片发送和接收。
+   * 通过定义起始帧、数据分片帧和结束帧，实现了可靠的数据传输机制。
+   */
   class Impl : public rm::device::CanDevice {
     struct StdIdOffset {
       enum {

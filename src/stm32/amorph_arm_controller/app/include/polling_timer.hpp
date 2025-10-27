@@ -5,10 +5,19 @@
 #include <functional>
 #include <vector>
 
+/**
+ * @brief   基于轮询的定时器，用于在裸机环境下实现延时调用功能
+ *
+ * 该类通过轮询的方式检查预定的任务是否到期，并在到期时执行相应的回调函数。
+ * 适用于没有操作系统支持的嵌入式系统，可以实现类似于定时器中断的功能。
+ */
 class PollingTimer {
  public:
   using Clock = std::chrono::steady_clock;
 
+  /**
+   * @brief 轮询一次，执行所有到期的任务
+   */
   void Poll() {
     auto now = Clock::now();
     // A simple way to handle re-entrant calls to DeferredCall is to copy tasks to be run
