@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <format>
@@ -38,7 +37,8 @@ class RPC {
    */
   void KeepConnection() {
     conn_->SendHeartbeat();
-    rpc_->set_ready(conn_->Connected());
+    // rpc_->set_ready(conn_->Connected());
+    rpc_->set_ready(true);
   }
 
   /**
@@ -62,56 +62,41 @@ class RPC {
  public:
   template <typename... Args>
   void Debug(const std::string &fmt, Args &&...args) {
-    const auto msg = [&] {
-      LogMessage msg;
-      msg.log_level = LogMessage::LogLevel::kDebug;
-      msg.str = std::format(fmt, std::forward<Args>(args)...);
-      return msg;
-    }();
+    LogMessage msg;
+    msg.log_level = LogMessage::LogLevel::kDebug;
+    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
     rpc_->cmd("log_message")->msg(msg)->call();
   }
 
   template <typename... Args>
   void Info(const std::string &fmt, Args &&...args) {
-    const auto msg = [&] {
-      LogMessage msg;
-      msg.log_level = LogMessage::LogLevel::kInfo;
-      msg.str = std::format(fmt, std::forward<Args>(args)...);
-      return msg;
-    }();
+    LogMessage msg;
+    msg.log_level = LogMessage::LogLevel::kInfo;
+    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
     rpc_->cmd("log_message")->msg(msg)->call();
   }
 
   template <typename... Args>
   void Warn(const std::string &fmt, Args &&...args) {
-    const auto msg = [&] {
-      LogMessage msg;
-      msg.log_level = LogMessage::LogLevel::kWarn;
-      msg.str = std::format(fmt, std::forward<Args>(args)...);
-      return msg;
-    }();
+    LogMessage msg;
+    msg.log_level = LogMessage::LogLevel::kWarn;
+    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
     rpc_->cmd("log_message")->msg(msg)->call();
   }
 
   template <typename... Args>
   void Error(const std::string &fmt, Args &&...args) {
-    const auto msg = [&] {
-      LogMessage msg;
-      msg.log_level = LogMessage::LogLevel::kError;
-      msg.str = std::format(fmt, std::forward<Args>(args)...);
-      return msg;
-    }();
+    LogMessage msg;
+    msg.log_level = LogMessage::LogLevel::kError;
+    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
     rpc_->cmd("log_message")->msg(msg)->call();
   }
 
   template <typename... Args>
   [[noreturn]] void Fatal(const std::string &fmt, Args &&...args) {
-    const auto msg = [&] {
-      LogMessage msg;
-      msg.log_level = LogMessage::LogLevel::kFatal;
-      msg.str = std::format(fmt, std::forward<Args>(args)...);
-      return msg;
-    }();
+    LogMessage msg;
+    msg.log_level = LogMessage::LogLevel::kFatal;
+    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
     rpc_->cmd("log_message")->msg(msg)->call();
     while (true) {
     }

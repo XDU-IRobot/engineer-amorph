@@ -41,7 +41,7 @@ void MX_UART5_Init(void)
   huart5.Instance = UART5;
   huart5.Init.BaudRate = 100000;
   huart5.Init.WordLength = UART_WORDLENGTH_9B;
-  huart5.Init.StopBits = UART_STOPBITS_1;
+  huart5.Init.StopBits = UART_STOPBITS_2;
   huart5.Init.Parity = UART_PARITY_EVEN;
   huart5.Init.Mode = UART_MODE_RX;
   huart5.Init.HwFlowCtl = UART_HWCONTROL_NONE;
@@ -116,7 +116,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 
     /* UART5 DMA Init */
     /* UART5_RX Init */
-    hdma_uart5_rx.Instance = DMA1_Stream2;
+    hdma_uart5_rx.Instance = DMA1_Stream1;
     hdma_uart5_rx.Init.Request = DMA_REQUEST_UART5_RX;
     hdma_uart5_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_uart5_rx.Init.PeriphInc = DMA_PINC_DISABLE;

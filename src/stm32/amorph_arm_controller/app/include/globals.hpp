@@ -13,6 +13,7 @@
 #include "mpc_solver.hpp"
 #include "pid_motor_controller.hpp"
 #include "dynamics.hpp"
+#include "device_manager.hpp"
 #include "rpc/rpc.hpp"
 
 /**

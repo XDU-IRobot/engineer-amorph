@@ -12,6 +12,10 @@
 
 namespace rpc {
 
+/**
+ * @brief 基于USBCDC实现的一种rpc_core框架的传输层
+ * @deprecated
+ */
 class UsbcdcTransport : public rpc_core::connection {
   enum class ReceiveState { kIdle, kPayloadLen, kReceivingPayload, kCrc8 } rx_state_;
   const std::string frame_start_ = "amorph";

@@ -77,13 +77,13 @@ class FdCanTransport : public rpc_core::connection {
 
     void SendHeartbeat() {
       const uint8_t dummy = 0;
-      can_->Write(tx_stdid_base_ + StdIdOffset::kHeartbeat, &dummy, 1);
+      can_->Write(tx_stdid_base_ + StdIdOffset::kHeartbeat, nullptr, 0);
     }
 
     void OnFrameRecv(std::function<void(std::string &)> callback) { frame_recv_callback_ = callback; }
 
    private:
-    void RxCallback(const rm::hal::CanMsg *msg) override {
+    void RxCallback(const rm::hal::CanFrame *msg) override {
       if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kHeartbeat) {
         // 收到心跳帧，说明通信的对方在线
         Heartbeat();
