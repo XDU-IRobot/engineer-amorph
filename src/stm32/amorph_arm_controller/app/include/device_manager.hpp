@@ -5,7 +5,7 @@
 
 template <size_t MaxDevices>
 class DeviceManager {
-public:
+ public:
   DeviceManager &operator<<(rm::device::Device *device) {
     if (devices_.size() < MaxDevices) {
       devices_.push_back(device);
@@ -19,6 +19,6 @@ public:
     return std::all_of(devices_.begin(), devices_.end(), [](rm::device::Device *dev) { return dev->IsAlive(); });
   }
 
-private:
+ private:
   etl::vector<rm::device::Device *, MaxDevices> devices_;
 };
