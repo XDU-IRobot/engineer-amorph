@@ -37,8 +37,8 @@ class RPC {
    */
   void KeepConnection() {
     conn_->SendHeartbeat();
-    // rpc_->set_ready(conn_->Connected());
-    rpc_->set_ready(true);
+    rpc_->set_ready(conn_->Connected());
+    // rpc_->set_ready(true);
   }
 
   /**
@@ -88,7 +88,7 @@ class RPC {
   void Error(const std::string &fmt, Args &&...args) {
     LogMessage msg;
     msg.log_level = LogMessage::LogLevel::kError;
-    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+    msg.str = fmt;
     rpc_->cmd("log_message")->msg(msg)->call();
   }
 

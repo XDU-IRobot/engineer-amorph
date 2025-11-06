@@ -4,6 +4,7 @@
 
 #include <librm.hpp>
 #include <etl/circular_buffer.h>
+#include <etl/unordered_map.h>
 #include <rpc_core.hpp>
 
 #include "rng.h"
@@ -22,16 +23,18 @@ class FdCanTransport : public rpc_core::connection {
     struct StdIdOffset {
       enum {
         kFrameStart = 0,
-        kPayload,
         kFrameEnd,
-        kHeartbeat,
+        kPayload,
+        kHeartbeat = 40,  // 给一个很低的优先级，防止数据帧被同时发送的心跳仲裁掉
       };
     };
 
    public:
+    static constexpr uint32_t kMaxPayloadBytes = 4096;
+
     Impl(rm::hal::CanInterface &can, uint16_t rx_stdid_base, uint16_t tx_stdid_base)
         : rm::device::CanDevice(can, rx_stdid_base + StdIdOffset::kFrameStart, rx_stdid_base + StdIdOffset::kPayload,
-                                rx_stdid_base + StdIdOffset::kFrameEnd),
+                                rx_stdid_base + StdIdOffset::kFrameEnd, rx_stdid_base + StdIdOffset::kHeartbeat),
           rx_stdid_base_{rx_stdid_base},
           tx_stdid_base_{tx_stdid_base} {}
 
@@ -75,99 +78,76 @@ class FdCanTransport : public rpc_core::connection {
                   sizeof(tx_buf_.frame_end));
     }
 
-    void SendHeartbeat() {
-      const uint8_t dummy = 0;
-      can_->Write(tx_stdid_base_ + StdIdOffset::kHeartbeat, nullptr, 0);
-    }
+    void SendHeartbeat() { can_->Write(tx_stdid_base_ + StdIdOffset::kHeartbeat, nullptr, 0); }
 
     void OnFrameRecv(std::function<void(std::string &)> callback) { frame_recv_callback_ = callback; }
 
    private:
     void RxCallback(const rm::hal::CanFrame *msg) override {
-      if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kHeartbeat) {
-        // 收到心跳帧，说明通信的对方在线
-        Heartbeat();
-        return;
-      }
       // 判断帧类型
-      if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameStart) {
+      if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kHeartbeat) {
+        Heartbeat();  // 通知设备框架自己在线
+      } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameStart) {
         // 1. 收到起始帧，开始一个新的数据帧接收会话
         auto *frame_start = reinterpret_cast<const decltype(tx_buf_.frame_start) *>(msg->data.data());
         if (msg->dlc != sizeof(*frame_start)) {
           return;  // 帧长度错误，直接丢弃
         }
-        // 初始化接收状态
-        rx_state_.frame_id = frame_start->frame_id;
-        rx_state_.payload_len = frame_start->payload_len;
-        rx_state_.payload_crc8 = frame_start->payload_crc8;
-        rx_state_.received_len = 0;
-        rx_state_.next_fragment_seq = 0;
-        rx_state_.is_receiving = true;
-        rx_ring_buffer_.clear();
+        if (frame_start->payload_len > kMaxPayloadBytes) {
+          // 载荷超出单帧允许的最大长度，直接丢弃该会话
+          rx_sessions_.erase(frame_start->frame_id);
+          return;
+        }
+        auto &session = rx_sessions_[frame_start->frame_id];
+        session.payload_len = frame_start->payload_len;
+        session.payload_crc8 = frame_start->payload_crc8;
+        session.next_fragment_seq = 0;
+        session.buffer.clear();
+        session.buffer.reserve(frame_start->payload_len);
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kPayload) {
         // 2. 收到数据分片
-        if (!rx_state_.is_receiving) {
-          return;  // 如果不在接收会话中，则忽略该分片
-        }
         auto *payload = reinterpret_cast<const decltype(tx_buf_.payload) *>(msg->data.data());
-        // 校验帧ID和分片序号，确保数据的一致性和顺序
-        if (payload->frame_id != rx_state_.frame_id) {
-          rx_state_.is_receiving = false;  // 帧ID不匹配，放弃接收
+        auto session_it = rx_sessions_.find(payload->frame_id);
+        if (session_it == rx_sessions_.end()) {
+          return;  // 未找到对应会话，说明起始帧缺失
+        }
+        auto &session = session_it->second;
+        // 校验分片序号确保顺序正确
+        if (payload->fragment_seq != session.next_fragment_seq) {
+          rx_sessions_.erase(session_it);  // 顺序错误，丢弃该会话
           return;
         }
-        if (payload->fragment_seq != rx_state_.next_fragment_seq) {
-          rx_state_.is_receiving = false;  // 分片序号错误，放弃接收
+        const uint32_t data_len = payload->fragment_len;
+        if (session.buffer.size() + data_len > session.payload_len) {
+          rx_sessions_.erase(session_it);  // 数据超长，丢弃该会话
           return;
         }
-
-        // 将分片数据存入环形缓冲区
-        uint32_t data_len = payload->fragment_len;
-        if (rx_state_.received_len + data_len > rx_state_.payload_len) {
-          rx_state_.is_receiving = false;  // 数据超长，放弃接收
-          return;
-        }
-
-        for (uint32_t i = 0; i < data_len; ++i) {
-          rx_ring_buffer_.push(payload->fragment_data[i]);
-        }
-        rx_state_.received_len += data_len;
-        rx_state_.next_fragment_seq++;
+        session.buffer.insert(session.buffer.end(), payload->fragment_data, payload->fragment_data + data_len);
+        session.next_fragment_seq++;
 
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameEnd) {
         // 3. 收到结束帧
-        if (!rx_state_.is_receiving) {
-          return;  // 如果不在接收会话中，则忽略
-        }
         auto *frame_end = reinterpret_cast<const decltype(tx_buf_.frame_end) *>(msg->data.data());
-        if (frame_end->frame_id != rx_state_.frame_id) {
-          rx_state_.is_receiving = false;  // 帧ID不匹配，放弃接收
+        auto session_it = rx_sessions_.find(frame_end->frame_id);
+        if (session_it == rx_sessions_.end()) {
+          return;  // 没有对应的会话，忽略
+        }
+        auto &session = session_it->second;
+        if (session.buffer.size() != session.payload_len) {
+          rx_sessions_.erase(session_it);  // 长度不一致，放弃接收
           return;
         }
-
-        // 校验接收到的数据长度是否与起始帧中声明的一致
-        if (rx_state_.received_len != rx_state_.payload_len) {
-          rx_state_.is_receiving = false;  // 数据长度不匹配，放弃接收
-          return;
-        }
-
         // 4. 数据重组和CRC校验
-        std::string received_data;
-        received_data.resize(rx_state_.payload_len);
-        for (uint32_t i = 0; i < rx_state_.payload_len; ++i) {
-          received_data[i] = rx_ring_buffer_.front();
-          rx_ring_buffer_.pop();
-        }
-
-        uint8_t calculated_crc = rm::modules::Crc8(reinterpret_cast<const uint8_t *>(received_data.data()),
-                                                   received_data.size(), rm::modules::CRC8_INIT);
-        if (calculated_crc == rx_state_.payload_crc8) {
+        uint8_t calculated_crc = rm::modules::Crc8(session.buffer.empty() ? nullptr : session.buffer.data(),
+                                                   session.buffer.size(), rm::modules::CRC8_INIT);
+        if (calculated_crc == session.payload_crc8) {
           // 5. CRC校验通过，调用回调函数处理完整的数据帧
           if (frame_recv_callback_) {
+            std::string received_data(session.buffer.begin(), session.buffer.end());
             frame_recv_callback_(received_data);
           }
         }
-        // 无论成功与否，结束本次接收会话
-        rx_state_.is_receiving = false;
+        rx_sessions_.erase(session_it);
       }
     }
 
@@ -187,9 +167,9 @@ class FdCanTransport : public rpc_core::connection {
         uint8_t frame_id;  ///< 这一帧数据的ID，随机生成
       } frame_end;
 
-      static_assert(sizeof(frame_start) <= 8);
+      static_assert(sizeof(frame_start) == 4);
       static_assert(sizeof(payload) == 64);
-      static_assert(sizeof(frame_end) <= 8);
+      static_assert(sizeof(frame_end) == 1);
     } tx_buf_;
 
     struct {
@@ -204,7 +184,16 @@ class FdCanTransport : public rpc_core::connection {
     uint16_t rx_stdid_base_;
     uint16_t tx_stdid_base_;
     std::function<void(std::string &)> frame_recv_callback_;  ///< 收到完整帧数据时的回调
-    etl::circular_buffer<uint8_t, 4096> rx_ring_buffer_;      ///< 4kb should be enough
+    struct RxSession {
+      uint16_t payload_len = 0;
+      uint8_t payload_crc8 = 0;
+      uint16_t next_fragment_seq = 0;
+      etl::vector<uint8_t, kMaxPayloadBytes> buffer;  ///< 4kb应该够了，不够再调
+    };
+    etl::unordered_map<uint8_t,  ///< frame_id
+                       RxSession,
+                       3>  ///< 大多数情况下不会有超过3个并发的帧重组会话
+        rx_sessions_;      ///< 并发管理多个帧重组会话
   } impl_;
 
  public:
