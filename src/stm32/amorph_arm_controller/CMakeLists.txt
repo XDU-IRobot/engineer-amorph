@@ -63,6 +63,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 
 add_compile_definitions(RPC_CORE_LOG_DISABLE_ALL)
+add_compile_definitions(LIBRM_BYPASS_HAL_ASSERT)
 add_subdirectory(libs)
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}

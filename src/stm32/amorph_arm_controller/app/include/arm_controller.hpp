@@ -5,7 +5,6 @@
 
 #include "rpc/typedefs.hpp"
 
-#include "mpc_solver.hpp"
 #include "dynamics.hpp"
 #include "pid_motor_controller.hpp"
 
