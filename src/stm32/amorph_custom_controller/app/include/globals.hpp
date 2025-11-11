@@ -8,6 +8,7 @@
 #include "can.h"
 #include "dynamics.hpp"
 #include "rgb_led.hpp"
+#include "buzzer.hpp"
 
 struct Globals {
   rm::device::BMI088 *imu;       ///< 修正基座倾斜用的IMU，暂时用不上
@@ -18,7 +19,19 @@ struct Globals {
 
   rm::hal::Can *motor_can;
   DynamicModel dynamic_model;
+
   LED led;
+  rm::modules::RgbLedController<rm::modules::led_pattern::Off, rm::modules::led_pattern::RedFlash,
+                                rm::modules::led_pattern::GreenBreath, rm::modules::led_pattern::RgbFlow>
+      led_controller;
+  Buzzer buzzer;
+  rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
+                                rm::modules::buzzer_melody::Startup, rm::modules::buzzer_melody::Error,
+                                rm::modules::buzzer_melody::Success, rm::modules::buzzer_melody::TheLick,
+                                rm::modules::buzzer_melody::SuperMario>
+      buzzer_controller;
+
+  rm::modules::SparseValueWatcher<bool> g_comp_enable_watcher;
 
   struct {
     rm::device::LkMotor<rm::device::LkMotorType::kMS, 15> *j0, *j3, *j4, *j5;
@@ -56,7 +69,9 @@ struct Globals {
     motor_can->SetFilter(0, 0);
     motor_can->Begin();
     led.Init();
-    HAL_TIM_PWM_Start_IT(&htim4, TIM_CHANNEL_3);  // buzzer
+    led_controller.SetPattern<rm::modules::led_pattern::RgbFlow>();
+    buzzer.Init();
+    buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
   };
 };
 

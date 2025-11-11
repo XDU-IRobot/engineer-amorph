@@ -40,6 +40,7 @@
         * EXTI
      PA12   ------> USB_OTG_FS_DP
      PA11   ------> USB_OTG_FS_DM
+     PF6   ------> S_TIM10_CH1
      PE13   ------> S_TIM1_CH3
      PE9   ------> S_TIM1_CH1
      PE11   ------> S_TIM1_CH2
@@ -77,6 +78,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PF6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF3_TIM10;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC1 */
   GPIO_InitStruct.Pin = GPIO_PIN_1;

@@ -1,66 +1,60 @@
 
 #include "buzzer.hpp"
 
-#include "tim.h"
+Buzzer::Buzzer(TIM_HandleTypeDef& htim, uint32_t channel) : htim_(&htim), channel_(channel) {}
 
-// 异步蜂鸣器相关静态变量
-static int async_beep_count = 0;
-static int async_beep_total = 0;
-static bool async_beep_on = false;
-/**
- * @brief   异步蜂鸣器响指定次数（利用TIM14中断）
- * @param   beeps 哔哔声次数
- */
-void AsyncBuzzerBeep(int beeps) {
+void Buzzer::Init() { HAL_TIM_PWM_Start(htim_, channel_); }
+
+void Buzzer::SetFrequency(uint32_t frequency) {
+  frequency *= 2;
+  if (frequency == 0) {
+    __HAL_TIM_SET_COMPARE(htim_, channel_, 0);  // 关闭蜂鸣器
+    return;
+  }
+  __HAL_TIM_SET_AUTORELOAD(htim_, 84000000 / frequency - 1);
+  __HAL_TIM_SET_COMPARE(htim_, channel_, (84000000 / frequency) / 2);  // 50%占空比
+}
+
+AsyncBuzzer::AsyncBuzzer(TIM_HandleTypeDef& htim, uint32_t channel, TIM_HandleTypeDef& htim_delay)
+    : htim_(&htim), channel_(channel), htim_delay_(&htim_delay) {}
+
+void AsyncBuzzer::Init() {
+  HAL_TIM_RegisterCallback(
+      htim_delay_, HAL_TIM_PERIOD_ELAPSED_CB_ID,
+      CallableObjToCallbackFnPtr(std::bind(&AsyncBuzzer::TimerCallback, this, std::placeholders::_1)));
+  HAL_TIM_PWM_Start(htim_, channel_);
+}
+
+void AsyncBuzzer::Beep(int beeps, int interval_ms) {
   if (beeps <= 0) {
     return;
   }
-  async_beep_total = beeps * 2;  // 每次响和灭都算一次
-  async_beep_count = 0;
-  async_beep_on = false;
-  HAL_TIM_Base_Start_IT(&htim14);  // 启动TIM14中断
+  beep_total_ = beeps * 2;  // 每次响和灭都算一次
+  beep_count_ = 0;
+  beep_on_ = false;
+  __HAL_TIM_SET_AUTORELOAD(htim_delay_, interval_ms * 1000);  // 设置定时器周期
+  HAL_TIM_Base_Start_IT(htim_delay_);                         // 启动定时器中断
 }
 
-/**
- * @brief   蜂鸣器发出指定次数的哔哔声
- * @param   beeps 哔哔声次数
- */
-void BuzzerBeep(int beeps) {
-  for (int i = 0; i < beeps; ++i) {
-    TIM4->CCR3 = 20999 / 2;
-    HAL_Delay(50);
-    TIM4->CCR3 = 0;
-    HAL_Delay(50);
-  }
+pTIM_CallbackTypeDef AsyncBuzzer::CallableObjToCallbackFnPtr(std::function<void(TIM_HandleTypeDef*)> func) {
+  static auto fn = std::move(func);
+  return [](TIM_HandleTypeDef* htim) { fn(htim); };
 }
 
-// void Laser(bool on) {
-//   static bool tim3_pwm_started = false;
-//   if (!tim3_pwm_started) {
-//     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-//   }
-//   if (on) {
-//     TIM3->CCR3 = 0;
-//   } else {
-//     TIM3->CCR3 = 8399;
-//   }
-// }
-
-// TIM14中断回调函数（需在irq_handlers.cc调用）
-extern "C" void AsyncBuzzerBeep_TIM14_IRQHandler() {
-  if (async_beep_count < async_beep_total) {
-    if (async_beep_on) {
-      TIM4->CCR3 = 0;
+void AsyncBuzzer::TimerCallback(TIM_HandleTypeDef* htim) {
+  if (beep_count_ < beep_total_) {
+    if (beep_on_) {
+      __HAL_TIM_SET_COMPARE(htim_, channel_, 0);  // Set duty cycle to 0%
     } else {
-      TIM4->CCR3 = 20999 / 2;
+      __HAL_TIM_SET_COMPARE(htim_, channel_, 20999 / 2);  // Set duty cycle to 50%
     }
-    async_beep_on = !async_beep_on;
-    async_beep_count++;
+    beep_on_ = !beep_on_;
+    beep_count_++;
   } else {
-    TIM4->CCR3 = 0;
-    HAL_TIM_Base_Stop_IT(&htim14);
-    async_beep_count = 0;
-    async_beep_total = 0;
-    async_beep_on = false;
+    __HAL_TIM_SET_COMPARE(htim_, channel_, 0);  // Set duty cycle to 0%
+    HAL_TIM_Base_Stop_IT(htim_);
+    beep_count_ = 0;
+    beep_total_ = 0;
+    beep_on_ = false;
   }
 }
