@@ -35,7 +35,7 @@ class RPC {
   /**
    * @brief 心跳保持函数，至少每0.5秒调用一次，以维持连接活跃
    */
-  void KeepConnection() {
+  void KeepConnection() const {
     conn_->SendHeartbeat();
     rpc_->set_ready(conn_->Connected());
     // rpc_->set_ready(true);
@@ -49,7 +49,7 @@ class RPC {
   /**
    * @return RPC连接是否已建立
    */
-  bool Connected() { return conn_->Connected(); }
+  bool Connected() const { return conn_->Connected(); }
 
   auto rpc() { return rpc_; }
 
@@ -102,5 +102,5 @@ class RPC {
     }
   }
 
-  void ReportJointPosition(const JointPosition &jp) { rpc_->cmd("joint_position")->msg(jp)->call(); }
+  void ReportJointPosition(const JointPosition &jp) const { rpc_->cmd("joint_position")->msg(jp)->call(); }
 };

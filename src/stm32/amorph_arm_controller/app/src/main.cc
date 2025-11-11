@@ -1,7 +1,7 @@
 
 #include "tim.h"
 
-#include "../include/bsp/timer_task.hpp"
+#include "bsp/timer_task.hpp"
 #include "globals.hpp"
 
 Globals *globals{nullptr};

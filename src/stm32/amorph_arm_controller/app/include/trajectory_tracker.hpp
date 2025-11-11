@@ -10,8 +10,6 @@
 #include "joint_space_interpolator.hpp"
 #include "rpc/rpc.hpp"
 
-namespace fluorite::arm {
-
 using namespace rm::modules::angle_literals;
 
 /**
@@ -61,7 +59,7 @@ class TrajectoryTracker {
 
   /**
    * @brief 更新参考轨迹
-   * @param trajectory      参考轨迹
+   * @param traj            参考轨迹
    * @param playback_speed  参考轨迹播放速度，范围[0, std::numeric_limits<double>::max()]
    * @note  速度和加速度安全检查由上层轨迹限制器负责，此类只负责关节限位
    */
@@ -102,7 +100,7 @@ class TrajectoryTracker {
     // 额外处理：如果第一个点的时间戳不等于0，则从当前位置开始计算一段插值轨迹，平滑地到达这个点
     if (PointTimeMs(traj.points[0]) != 0) {
       const auto duration = traj.points[0].time_from_start;
-      const auto dt = std::chrono::milliseconds(50);
+      const auto dt = std::chrono::duration<int, std::milli>(50);
       const Point start_point = current_point_;
       const Point end_point = traj.points[0];
       const auto interpolated_trajectory = joint_space_interpolator_.Interpolate(start_point, end_point, duration, dt);
@@ -131,7 +129,7 @@ class TrajectoryTracker {
         return;
       }
 
-      // 关节限位（唯一的安全检查）
+      // 关节限位
       for (Point &point : current_trajectory_) {
         // 检查 vector 大小
         if (point.positions.size() != NJoints) {
@@ -199,11 +197,10 @@ class TrajectoryTracker {
   void ResetReferenceTrajectory() { traj_start_time_ = std::chrono::steady_clock::now(); }
 
   /**
-   * @brief 更新一步参考点，但不计算PID
+   * @brief 更新一步参考点
    */
   void Update() {
     // std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
-
     // corner case 1: 对象刚刚创建，没有轨迹，直接返回
     if (current_trajectory_.empty() || !is_initialized_) {
       return;
@@ -256,8 +253,17 @@ class TrajectoryTracker {
   // 获取初始化状态
   bool is_initialized() const { return is_initialized_; }
 
+  // 轨迹是否执行完毕
+  bool IsTrajectoryFinished() const {
+    if (current_trajectory_.empty() || !is_initialized_) {
+      return true;
+    }
+    const auto elapsed_time = std::chrono::steady_clock::now() - traj_start_time_;
+    return current_trajectory_.back().time_from_start < elapsed_time;
+  }
+
  private:
-  int64_t PointTimeMs(const Point &point) const {
+  static int64_t PointTimeMs(const Point &point) {
     return std::chrono::duration_cast<std::chrono::milliseconds>(point.time_from_start).count();
   }
   static Trajectory TimeScale(const Trajectory &traj, float playback_speed) {
@@ -279,5 +285,3 @@ class TrajectoryTracker {
   std::vector<std::pair<float, float>> joint_limits_;  ///< <lower bound, upper bound>
   bool is_initialized_;                                ///< 标记插值器是否已初始化
 };
-
-}  // namespace fluorite::arm

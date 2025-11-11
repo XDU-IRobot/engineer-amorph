@@ -21,7 +21,6 @@ template <size_t NJoints>
 class JointSpaceInterpolator {
   using Trajectory = JointTrajectory;  ///< 轨迹
   using Point = JointTrajectoryPoint;  ///< 轨迹点
-  using Duration = std::chrono::duration<int, std::milli>;
 
  public:
   /**
@@ -44,7 +43,9 @@ class JointSpaceInterpolator {
    * @note 此方法为静态方法，不依赖于类的内部状态
    * @warning 生成的轨迹点数量由 traj_duration/dt 决定，请确保 dt 能整除 traj_duration
    */
-  static Trajectory Interpolate(const Point &start, const Point &end, Duration traj_duration, Duration dt) {
+  template <typename Rep, typename Period>
+  static Trajectory Interpolate(const Point &start, const Point &end, std::chrono::duration<Rep, Period> traj_duration,
+                                std::chrono::duration<Rep, Period> dt) {
     // 相对来说这个函数的功能比较独立于这个类，所以为了不影响类本身的功能，这个函数单独创建一组1d插值器
     static std::array<Spline1D<float>, NJoints> interpolators_temp;
 
@@ -56,7 +57,7 @@ class JointSpaceInterpolator {
     for (size_t i = 0; i < NJoints; ++i) {
       const std::vector x = {0.0, static_cast<float>(num_points - 1)};
       const std::vector y = {start.positions[i], end.positions[i]};
-      interpolators_temp[i].setData(x, y);
+      interpolators_temp[i].SetData(x, y);
     }
     for (size_t i = 0; i < num_points; ++i) {
       traj.points[i].velocities.resize(NJoints);
@@ -90,7 +91,7 @@ class JointSpaceInterpolator {
       for (size_t j = 0; j < traj.points.size(); ++j) {
         y[j] = traj.points[j].positions[i];
       }
-      interpolators_[i].setData(x, y);
+      interpolators_[i].SetData(x, y);
     }
   }
 
@@ -107,7 +108,8 @@ class JointSpaceInterpolator {
    * @warning 此方法不进行边界检查，调用时请确保时间在轨迹范围内
    * @see SetTrajectory
    */
-  Point operator()(Duration time_from_start) {
+  template <typename Rep, typename Period>
+  Point operator()(std::chrono::duration<Rep, Period> time_from_start) {
     Point ret;
     ret.velocities.resize(NJoints);
     ret.positions.resize(NJoints);

@@ -5,7 +5,6 @@
 #include "fdcan.h"
 #include "usart.h"
 
-#include "arm_controller.hpp"
 #include "bsp/buzzer.hpp"
 #include "fsm.hpp"
 #include "bsp/led.hpp"
@@ -37,7 +36,6 @@ struct Globals {
 
   rm::device::Sbus rc{sbus_serial};  ///< 遥控器
   fsm::Arm fsm;                      ///< 机械臂的有限状态机
-  ArmController arm_controller;      ///< 机械臂控制器
   struct Actuator {
     using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;
     using DmMitSettings = rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>;

@@ -20,16 +20,16 @@ class DynamicModel {
     const float dq2 = qd(1);
     const float dq3 = qd(2);
 
-    const float sin_2q2 = arm_sin_f32(2 * q2);
     const float cos_q2 = arm_cos_f32(q2);
-    const float cos_q3 = arm_cos_f32(q3);
-    const float sin_q3 = arm_sin_f32(q3);
-    const float sin_q2_q3 = arm_sin_f32(q2 + q3);
     const float cos_q2_q3 = arm_cos_f32(q2 + q3);
-    const float sin_2q2_q3 = arm_sin_f32(2 * q2 + q3);
-    const float sin_2q2_2q3 = arm_sin_f32(2 * q2 + 2 * q3);
 
     if (!ignore_velocity) {
+      const float sin_q2_q3 = arm_sin_f32(q2 + q3);
+      const float sin_2q2 = arm_sin_f32(2 * q2);
+      const float cos_q3 = arm_cos_f32(q3);
+      const float sin_q3 = arm_sin_f32(q3);
+      const float sin_2q2_q3 = arm_sin_f32(2 * q2 + q3);
+      const float sin_2q2_2q3 = arm_sin_f32(2 * q2 + 2 * q3);
       m_.setZero();
       m_ << i1 + a1 * cos_q2 * cos_q2 + a2 * cos_q2_q3 * cos_q2_q3 + 2 * a3 * cos_q2 * cos_q2_q3, 0, 0, 0,
           i2 + a1 + a2 + 2 * a3 * cos_q3, a2 + a3 * cos_q3, 0, a2 + a3 * cos_q3, i3 + a2;
@@ -48,7 +48,7 @@ class DynamicModel {
     g_ << 0, b1 * cos_q2 + b2 * cos_q2_q3, b2 * cos_q2_q3;
   }
 
-  Vec3 ForwardDynamics(const Vec3& q, const Vec3& qd, const Vec3& qdd, bool relinearize = true) {
+  Vec3 Inverse(const Vec3& q, const Vec3& qd, const Vec3& qdd, bool relinearize = true) {
     if (relinearize) {
       Relinearize(q, qd);
     }
@@ -56,7 +56,7 @@ class DynamicModel {
   }
 
   // 只计算重力项，用于重力补偿（关节位置保持/悬停）
-  Vec3 ForwardDynamics(const Vec3& q, bool relinearize = true) {
+  Vec3 Inverse(const Vec3& q, bool relinearize = true) {
     if (relinearize) {
       Relinearize(q, Vec3::Zero(), true);
     }
