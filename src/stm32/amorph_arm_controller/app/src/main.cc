@@ -1,7 +1,7 @@
 
 #include "tim.h"
 
-#include "timer_task.hpp"
+#include "../include/bsp/timer_task.hpp"
 #include "globals.hpp"
 
 Globals *globals{nullptr};
@@ -9,6 +9,7 @@ Globals *globals{nullptr};
 static void MainLoop() {
   const auto &[r, g, b] = globals->led_controller.Update();
   globals->led.SetColor(r, g, b);
+  globals->buzzer.SetFrequency(globals->buzzer_controller.Update().frequency);
 }
 
 extern "C" {
@@ -24,8 +25,8 @@ extern "C" {
   };
   mainloop_1000hz.Start();
 
-  globals->buzzer.Beep(2);
   globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
+  globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
   for (;;) {
     __WFI();
   }

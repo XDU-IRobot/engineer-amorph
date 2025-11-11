@@ -6,7 +6,7 @@
 #include "rpc/typedefs.hpp"
 
 #include "dynamics.hpp"
-#include "pid_motor_controller.hpp"
+#include "trajectory_tracker.hpp"
 
 class ArmController {
  public:

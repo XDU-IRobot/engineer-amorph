@@ -3,7 +3,6 @@
 
 #include <array>
 #include <chrono>
-#include <utility>
 
 #include "spline_1d_interp.hpp"
 #include "rpc/typedefs.hpp"

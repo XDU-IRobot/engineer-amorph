@@ -1,9 +1,7 @@
-
 #pragma once
 
 #include <vector>
 #include <chrono>
-// #include <mutex>
 #include <utility>
 #include <initializer_list>
 
@@ -28,28 +26,49 @@ class TrajectoryTracker {
 
  public:
   explicit TrajectoryTracker(std::initializer_list<std::pair<float, float>> joint_limits)
-      : joint_limits_(joint_limits) {
+      : joint_limits_(joint_limits), is_initialized_(false) {
     if (joint_limits_.size() != NJoints) {
-      globals->rpc.Fatal("trajectory tracker: number of pairs of joint limit mismatch! expected {}, got {}", NJoints,
-                         joint_limits_.size());
+      // globals->rpc.Fatal("trajectory tracker: number of pairs of joint limit mismatch! expected {}, got {}", NJoints,
+      //                    joint_limits_.size());
+    }
+    // 初始化 current_point_ 到安全状态
+    current_point_.positions.resize(NJoints);
+    current_point_.velocities.resize(NJoints);
+    current_point_.accelerations.resize(NJoints);
+    current_point_.effort.resize(NJoints);
+    // 将初始位置设置为各关节限位的中间值
+    for (size_t i = 0; i < NJoints; ++i) {
+      current_point_.positions[i] = (joint_limits_[i].first + joint_limits_[i].second) / 2.0f;
+      current_point_.velocities[i] = 0.0f;
+      current_point_.accelerations[i] = 0.0f;
+      current_point_.effort[i] = 0.0f;
     }
   }
   TrajectoryTracker(const TrajectoryTracker &) = default;
   TrajectoryTracker(TrajectoryTracker &&other) noexcept {
     current_trajectory_ = std::move(other.current_trajectory_);
+    current_point_ = std::move(other.current_point_);
     traj_start_time_ = other.traj_start_time_;
     joint_limits_ = std::move(other.joint_limits_);
+    joint_space_interpolator_ = std::move(other.joint_space_interpolator_);
+    is_initialized_ = other.is_initialized_;
+
+    // 重置 other 对象到安全状态
+    other.current_trajectory_.clear();
+    other.traj_start_time_ = std::chrono::steady_clock::time_point{};
+    other.is_initialized_ = false;
   }
 
   /**
    * @brief 更新参考轨迹
    * @param trajectory      参考轨迹
    * @param playback_speed  参考轨迹播放速度，范围[0, std::numeric_limits<double>::max()]
+   * @note  速度和加速度安全检查由上层轨迹限制器负责，此类只负责关节限位
    */
-  void SwitchReferenceTrajectory(const Trajectory &traj, double playback_speed = 1.0, bool forced = false) {
+  void SwitchReferenceTrajectory(const Trajectory &traj, double playback_speed = 1.0) {
     // corner case 1: 空轨迹
     if (traj.points.empty()) {
-      logging::warn("trajectory tracker: empty trajectory, rejecting!");
+      // logging::warn("trajectory tracker: empty trajectory, rejecting!");
       return;
     }
     // 如果只有一个点，调用另一个重载函数
@@ -60,61 +79,20 @@ class TrajectoryTracker {
     // corner case 2: 时间不单调递增
     for (size_t i = 1; i < traj.points.size(); ++i) {
       if (PointTimeMs(traj.points[i]) <= PointTimeMs(traj.points[i - 1])) {
-        logging::warn("trajectory tracker: non-monotonic time in trajectory, rejecting!");
+        // logging::warn("trajectory tracker: non-monotonic time in trajectory, rejecting!");
         return;
       }
     }
     // corner case 3: 存在点的关节数量和对象创建时的给定数量不一致
     for (const auto &point : traj.points) {
       if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
-        logging::warn("trajectory tracker: joint number mismatch, rejecting!");
+        // logging::warn("trajectory tracker: joint number mismatch, rejecting!");
         return;
       }
-    }
-    // corner case 4: 存在某相邻两点之间至少一个关节的速度太大
-    if (!forced) {
-      for (size_t i = 1; i < traj.points.size(); ++i) {
-        const auto &point1 = traj.points[i - 1];
-        const auto &point2 = traj.points[i];
-        constexpr double kMaxVelocity = M_PI * 1.3;
-        const double dt = (PointTimeMs(point2) - PointTimeMs(point1)) * 1e-3;  // ms to s
-        double max_vel = 0.0;
-        for (size_t j = 0; j < NJoints; ++j) {
-          const auto velocity = std::abs(point2.positions[j] - point1.positions[j]) / dt;
-          if (velocity > max_vel) {
-            max_vel = velocity;
-          }
-          if (velocity > kMaxVelocity) {
-            logging::warn("trajectory tracker: too large velocity in trajectory, rejecting! max_vel = {}", max_vel);
-            return;
-          }
-        }
-      }
-      // corner case 4.5: 或从当前位置到轨迹第一个点的速度过大
-      if (PointTimeMs(traj.points[0]) == 0) {
-        // 防止除零，如果第一个点的时间戳是0，则直接判断当前位置到这个点的角度差
-        // 不允许某个关节的角度差大于30度
-        for (size_t j = 0; j < NJoints; ++j) {
-          const auto position_delta = std::abs(current_point_.positions[j] - traj.points[0].positions[j]);
-          if (position_delta > (30.0_deg).rad()) {
-            logging::warn("trajectory tracker: no teleport, rejecting!");
-            return;
-          }
-        }
-      }
-      const auto &point1 = traj.points[0];
-      const auto &point2 = current_point_;
-      constexpr double kMaxVelocity = M_PI * 1.3;
-      const double dt = (PointTimeMs(point1) - PointTimeMs(point2)) * 1e-3;  // ms to s
-      double max_vel = 0.0;
+      // 检查所有位置值是否有效（非 NaN/Inf）
       for (size_t j = 0; j < NJoints; ++j) {
-        const auto velocity = std::abs(point1.positions[j] - point2.positions[j]) / dt;
-        if (velocity > max_vel) {
-          max_vel = velocity;
-        }
-        if (velocity > kMaxVelocity) {
-          logging::warn("trajectory tracker: too large velocity to reach the first point, rejecting! max_vel = %f",
-                        max_vel);
+        if (!std::isfinite(point.positions[j]) || !std::isfinite(point.velocities[j])) {
+          // logging::warn("trajectory tracker: invalid (NaN/Inf) values detected, rejecting!");
           return;
         }
       }
@@ -129,10 +107,16 @@ class TrajectoryTracker {
       const Point end_point = traj.points[0];
       const auto interpolated_trajectory = joint_space_interpolator_.Interpolate(start_point, end_point, duration, dt);
 
+      // 验证插值结果
+      if (interpolated_trajectory.points.empty()) {
+        // logging::warn("trajectory tracker: interpolation failed, rejecting!");
+        return;
+      }
+
       // 把计算出来的这段插值轨迹插到已有的轨迹前面
       traj_processed.points.insert(traj_processed.points.begin(), interpolated_trajectory.points.begin(),
                                    interpolated_trajectory.points.end());
-      logging::info("trajectory tracker: added interpolated trajectory to the beginning of the trajectory.");
+      // logging::info("trajectory tracker: added interpolated trajectory to the beginning of the trajectory.");
     }
 
     // 所有检查通过，开始执行轨迹
@@ -140,9 +124,27 @@ class TrajectoryTracker {
       // std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
       current_trajectory_ =
           TimeScale(traj_processed, std::clamp(playback_speed, 1e-3, std::numeric_limits<double>::max())).points;
-      // 限位
+
+      // 验证 TimeScale 结果
+      if (current_trajectory_.empty()) {
+        // logging::warn("trajectory tracker: time scaling resulted in empty trajectory, rejecting!");
+        return;
+      }
+
+      // 关节限位（唯一的安全检查）
       for (Point &point : current_trajectory_) {
+        // 检查 vector 大小
+        if (point.positions.size() != NJoints) {
+          // logging::warn("trajectory tracker: point size mismatch after scaling, rejecting!");
+          return;
+        }
         for (size_t i = 0; i < NJoints; ++i) {
+          // 检查数值有效性（防止 NaN/Inf 导致的未定义行为）
+          if (!std::isfinite(point.positions[i])) {
+            // logging::warn("trajectory tracker: invalid position value after scaling, rejecting!");
+            return;
+          }
+          // 应用关节限位
           point.positions[i] = std::clamp(point.positions[i], joint_limits_[i].first, joint_limits_[i].second);
         }
       }
@@ -152,6 +154,8 @@ class TrajectoryTracker {
         scaled_traj.points = current_trajectory_;
         return scaled_traj;
       }());
+
+      is_initialized_ = true;
     }
     ResetReferenceTrajectory();
   }
@@ -163,58 +167,28 @@ class TrajectoryTracker {
   void SwitchReferenceTrajectory(const Point &point) {
     // corner case: 关节数量和对象创建时的给定数量不一致
     if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
-      logging::warn("trajectory tracker: joint number mismatch, rejecting!");
+      // logging::warn("trajectory tracker: joint number mismatch, rejecting!");
       return;
     }
+
+    // 检查所有位置值是否有效（非 NaN/Inf）
+    for (size_t j = 0; j < NJoints; ++j) {
+      if (!std::isfinite(point.positions[j]) || !std::isfinite(point.velocities[j])) {
+        // logging::warn("trajectory tracker: invalid (NaN/Inf) values detected, rejecting!");
+        return;
+      }
+    }
+
     {
       // std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
       current_trajectory_ = std::vector{point};
-      // 限位
+      // 关节限位
       for (size_t i = 0; i < NJoints; ++i) {
         current_trajectory_[0].positions[i] =
             std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);
       }
       traj_start_time_ = std::chrono::steady_clock::now();
-    }
-    ResetReferenceTrajectory();
-  }
-
-  /**
-   * @brief 从当前位置样条插值到一个目标点
-   * @param point 参考目标点
-   * @param duration 用多少时间到达这个点
-   * @warning BROKEN DONT USE
-   */
-  [[deprecated]] void SwitchReferenceTrajectory(const Point &point, Duration duration,
-                                                Duration dt = std::chrono::milliseconds(50)) {
-    // corner case: 关节数量和对象创建时的给定数量不一致
-    if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
-      logging::warn("trajectory tracker: joint number mismatch, rejecting!");
-      return;
-    }
-    // corner case: Duration < 0
-    if (duration.count() < 0) {
-      logging::warn("trajectory tracker: negative duration, rejecting!");
-      return;
-    }
-    Update();
-    {
-      // std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
-
-      if (std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() > 0.1) {
-        const Trajectory interpolated_trajectory =
-            joint_space_interpolator_.Interpolate(current_point_, point, duration, dt);
-        current_trajectory_ = interpolated_trajectory.points;
-      } else {
-        current_trajectory_ = {point};  // 如果duration太小，就不插值了，直接用这个点
-      }
-
-      // 限位
-      for (size_t i = 0; i < NJoints; ++i) {
-        current_trajectory_[0].positions[i] =
-            std::clamp(current_trajectory_[0].positions[i], joint_limits_[i].first, joint_limits_[i].second);
-      }
-      traj_start_time_ = std::chrono::steady_clock::now();
+      is_initialized_ = true;
     }
     ResetReferenceTrajectory();
   }
@@ -231,7 +205,7 @@ class TrajectoryTracker {
     // std::lock_guard<std::mutex> lock(current_trajectory_mutex_);
 
     // corner case 1: 对象刚刚创建，没有轨迹，直接返回
-    if (current_trajectory_.empty()) {
+    if (current_trajectory_.empty() || !is_initialized_) {
       return;
     }
     // corner case 2：轨迹里只有一个点，直接把current_point_设为这个点返回
@@ -250,24 +224,37 @@ class TrajectoryTracker {
 
     // 所有检查通过，说明轨迹仍在执行中，根据已经经过的时间插值得到当前点
     current_point_ = joint_space_interpolator_(elapsed_time);
+
+    // 对插值结果进行限位和有效性检查
+    if (current_point_.positions.size() == NJoints) {
+      for (size_t i = 0; i < NJoints; ++i) {
+        // 检查数值有效性（防止 NaN/Inf 导致的未定义行为）
+        if (!std::isfinite(current_point_.positions[i])) {
+          // 如果插值结果无效，使用轨迹中的最后一个有效点
+          if (!current_trajectory_.empty()) {
+            current_point_ = current_trajectory_.back();
+          }
+          return;
+        }
+        // 应用关节限位
+        current_point_.positions[i] =
+            std::clamp(current_point_.positions[i], joint_limits_[i].first, joint_limits_[i].second);
+      }
+    }
   }
 
   const auto &trajectory() const { return current_trajectory_; }
   const auto &current_point() const {
     // Update();
-    if (current_trajectory_.empty()) {
-      const static auto kEmptyPoint = [] {
-        Point point;
-        point.positions.resize(NJoints);
-        point.velocities.resize(NJoints);
-        point.accelerations.resize(NJoints);
-        point.effort.resize(NJoints);
-        return point;
-      }();
-      return kEmptyPoint;
+    if (current_trajectory_.empty() || !is_initialized_) {
+      // 返回当前安全的 current_point_（已在构造函数中初始化为各关节限位中点）
+      return current_point_;
     }
     return current_point_;
   }
+
+  // 获取初始化状态
+  bool is_initialized() const { return is_initialized_; }
 
  private:
   int64_t PointTimeMs(const Point &point) const {
@@ -277,17 +264,12 @@ class TrajectoryTracker {
     Trajectory scaled{traj};
     playback_speed = std::clamp(playback_speed, 0.0f, std::numeric_limits<float>::max());
     for (auto &point : scaled.points) {
-      // TODO: point.time_from_start = point.time_from_start * (1.0f / playback_speed);
+      point.time_from_start = std::chrono::duration_cast<Duration>(point.time_from_start / playback_speed);
     }
     return scaled;
   }
 
-  Point current_point_{[] {
-    Point p;
-    p.velocities.resize(NJoints);
-    p.positions.resize(NJoints);
-    return p;
-  }()};
+  Point current_point_{};  // 在构造函数中初始化
   std::vector<Point> current_trajectory_{};
   // std::mutex current_trajectory_mutex_{};
   std::chrono::steady_clock::time_point traj_start_time_{};
@@ -295,6 +277,7 @@ class TrajectoryTracker {
   std::array<float, NJoints> output_torque_{};
   JointSpaceInterpolator<NJoints> joint_space_interpolator_;
   std::vector<std::pair<float, float>> joint_limits_;  ///< <lower bound, upper bound>
+  bool is_initialized_;                                ///< 标记插值器是否已初始化
 };
 
 }  // namespace fluorite::arm

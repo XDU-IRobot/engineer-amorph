@@ -26,7 +26,7 @@ class Spline1D {
   SplineType spline_type_;
   bool initialized_;
 
-  [[noreturn]] void Fatal() {
+  [[noreturn]] void Fatal() const {
     while (true) {
     }
   }

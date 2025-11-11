@@ -6,10 +6,9 @@
 #include "usart.h"
 
 #include "arm_controller.hpp"
-#include "buzzer.hpp"
+#include "bsp/buzzer.hpp"
 #include "fsm.hpp"
-#include "led.hpp"
-#include "dynamics.hpp"
+#include "bsp/led.hpp"
 #include "device_manager.hpp"
 #include "rpc/rpc.hpp"
 
@@ -22,8 +21,13 @@ struct Globals {
   rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
                               rm::hal::stm32::UartMode::kInterrupt};  ///< 用于接收遥控器信号的串口
   RPC rpc;                                                            ///< RPC对象，负责与上位机通信
-  AsyncBuzzer buzzer{htim12, TIM_CHANNEL_2, htim14};                  ///< 蜂鸣器
 
+  Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
+  rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
+                                rm::modules::buzzer_melody::Startup, rm::modules::buzzer_melody::Error,
+                                rm::modules::buzzer_melody::Success, rm::modules::buzzer_melody::TheLick,
+                                rm::modules::buzzer_melody::SuperMario, rm::modules::buzzer_melody::SeeUAgain>
+      buzzer_controller;
   WS2812Led led{hspi6};                                                 ///< WS2812 LED灯
   rm::modules::RgbLedController<rm::modules::led_pattern::Off,          //
                                 rm::modules::led_pattern::GreenBreath,  //
@@ -37,7 +41,7 @@ struct Globals {
   struct Actuator {
     using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;
     using DmMitSettings = rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>;
-    PIDMotorController<DmMit> *joint0, *joint1, *joint2;
+    DmMit *joint1, *joint2;
   } actuator;
 
   DeviceManager<10> device_manager;  ///< 设备管理器
@@ -52,7 +56,7 @@ struct Globals {
     motor_can1.Begin();
     motor_can2.Begin();
     rpc_can.Begin();
-    // rc.Begin();
+    rc.Begin();
 
     // 把设备都注册给设备管理器
     device_manager << &rc;
