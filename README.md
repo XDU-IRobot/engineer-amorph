@@ -37,7 +37,7 @@ sudo docker run --privileged --net=host --name moveit_test -it ros:jazzy
 
 ```bash
 sudo apt update
-sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-realsense2-*
+sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-realsense2-* ros-jazzy-backward-ros ros-jazzy-trac-ik
 ```
 
 ### librealsense
