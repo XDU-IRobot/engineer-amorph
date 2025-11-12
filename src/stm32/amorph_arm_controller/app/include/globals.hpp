@@ -13,7 +13,6 @@
 
 /**
  * @brief   全局数据仓库
- * @note    能封装的尽量封装、能依赖注入的尽量依赖注入，这里出现的全局变量越少越好，保持数据流向清晰
  */
 struct Globals {
   rm::hal::Can motor_can1{hfdcan1}, motor_can2{hfdcan2}, rpc_can{hfdcan3};  ///< 用于电机和RPC通信的CAN总线
@@ -39,18 +38,41 @@ struct Globals {
   struct Actuator {
     using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;
     using DmMitSettings = rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>;
-    DmMit *joint1, *joint2;
+    DmMit *j1, *j2;
   } actuator;
 
   DeviceManager<10> device_manager;  ///< 设备管理器
+
+  rm::modules::SparseValueWatcher<int> rc_sd_watcher{0};
 
   /**
    * @brief 初始化所有全局对象
    */
   void Init() {
+    actuator.j1 = new rm::device::DmMotor{
+        motor_can2, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0x25,
+                                                                                      .slave_id = 0x15,
+                                                                                      .p_max = 3.141593f,
+                                                                                      .v_max = 30.f,
+                                                                                      .t_max = 10.f,
+                                                                                      .kp_range = {0, 500},
+                                                                                      .kd_range = {0, 50}}};
+    actuator.j2 =
+        new rm::device::DmMotor{motor_can2,
+                                rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0x26,
+                                                                                                  .slave_id = 0x16,
+                                                                                                  .p_max = 3.141593f,
+                                                                                                  .v_max = 30.f,
+                                                                                                  .t_max = 10.f,
+                                                                                                  .kp_range = {0, 500},
+                                                                                                  .kd_range = {0, 50}},
+                                true};
+
     auto fdcan_transport = std::make_shared<FdCanTransport>(rpc_can, 0x23, 0x33);
     rpc.AttachToConnection(fdcan_transport);
     buzzer.Init();
+    motor_can1.SetFilter(0, 0);
+    motor_can2.SetFilter(0, 0);
     motor_can1.Begin();
     motor_can2.Begin();
     rpc_can.Begin();

@@ -8,7 +8,7 @@
 #include <librm.hpp>
 
 #include "joint_space_interpolator.hpp"
-#include "rpc/rpc.hpp"
+#include "rpc/typedefs.hpp"
 
 using namespace rm::modules::angle_literals;
 
