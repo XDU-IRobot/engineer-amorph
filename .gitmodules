@@ -1,39 +1,35 @@
 [submodule "src/robomaster2"]
-	path = src/opi/robomaster2
+	path = src/jetson/robomaster2
 	url = https://github.com/XDU-IRobot/robomaster2.git
 [submodule "src/fluorite_control/libs/pfr"]
-	path = src/opi/fluorite_control/libs/pfr
+	path = src/jetson/fluorite_control/libs/pfr
 	url = https://github.com/boostorg/pfr.git
 [submodule "src/fluorite_control/libs/DSP-Cpp-filters"]
-	path = src/opi/fluorite_control/libs/DSP-Cpp-filters
+	path = src/jetson/fluorite_control/libs/DSP-Cpp-filters
 	url = https://github.com/lunarifish/DSP-Cpp-filters.git
 [submodule "src/fluorite_control/libs/librm"]
-	path = src/opi/fluorite_control/libs/librm
+	path = src/jetson/fluorite_control/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
 [submodule "src/fluorite_control/libs/tinyfsm"]
-	path = src/opi/fluorite_control/libs/tinyfsm
+	path = src/jetson/fluorite_control/libs/tinyfsm
 	url = https://github.com/digint/tinyfsm.git
 [submodule "src/common/sbus_ros2"]
-	path = src/opi/sbus_ros2
+	path = src/jetson/sbus_ros2
 	url = https://github.com/eryeden/sbus_ros2.git
 [submodule "src/opi/fluorite_behaviour_tree/libs/rapidjson"]
-	path = src/opi/fluorite_behaviour_tree/libs/rapidjson
+	path = src/jetson/fluorite_behaviour_tree/libs/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
 [submodule "src/opi/fluorite_behaviour_tree/libs/tweeny"]
-	path = src/opi/fluorite_behaviour_tree/libs/tweeny
+	path = src/jetson/fluorite_behaviour_tree/libs/tweeny
 	url = https://github.com/mobius3/tweeny.git
 [submodule "src/opi/fluorite_control/libs/libInterpolate"]
-	path = src/opi/fluorite_control/libs/libInterpolate
+	path = src/jetson/fluorite_control/libs/libInterpolate
 	url = https://github.com/CD3/libInterpolate.git
 [submodule "src/stm32/amorph_arm_controller/libs/librm"]
 	path = src/stm32/amorph_arm_controller/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
-[submodule "src/opi/trac_ik"]
-	path = src/opi/trac_ik
-	url = https://bitbucket.org/traclabs/trac_ik.git
-	branch = jazzy
 [submodule "src/stm32/amorph_custom_controller/libs/librm"]
 	path = src/stm32/amorph_custom_controller/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
