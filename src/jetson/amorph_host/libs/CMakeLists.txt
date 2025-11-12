@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
+set(BUILD_TESTING OFF)
+
 add_subdirectory(librm)
 
 add_subdirectory(pfr)

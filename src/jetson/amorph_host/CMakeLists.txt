@@ -5,12 +5,14 @@ set(CMAKE_CXX_STANDARD 20)
 add_definitions(-std=c++20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(backward_ros REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
-include_directories(include)
 add_subdirectory(libs)
+include_directories(include/amorph_host)
 add_subdirectory(src)
 
 install(TARGETS ${PROJECT_NAME}_node
@@ -25,4 +27,4 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_auto_package()
+ament_auto_package(USE_SCOPED_HEADER_INSTALL_DIR)

@@ -4,7 +4,7 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "./scripts/build.py --development",
+      "command": "colcon build --merge-install --symlink-install",
       "group": {
         "kind": "build",
         "isDefault": true
