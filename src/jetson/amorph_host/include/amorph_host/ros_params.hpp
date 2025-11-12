@@ -87,4 +87,3 @@ struct RosParams {
   double control_sensitivity_horizontal{};
   double control_mouse_wheel_sensitivity{};
 };
-

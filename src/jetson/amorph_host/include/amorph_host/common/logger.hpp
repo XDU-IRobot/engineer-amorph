@@ -32,6 +32,6 @@ inline void fatal(const char* format, Args&&... args) {
   RCLCPP_FATAL(rclcpp::get_logger(""), format, std::forward<Args>(args)...);
 }
 
-}  // namespace fluorite
+}  // namespace amorph
 
 #endif  // COMMON_LOGGER_HPP

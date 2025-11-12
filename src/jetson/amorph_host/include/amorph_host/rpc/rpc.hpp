@@ -15,7 +15,7 @@ class RPC {
  public:
   RPC() = default;
   explicit RPC(std::shared_ptr<FdCanTransport> &conn) : rpc_{rpc_core::rpc::create(conn)}, conn_{conn} {
-    rpc_->set_timer([this](uint32_t delay_ms, const std::function<void()>& cb) {
+    rpc_->set_timer([this](uint32_t delay_ms, const std::function<void()> &cb) {
       const auto unused = std::async(std::launch::async, [delay_ms, cb]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
         cb();
