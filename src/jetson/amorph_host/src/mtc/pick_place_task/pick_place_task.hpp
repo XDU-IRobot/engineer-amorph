@@ -25,14 +25,14 @@ void SetupDemoScene(const pick_place_task::Params& params);
 
 class PickPlaceTask final : public MtcTask<pick_place_task::Params> {
  public:
-  explicit PickPlaceTask(const std::string& task_name);
+  explicit PickPlaceTask(const rclcpp::Node::SharedPtr& node, const std::string& task_name);
   ~PickPlaceTask() override = default;
 
-  bool Init(const rclcpp::Node::SharedPtr& node, const pick_place_task::Params& params) override;
+  bool Init(const rclcpp::Node::SharedPtr& node) override;
 
   bool Plan(size_t max_solutions) override;
 
-  bool Execute() override;
+  bool Execute();
 
   auto& task() { return task_; }
 

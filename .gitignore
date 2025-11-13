@@ -5,6 +5,8 @@
 
 custom_ctrl_build
 
+build_mtc
+install_mtc
 build
 install
 log

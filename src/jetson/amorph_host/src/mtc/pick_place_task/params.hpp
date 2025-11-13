@@ -22,7 +22,6 @@ struct Params {
   std::string object_name;
   std::vector<double> object_dimensions;
   std::vector<double> object_pose;
-  bool spawn_table;
   std::string table_name;
   std::vector<double> table_dimensions;
   std::vector<double> table_pose;

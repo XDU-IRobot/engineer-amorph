@@ -5,11 +5,11 @@
 #include <utility>
 
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
-#include <moveit/kinematics_base/kinematics_base.h>
-#include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/robot_model/robot_model.h>
-#include <moveit/robot_state/robot_state.h>
+#include <moveit/kinematics_base/kinematics_base.hpp>
+#include <moveit/move_group_interface/move_group_interface.hpp>
+#include <moveit/robot_model_loader/robot_model_loader.hpp>
+#include <moveit/robot_model/robot_model.hpp>
+#include <moveit/robot_state/robot_state.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 

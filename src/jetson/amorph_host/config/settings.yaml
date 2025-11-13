@@ -1,11 +1,6 @@
-amorph_host:
-  rpc:
-    can_port:
-      type: string
-      default_value: "can0"
-    mosi_frame_id:
-      type: double
-      default_value: 0x23
-    miso_frame_id:
-      type: double
-      default_value: 0x33
+/**:
+  ros__parameters:
+    rpc:
+      can_port: "can0"
+      mosi_frame_id: 0x23
+      miso_frame_id: 0x33

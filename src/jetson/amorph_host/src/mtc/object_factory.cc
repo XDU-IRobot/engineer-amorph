@@ -1,9 +1,5 @@
 
-#pragma once
-
 #include "mtc/object_factory.hpp"
-
-#include <ament_index_cpp/get_package_share_directory.hpp>
 
 #include <geometric_shapes/shapes.h>
 #include <geometric_shapes/shape_operations.h>
@@ -43,8 +39,7 @@ moveit_msgs::msg::CollisionObject CreateEnergyUnit(  //
   object.header.frame_id = object_reference_frame;
 
   // 加载 STL 文件
-  const std::string mesh_resource =
-      ament_index_cpp::get_package_share_directory("amorph_host") + "/assets/energy_unit.stl";
+  const std::string mesh_resource = "package://amorph_host/assets/energy_unit.STL";
 
   shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_resource);
   if (mesh) {

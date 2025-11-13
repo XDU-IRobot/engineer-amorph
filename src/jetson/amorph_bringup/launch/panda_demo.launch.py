@@ -31,14 +31,14 @@ def generate_launch_description():
     )
 
     # RViz
-    rviz_config_file = (
-        get_package_share_directory("moveit_task_constructor_demo") + "/config/mtc.rviz"
-    )
+    # rviz_config_file = (
+    #     get_package_share_directory("moveit_task_constructor_demo") + "/config/mtc.rviz"
+    # )
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
         output="log",
-        arguments=["-d", rviz_config_file],
+        # arguments=["-d", rviz_config_file],
         parameters=[
             moveit_config.robot_description,
             moveit_config.robot_description_semantic,
