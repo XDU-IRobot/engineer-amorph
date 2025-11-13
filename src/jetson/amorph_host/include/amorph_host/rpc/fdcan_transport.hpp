@@ -44,7 +44,8 @@ class FdCanTransport : public rpc_core::connection {
      */
     void Send(const uint8_t *data, uint32_t size) {
       // 1. 生成一个随机的帧ID，用于标识本次传输的所有分片
-      tx_buf_.frame_start.frame_id = static_cast<uint8_t>(rand() & 0xff);
+      static std::mt19937 rng{std::random_device{}()};
+      tx_buf_.frame_start.frame_id = static_cast<uint8_t>(rng() & 0xff);
 
       // 2. 准备起始帧，包含元数据：帧ID、总载荷长度和CRC8校验值
       tx_buf_.frame_start.payload_len = size;
@@ -77,7 +78,7 @@ class FdCanTransport : public rpc_core::connection {
 
     void SendHeartbeat() { can_->Write(tx_stdid_base_ + StdIdOffset::kHeartbeat, nullptr, 0); }
 
-    void OnFrameRecv(std::function<void(std::string &)> callback) { frame_recv_callback_ = callback; }
+    void OnFrameRecv(std::function<void(std::string &)> callback) { frame_recv_callback_ = std::move(callback); }
 
    private:
     void RxCallback(const rm::hal::CanFrame *msg) override {
@@ -86,7 +87,7 @@ class FdCanTransport : public rpc_core::connection {
         Heartbeat();  // 通知设备框架自己在线
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameStart) {
         // 1. 收到起始帧，开始一个新的数据帧接收会话
-        auto *frame_start = reinterpret_cast<const decltype(tx_buf_.frame_start) *>(msg->data.data());
+        const auto *frame_start = reinterpret_cast<const decltype(tx_buf_.frame_start) *>(msg->data.data());
         if (msg->dlc != sizeof(*frame_start)) {
           return;  // 帧长度错误，直接丢弃
         }
@@ -103,7 +104,7 @@ class FdCanTransport : public rpc_core::connection {
         session.buffer.reserve(frame_start->payload_len);
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kPayload) {
         // 2. 收到数据分片
-        auto *payload = reinterpret_cast<const decltype(tx_buf_.payload) *>(msg->data.data());
+        const auto *payload = reinterpret_cast<const decltype(tx_buf_.payload) *>(msg->data.data());
         auto session_it = rx_sessions_.find(payload->frame_id);
         if (session_it == rx_sessions_.end()) {
           return;  // 未找到对应会话，说明起始帧缺失
@@ -124,7 +125,7 @@ class FdCanTransport : public rpc_core::connection {
 
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameEnd) {
         // 3. 收到结束帧
-        auto *frame_end = reinterpret_cast<const decltype(tx_buf_.frame_end) *>(msg->data.data());
+        const auto *frame_end = reinterpret_cast<const decltype(tx_buf_.frame_end) *>(msg->data.data());
         auto session_it = rx_sessions_.find(frame_end->frame_id);
         if (session_it == rx_sessions_.end()) {
           return;  // 没有对应的会话，忽略

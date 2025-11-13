@@ -12,12 +12,35 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
 add_subdirectory(libs)
-include_directories(include/amorph_host)
-add_subdirectory(src)
 
-install(TARGETS ${PROJECT_NAME}_node
-  DESTINATION lib/${PROJECT_NAME})
-install(DIRECTORY config
+include_directories(include/amorph_host)
+include_directories(src)
+
+file(GLOB_RECURSE ${PROJECT_NAME}_SOURCES src/*.cc)
+ament_auto_add_executable(${PROJECT_NAME}_node ${${PROJECT_NAME}_SOURCES})
+
+generate_parameter_library(
+  amorph_host_params # cmake target name for the parameter library
+  config/settings.yaml # path to input yaml file
+)
+generate_parameter_library(
+  pick_place_task_params
+  config/pick_place_task.yaml
+)
+
+target_link_libraries(${PROJECT_NAME}_node
+  ${PROJECT_NAME}_libs
+  amorph_host_params
+  pick_place_task_params
+)
+
+install(
+  TARGETS amorph_host_params pick_place_task_params
+  EXPORT ${PROJECT_NAME}Targets
+)
+ament_export_targets(${PROJECT_NAME}Targets HAS_LIBRARY_TARGET)
+
+install(DIRECTORY assets
   DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)

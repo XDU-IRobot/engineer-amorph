@@ -1,6 +1,8 @@
 .idea
 .cache
 
+.vscode/c_cpp_properties.json
+
 custom_ctrl_build
 
 build

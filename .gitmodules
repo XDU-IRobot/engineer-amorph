@@ -27,9 +27,6 @@
 [submodule "src/stm32/amorph_custom_controller/libs/CMSIS-DSP"]
 	path = src/stm32/amorph_custom_controller/libs/CMSIS-DSP
 	url = https://github.com/ARM-software/CMSIS-DSP.git
-[submodule "src/jetson/amorph_host/libs/pfr"]
-	path = src/jetson/amorph_host/libs/pfr
-	url = https://github.com/boostorg/pfr.git
 [submodule "src/jetson/amorph_host/libs/librm"]
 	path = src/jetson/amorph_host/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
@@ -37,3 +34,10 @@
 [submodule "src/jetson/amorph_host/libs/rpc_core"]
 	path = src/jetson/amorph_host/libs/rpc_core
 	url = https://github.com/shuai132/rpc_core.git
+[submodule "src/jetson/moveit_task_constructor"]
+	path = src/jetson/moveit_task_constructor
+	url = https://github.com/moveit/moveit_task_constructor.git
+	branch = jazzy
+[submodule "src/jetson/amorph_host/libs/pfr"]
+	path = src/jetson/amorph_host/libs/pfr
+	url = https://github.com/boostorg/pfr.git

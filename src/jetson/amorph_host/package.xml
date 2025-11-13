@@ -13,10 +13,16 @@
   <depend>rclcpp_action</depend>
   <depend>rclcpp_components</depend>
   <depend>sensor_msgs</depend>
+
+  <depend>moveit_core</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>moveit_visual_tools</depend>
+  <depend>moveit_task_constructor_core</depend>
+  <exec_depend>moveit_task_constructor_capabilities</exec_depend>
+  <exec_depend>moveit_task_constructor_visualization</exec_depend>
+  <exec_depend>moveit_task_constructor_capabilities</exec_depend>
 
-  <depend>fluorite_msgs</depend>
+  <exec_depend>fluorite_arm_moveit_config</exec_depend>
   <depend>rm2_referee_msgs</depend>
   <depend>sbus_interface</depend>
   <depend>keyboard_msgs</depend>
