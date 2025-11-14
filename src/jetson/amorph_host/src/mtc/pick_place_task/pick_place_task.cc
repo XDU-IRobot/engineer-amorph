@@ -144,7 +144,7 @@ bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
 
     /****************************************************
 ---- *               Allow Collision (hand object)   *
-		 ***************************************************/
+                 ***************************************************/
     {
       // Modify planning scene (w/o altering the robot's pose) to allow touching the object for picking
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object)");

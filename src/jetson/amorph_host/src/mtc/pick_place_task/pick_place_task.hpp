@@ -36,7 +36,7 @@ class PickPlaceTask {
 
   bool execute();
 
-	const auto task() const { return task_; }
+  const auto task() const { return task_; }
 
  private:
   std::string task_name_;
