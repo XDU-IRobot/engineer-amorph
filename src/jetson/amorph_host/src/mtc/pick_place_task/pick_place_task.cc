@@ -1,23 +1,15 @@
 
 #include "pick_place_task.hpp"
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
-#include <geometric_shapes/shapes.h>
-#include <geometric_shapes/shape_operations.h>
+#include <Eigen/Geometry>
 #include <geometry_msgs/msg/pose.hpp>
-#include <shape_msgs/msg/solid_primitive.hpp>
-#include <shape_msgs/msg/mesh.h>
 #include <tf2_eigen/tf2_eigen.hpp>
 
-#include <Eigen/Geometry>
-
-#include "mtc/moveit_helper.hpp"
+#include "amorph_host/pick_place_task_params.hpp"
 #include "mtc/object_factory.hpp"
-#include "ros_params_manager.hpp"
+#include "mtc/moveit_helper.hpp"
 
 static const rclcpp::Logger kLogger = rclcpp::get_logger("moveit_task_constructor_demo");
-
-namespace moveit_task_constructor_demo {
 
 namespace mtc = moveit::task_constructor;
 
@@ -31,22 +23,19 @@ void SetupDemoScene(const pick_place_task::Params& params) {
               object_factory::CreateEnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
 }
 
-PickPlaceTask::PickPlaceTask(const rclcpp::Node::SharedPtr& node, const std::string& task_name)
-    : MtcTask<pick_place_task::Params>(node, task_name), task_name_(task_name) {}
+PickPlaceTask::PickPlaceTask(const std::string& task_name) : task_name_(task_name) {}
 
-bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
-  RCLCPP_INFO(node->get_logger(), "Initializing task pipeline");
+bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
+  RCLCPP_INFO(kLogger, "Initializing task pipeline");
 
-  RosParamsManager<pick_place_task::Params> params_manager(node);
-  params_manager.Init();
-  const auto& params = params_manager.data();
-
+  const auto param_listener = std::make_shared<pick_place_task::ParamListener>(node);
+  const auto params = param_listener->get_params();
   SetupDemoScene(params);
 
   // Reset ROS introspection before constructing the new object
   // TODO(v4hn): global storage for Introspection services to enable one-liner
   task_.reset();
-  task_.reset(new mtc::Task());
+  task_.reset(new moveit::task_constructor::Task());
 
   // Individual movement stages are collected within the Task object
   mtc::Task& t = *task_;
@@ -64,11 +53,6 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
   cartesian_planner->setMaxVelocityScalingFactor(1.0);
   cartesian_planner->setMaxAccelerationScalingFactor(1.0);
   cartesian_planner->setStepSize(.01);
-
-  // Joint interpolation planner
-  auto interp_planner = std::make_shared<mtc::solvers::JointInterpolationPlanner>();
-  interp_planner->setMaxVelocityScalingFactor(1.0);
-  interp_planner->setMaxAccelerationScalingFactor(1.0);
 
   // Set task properties
   t.setProperty("group", params.arm_group_name);
@@ -135,9 +119,9 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
   mtc::Stage* pick_stage_ptr = nullptr;
   {
     // A SerialContainer combines several sub-stages, here for picking the object
-    auto grasp_sc = std::make_unique<mtc::SerialContainer>("pick object");
-    t.properties().exposeTo(grasp_sc->properties(), {"eef", "hand", "group", "ik_frame"});
-    grasp_sc->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "hand", "group", "ik_frame"});
+    auto grasp = std::make_unique<mtc::SerialContainer>("pick object");
+    t.properties().exposeTo(grasp->properties(), {"eef", "hand", "group", "ik_frame"});
+    grasp->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "hand", "group", "ik_frame"});
 
     /****************************************************
 ---- *               Approach Object                    *
@@ -155,7 +139,20 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.hand_frame;
       vec.vector.z = 1.0;
       stage->setDirection(vec);
-      grasp_sc->insert(std::move(stage));
+      grasp->insert(std::move(stage));
+    }
+
+    /****************************************************
+---- *               Allow Collision (hand object)   *
+		 ***************************************************/
+    {
+      // Modify planning scene (w/o altering the robot's pose) to allow touching the object for picking
+      auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object)");
+      stage->allowCollisions(
+          params.object_name,
+          t.getRobotModel()->getJointModelGroup(params.hand_group_name)->getLinkModelNamesWithCollisionGeometry(),
+          true);
+      grasp->insert(std::move(stage));
     }
 
     /****************************************************
@@ -180,20 +177,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       wrapper->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "group"});  // inherit properties from parent
       wrapper->properties().configureInitFrom(mtc::Stage::INTERFACE,
                                               {"target_pose"});  // inherit property from child solution
-      grasp_sc->insert(std::move(wrapper));
-    }
-
-    /****************************************************
----- *               Allow Collision (hand object)   *
-     ***************************************************/
-    {
-      // Modify planning scene (w/o altering the robot's pose) to allow touching the object for picking
-      auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object)");
-      stage->allowCollisions(
-          params.object_name,
-          t.getRobotModel()->getJointModelGroup(params.hand_group_name)->getLinkModelNamesWithCollisionGeometry(),
-          true);
-      grasp_sc->insert(std::move(stage));
+      grasp->insert(std::move(wrapper));
     }
 
     /****************************************************
@@ -203,7 +187,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       auto stage = std::make_unique<mtc::stages::MoveTo>("close hand", sampling_planner);
       stage->setGroup(params.hand_group_name);
       stage->setGoal(params.hand_close_pose);
-      grasp_sc->insert(std::move(stage));
+      grasp->insert(std::move(stage));
     }
 
     /****************************************************
@@ -212,7 +196,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     {
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("attach object");
       stage->attachObject(params.object_name, params.hand_frame);  // attach object to hand_frame_
-      grasp_sc->insert(std::move(stage));
+      grasp->insert(std::move(stage));
     }
 
     /****************************************************
@@ -221,7 +205,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     {
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (object,support)");
       stage->allowCollisions({params.object_name}, {params.surface_link}, true);
-      grasp_sc->insert(std::move(stage));
+      grasp->insert(std::move(stage));
     }
 
     /****************************************************
@@ -239,7 +223,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.world_frame;
       vec.vector.z = 1.0;
       stage->setDirection(vec);
-      grasp_sc->insert(std::move(stage));
+      grasp->insert(std::move(stage));
     }
 
     /****************************************************
@@ -248,13 +232,13 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     {
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("forbid collision (object,surface)");
       stage->allowCollisions({params.object_name}, {params.surface_link}, false);
-      grasp_sc->insert(std::move(stage));
+      grasp->insert(std::move(stage));
     }
 
-    pick_stage_ptr = grasp_sc.get();  // remember for monitoring place pose generator
+    pick_stage_ptr = grasp.get();  // remember for monitoring place pose generator
 
     // Add grasp container to task
-    t.add(std::move(grasp_sc));
+    t.add(std::move(grasp));
   }
 
   /******************************************************
@@ -278,9 +262,9 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
    *****************************************************/
   // All placing sub-stages are collected within a serial container again
   {
-    auto place_sc = std::make_unique<mtc::SerialContainer>("place object");
-    t.properties().exposeTo(place_sc->properties(), {"eef", "hand", "group"});
-    place_sc->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "hand", "group"});
+    auto place = std::make_unique<mtc::SerialContainer>("place object");
+    t.properties().exposeTo(place->properties(), {"eef", "hand", "group"});
+    place->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "hand", "group"});
 
     /******************************************************
 ---- *          Lower Object                              *
@@ -297,7 +281,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.world_frame;
       vec.vector.z = -1.0;
       stage->setDirection(vec);
-      place_sc->insert(std::move(stage));
+      place->insert(std::move(stage));
     }
 
     /******************************************************
@@ -324,7 +308,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       wrapper->setIKFrame(VectorToEigen(params.grasp_frame_transform), params.hand_frame);
       wrapper->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "group"});
       wrapper->properties().configureInitFrom(mtc::Stage::INTERFACE, {"target_pose"});
-      place_sc->insert(std::move(wrapper));
+      place->insert(std::move(wrapper));
     }
 
     /******************************************************
@@ -334,7 +318,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       auto stage = std::make_unique<mtc::stages::MoveTo>("open hand", sampling_planner);
       stage->setGroup(params.hand_group_name);
       stage->setGoal(params.hand_open_pose);
-      place_sc->insert(std::move(stage));
+      place->insert(std::move(stage));
     }
 
     /******************************************************
@@ -343,7 +327,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     {
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("forbid collision (hand,object)");
       stage->allowCollisions(params.object_name, *t.getRobotModel()->getJointModelGroup(params.hand_group_name), false);
-      place_sc->insert(std::move(stage));
+      place->insert(std::move(stage));
     }
 
     /******************************************************
@@ -352,7 +336,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     {
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("detach object");
       stage->detachObject(params.object_name, params.hand_frame);
-      place_sc->insert(std::move(stage));
+      place->insert(std::move(stage));
     }
 
     /******************************************************
@@ -368,11 +352,11 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.hand_frame;
       vec.vector.z = -1.0;
       stage->setDirection(vec);
-      place_sc->insert(std::move(stage));
+      place->insert(std::move(stage));
     }
 
     // Add place container to task
-    t.add(std::move(place_sc));
+    t.add(std::move(place));
   }
 
   /******************************************************
@@ -399,15 +383,17 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
   return true;
 }
 
-bool PickPlaceTask::Plan(const std::size_t max_solutions) {
+bool PickPlaceTask::plan(std::size_t max_solutions) {
   RCLCPP_INFO(kLogger, "Start searching for task solutions");
 
   return static_cast<bool>(task_->plan(max_solutions));
 }
 
-bool PickPlaceTask::Execute() {
+bool PickPlaceTask::execute() {
   RCLCPP_INFO(kLogger, "Executing solution trajectory");
-  const auto execute_result = task_->execute(*task_->solutions().front());
+  moveit_msgs::msg::MoveItErrorCodes execute_result;
+
+  execute_result = task_->execute(*task_->solutions().front());
 
   if (execute_result.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
     RCLCPP_ERROR_STREAM(kLogger, "Task execution failed and returned: " << execute_result.val);
@@ -416,4 +402,3 @@ bool PickPlaceTask::Execute() {
 
   return true;
 }
-}  // namespace moveit_task_constructor_demo

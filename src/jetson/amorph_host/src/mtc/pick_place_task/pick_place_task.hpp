@@ -11,33 +11,34 @@
 
 // MTC
 #include <moveit/task_constructor/task.h>
-#include <moveit/task_constructor/stages.h>
-#include <moveit/task_constructor/solvers.h>
+#include <moveit/task_constructor/stages/compute_ik.h>
+#include <moveit/task_constructor/stages/connect.h>
+#include <moveit/task_constructor/stages/current_state.h>
+#include <moveit/task_constructor/stages/generate_grasp_pose.h>
+#include <moveit/task_constructor/stages/generate_pose.h>
+#include <moveit/task_constructor/stages/generate_place_pose.h>
+#include <moveit/task_constructor/stages/modify_planning_scene.h>
+#include <moveit/task_constructor/stages/move_relative.h>
+#include <moveit/task_constructor/stages/move_to.h>
+#include <moveit/task_constructor/stages/predicate_filter.h>
+#include <moveit/task_constructor/solvers/cartesian_path.h>
+#include <moveit/task_constructor/solvers/pipeline_planner.h>
 #include <moveit_task_constructor_msgs/action/execute_task_solution.hpp>
 
-#include "mtc/mtc_task_interface.hpp"
-#include "mtc/pick_place_task/params.hpp"
-
-namespace moveit_task_constructor_demo {
-
-// prepare a demo environment from ROS parameters under node
-void SetupDemoScene(const pick_place_task::Params& params);
-
-class PickPlaceTask final : public MtcTask<pick_place_task::Params> {
+class PickPlaceTask {
  public:
-  explicit PickPlaceTask(const rclcpp::Node::SharedPtr& node, const std::string& task_name);
-  ~PickPlaceTask() override = default;
+  explicit PickPlaceTask(const std::string& task_name);
+  ~PickPlaceTask() = default;
 
-  bool Init(const rclcpp::Node::SharedPtr& node) override;
+  bool init(const rclcpp::Node::SharedPtr& node);
 
-  bool Plan(size_t max_solutions) override;
+  bool plan(std::size_t max_solutions);
 
-  bool Execute();
+  bool execute();
 
-  auto& task() { return task_; }
+	const auto task() const { return task_; }
 
  private:
   std::string task_name_;
   moveit::task_constructor::TaskPtr task_;
 };
-}  // namespace moveit_task_constructor_demo

@@ -28,7 +28,7 @@ ARGS = ["--merge-install", "--symlink-install", "--cmake-force-configure",
 def main():
     # 先编mtc,这个很占内存需要单独编
     env = os.environ.copy()
-    env["MAKEFLAGS"] = "-j 4"
+    env["MAKEFLAGS"] = "-j 12"
     status = subprocess.run(["colcon", "build", "--parallel-workers", "1", "--build-base", "build_mtc", "--install-base", "install_mtc",
                             "--packages-select", *MTC_PACKAGES, *ARGS], env=env)
     if status.returncode != 0:
@@ -53,7 +53,7 @@ def main():
     
     # 然后编剩下的包
     status = subprocess.run(
-        ["colcon", "build", "--packages-skip", *MTC_PACKAGES, *ARGS], env=env_for_build)
+        ["colcon", "build", "--cmake-force-configure", "--packages-skip", *MTC_PACKAGES, *ARGS], env=env_for_build)
     if status.returncode != 0:
         return status.returncode
 
