@@ -3,19 +3,23 @@
 
 #include <moveit_msgs/msg/collision_object.hpp>
 
+namespace amorph {
+
 namespace object_factory {
 
-moveit_msgs::msg::CollisionObject CreateTable(    //
+moveit_msgs::msg::CollisionObject Table(          //
     const std::string& table_name,                //
     const std::string& table_reference_frame,     //
     const std::vector<double>& table_dimensions,  //
     const std::vector<double>& table_pose         //
 );
 
-moveit_msgs::msg::CollisionObject CreateEnergyUnit(           //
+moveit_msgs::msg::CollisionObject EnergyUnit(                 //
     const std::string& object_name,                           //
     const std::string& object_reference_frame,                //
     const std::vector<double>& pose = std::vector<double>(6)  //
 );
 
 }  // namespace object_factory
+
+}  // namespace amorph

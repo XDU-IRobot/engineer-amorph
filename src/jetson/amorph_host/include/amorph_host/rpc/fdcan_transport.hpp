@@ -8,6 +8,8 @@
 #include <etl/unordered_map.h>
 #include <rpc_core.hpp>
 
+namespace amorph {
+
 /**
  * @brief 基于CAN FD实现的一种rpc_core框架的传输层
  */
@@ -216,3 +218,5 @@ class FdCanTransport : public rpc_core::connection {
 
   bool Connected() { return impl_.IsAlive(); }
 };
+
+}  // namespace amorph

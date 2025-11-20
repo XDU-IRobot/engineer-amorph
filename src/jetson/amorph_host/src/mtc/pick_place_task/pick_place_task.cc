@@ -9,28 +9,32 @@
 #include "mtc/object_factory.hpp"
 #include "mtc/moveit_helper.hpp"
 
-static const rclcpp::Logger kLogger = rclcpp::get_logger("moveit_task_constructor_demo");
+#include "amorph_host/logger.hpp"
+
+namespace amorph {
 
 namespace mtc = moveit::task_constructor;
 
 void SetupDemoScene(const pick_place_task::Params& params) {
   // Add table and object to planning scene
   rclcpp::sleep_for(std::chrono::microseconds(100));  // Wait for ApplyPlanningScene service
-  moveit::planning_interface::PlanningSceneInterface psi;
-  SpawnObject(psi, object_factory::CreateTable(params.table_name, params.table_reference_frame, params.table_dimensions,
-                                               params.table_pose));
-  SpawnObject(psi,
-              object_factory::CreateEnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
+  auto& mvh = MoveitHelper::GetInstance();
+  mvh.SpawnObject(object_factory::Table(params.table_name, params.table_reference_frame, params.table_dimensions,
+                                              params.table_pose));
+  mvh.SpawnObject(
+      object_factory::EnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
 }
 
 PickPlaceTask::PickPlaceTask(const std::string& task_name) : task_name_(task_name) {}
 
 bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
-  RCLCPP_INFO(kLogger, "Initializing task pipeline");
+  L::I("Initializing task pipeline");
 
-  const auto param_listener = std::make_shared<pick_place_task::ParamListener>(node);
+  const auto param_listener = std::make_shared<pick_place_task::ParamListener>(node, task_name_);
   const auto params = param_listener->get_params();
   SetupDemoScene(params);
+
+  const auto& mvh = amorph::MoveitHelper::GetInstance();
 
   // Reset ROS introspection before constructing the new object
   // TODO(v4hn): global storage for Introspection services to enable one-liner
@@ -173,7 +177,7 @@ bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
       wrapper->setMaxIKSolutions(8);  // limit number of solutions
       wrapper->setMinSolutionDistance(1.0);
       // define virtual frame to reach the target_pose
-      wrapper->setIKFrame(VectorToEigen(params.grasp_frame_transform), params.hand_frame);
+      wrapper->setIKFrame(MoveitHelper::VectorToEigen(params.grasp_frame_transform), params.hand_frame);
       wrapper->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "group"});  // inherit properties from parent
       wrapper->properties().configureInitFrom(mtc::Stage::INTERFACE,
                                               {"target_pose"});  // inherit property from child solution
@@ -297,7 +301,7 @@ bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
       // Set target pose
       geometry_msgs::msg::PoseStamped p;
       p.header.frame_id = params.object_reference_frame;
-      p.pose = VectorToPose(params.place_pose);
+      p.pose = MoveitHelper::VectorToPose(params.place_pose);
       p.pose.position.z += 0.5 * params.object_dimensions[0] + params.place_surface_offset;
       stage->setPose(p);
       stage->setMonitoredStage(pick_stage_ptr);  // hook into successful pick solutions
@@ -305,7 +309,7 @@ bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
       // Compute IK
       auto wrapper = std::make_unique<mtc::stages::ComputeIK>("place pose IK", std::move(stage));
       wrapper->setMaxIKSolutions(2);
-      wrapper->setIKFrame(VectorToEigen(params.grasp_frame_transform), params.hand_frame);
+      wrapper->setIKFrame(MoveitHelper::VectorToEigen(params.grasp_frame_transform), params.hand_frame);
       wrapper->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "group"});
       wrapper->properties().configureInitFrom(mtc::Stage::INTERFACE, {"target_pose"});
       place->insert(std::move(wrapper));
@@ -376,7 +380,7 @@ bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
   try {
     t.init();
   } catch (mtc::InitStageException& e) {
-    RCLCPP_ERROR_STREAM(kLogger, "Initialization failed: " << e);
+    L::E("Initialization failed: %s", e.what());
     return false;
   }
 
@@ -384,21 +388,23 @@ bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
 }
 
 bool PickPlaceTask::plan(std::size_t max_solutions) {
-  RCLCPP_INFO(kLogger, "Start searching for task solutions");
+  L::I("Start searching for task solutions");
 
   return static_cast<bool>(task_->plan(max_solutions));
 }
 
 bool PickPlaceTask::execute() {
-  RCLCPP_INFO(kLogger, "Executing solution trajectory");
+  L::I("Executing solution trajectory");
   moveit_msgs::msg::MoveItErrorCodes execute_result;
 
   execute_result = task_->execute(*task_->solutions().front());
 
   if (execute_result.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
-    RCLCPP_ERROR_STREAM(kLogger, "Task execution failed and returned: " << execute_result.val);
+    L::E("Task execution failed and returned: %d", execute_result.val);
     return false;
   }
 
   return true;
 }
+
+}  // namespace amorph

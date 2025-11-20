@@ -3,6 +3,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import TransformStamped
+from std_srvs.srv import SetBool
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -19,6 +20,10 @@ class EnergyUnitLocator(Node):
         self.declare_parameter('model_path', '')
         self.declare_parameter('confidence_threshold', 0.5)
         
+        # 开关服务的状态
+        self.enabled = True
+        self.srv = self.create_service(SetBool, 'enable_locator', self.enable_callback)
+
         # 获取模型路径
         model_path = self.get_parameter('model_path').get_parameter_value().string_value
         if not model_path:
@@ -55,6 +60,13 @@ class EnergyUnitLocator(Node):
         self.ts.registerCallback(self.image_callback)
 
         self.get_logger().info('Energy Unit Locator Node Started')
+
+    def enable_callback(self, request, response):
+        self.enabled = request.data
+        response.success = True
+        response.message = f"Locator enabled: {self.enabled}"
+        self.get_logger().info(response.message)
+        return response
 
     def info_callback(self, msg):
         if self.intrinsics is None:
@@ -113,6 +125,9 @@ class EnergyUnitLocator(Node):
         return cX, cY, z_meters
 
     def image_callback(self, rgb_msg, depth_msg):
+        if not self.enabled:
+            return
+
         if self.intrinsics is None:
             self.get_logger().warn('Waiting for camera intrinsics...', throttle_duration_sec=2.0)
             return

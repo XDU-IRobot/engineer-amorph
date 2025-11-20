@@ -7,6 +7,8 @@
 #include "fdcan_transport.hpp"
 #include "typedefs.hpp"
 
+namespace amorph {
+
 /**
  * @brief   基于rpc_core的RPC通信类
  * @note    该类封装了rpc_core库，提供了更高层次的RPC通信接口，简化了与上位机的交互。
@@ -98,3 +100,5 @@ class RPC {
 
   void ReportJointPosition(const JointPosition &jp) const { rpc_->cmd("joint_position")->msg(jp)->call(); }
 };
+
+}  // namespace amorph

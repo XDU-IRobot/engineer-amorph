@@ -9,15 +9,17 @@
 
 #include "mtc/moveit_helper.hpp"
 
+namespace amorph {
+
 namespace object_factory {
 
-moveit_msgs::msg::CollisionObject CreateTable(    //
+moveit_msgs::msg::CollisionObject Table(    //
     const std::string& table_name,                //
     const std::string& table_reference_frame,     //
     const std::vector<double>& table_dimensions,  //
     const std::vector<double>& table_pose         //
 ) {
-  geometry_msgs::msg::Pose pose = VectorToPose(table_pose);
+  geometry_msgs::msg::Pose pose = MoveitHelper::VectorToPose(table_pose);
   moveit_msgs::msg::CollisionObject object;
   object.id = table_name;
   object.header.frame_id = table_reference_frame;
@@ -29,7 +31,7 @@ moveit_msgs::msg::CollisionObject CreateTable(    //
   return object;
 }
 
-moveit_msgs::msg::CollisionObject CreateEnergyUnit(  //
+moveit_msgs::msg::CollisionObject EnergyUnit(  //
     const std::string& object_name,                  //
     const std::string& object_reference_frame,       //
     const std::vector<double>& pose                  //
@@ -49,7 +51,7 @@ moveit_msgs::msg::CollisionObject CreateEnergyUnit(  //
     mesh_msg = boost::get<shape_msgs::msg::Mesh>(mesh_shape_msg);
 
     object.meshes.push_back(mesh_msg);
-    object.mesh_poses.push_back(VectorToPose(pose));
+    object.mesh_poses.push_back(MoveitHelper::VectorToPose(pose));
 
     delete mesh;  // 清理内存
   } else {
@@ -64,4 +66,7 @@ moveit_msgs::msg::CollisionObject CreateEnergyUnit(  //
 
   return object;
 }
+
 }  // namespace object_factory
+
+}  // namespace amorph

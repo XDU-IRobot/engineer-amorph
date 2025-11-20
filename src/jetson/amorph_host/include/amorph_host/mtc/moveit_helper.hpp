@@ -13,76 +13,109 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
-inline void SpawnObject(moveit::planning_interface::PlanningSceneInterface &psi,
-                        const moveit_msgs::msg::CollisionObject &object) {
-  if (!psi.applyCollisionObject(object)) {
-    throw std::runtime_error("Failed to spawn object: " + object.id);
-  }
-}
+#include "amorph_host/logger.hpp"
 
-inline Eigen::Isometry3d VectorToEigen(const std::vector<double> &values) {
-  if (values.size() != 6) {
-    throw std::runtime_error("VectorToEigen requires a vector of size 6");
-  }
-  return Eigen::Translation3d(values[0], values[1], values[2]) *
-         Eigen::AngleAxisd(values[3], Eigen::Vector3d::UnitX()) *
-         Eigen::AngleAxisd(values[4], Eigen::Vector3d::UnitY()) *
-         Eigen::AngleAxisd(values[5], Eigen::Vector3d::UnitZ());
-}
+namespace amorph {
 
-inline geometry_msgs::msg::Pose VectorToPose(const std::vector<double> &values) {
-  return tf2::toMsg(VectorToEigen(values));
-};
-
+/**
+ * @brief 简化一些麻烦到艹蛋的 MoveIt 操作
+ */
 class MoveitHelper {
  public:
-  explicit MoveitHelper(rclcpp::Node *node, std::string joint_model_group = "fluorite_arm")
-      : node_{node}, node_logger_{node->get_logger()}, joint_model_group_{std::move(joint_model_group)} {
-    robot_model_loader::RobotModelLoader robot_model_loader{node_};
-    kinematic_model_ = robot_model_loader.getModel();
-    robot_state_ = std::make_shared<moveit::core::RobotState>(kinematic_model_);
+  MoveitHelper(const MoveitHelper &) = delete;
+  MoveitHelper &operator=(const MoveitHelper &) = delete;
+
+  static MoveitHelper &GetInstance() {
+    static MoveitHelper instance;
+    return instance;
   }
 
-  auto CalculateIK(const geometry_msgs::msg::Pose &eff_pose,
+  void Init(const rclcpp::Node::SharedPtr &node) {
+    if (node_) {
+      L::W("MoveitHelper already initialized, skipping");
+      return;
+    }
+    node_ = node;
+    L::I("MoveitHelper initialized");
+  }
+
+  auto CalculateIK(const geometry_msgs::msg::Pose &eff_pose, const std::string &joint_model_group_name,
                    std::chrono::duration<double> timeout = std::chrono::milliseconds(100)) const
       -> std::pair<bool,                                        // success?
                    trajectory_msgs::msg::JointTrajectoryPoint>  // result
   {
     try {
+      robot_model_loader::RobotModelLoader robot_model_loader{node_};
+      const auto &kinematic_model = robot_model_loader.getModel();
+      const auto robot_state = std::make_shared<moveit::core::RobotState>(kinematic_model);
+
       // 尝试逆解，成功的话就把解出来的关节位置送进轨迹跟踪器
-      const auto *const joint_model_group = robot_state_->getJointModelGroup(joint_model_group_);
-      const bool ik_solved = robot_state_->setFromIK(joint_model_group, eff_pose,
-                                                     std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
-      robot_state_->enforceBounds();
-      if (ik_solved && robot_state_->satisfiesBounds()) {
+      const auto *const joint_model_group = robot_state->getJointModelGroup(joint_model_group_name);
+      const bool ik_solved = robot_state->setFromIK(joint_model_group, eff_pose,
+                                                    std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
+      robot_state->enforceBounds();
+      if (ik_solved && robot_state->satisfiesBounds()) {
         std::vector<double> joint_values;
-        robot_state_->copyJointGroupPositions(joint_model_group, joint_values);
-        RCLCPP_DEBUG(node_logger_, "====================================================");
-        RCLCPP_DEBUG(node_logger_, "ik solved!");
+        robot_state->copyJointGroupPositions(joint_model_group, joint_values);
+
+        L::D("====================================================");
+        L::D("ik solved!");
         for (std::size_t i = 0; i < joint_values.size(); ++i) {
-          RCLCPP_DEBUG(node_logger_, "Joint %lu: %f", i, joint_values[i]);
+          L::D("Joint %lu: %f", i, joint_values[i]);
         }
-        RCLCPP_DEBUG(node_logger_, "====================================================");
-        const auto result = [&] {
+        L::D("====================================================");
+
+        return std::make_pair(true, [&] {
           trajectory_msgs::msg::JointTrajectoryPoint p;
           p.positions = joint_values;
           p.velocities.resize(6);
           return p;
-        }();
-        return std::make_pair(true, result);
+        }());
       }
-      RCLCPP_WARN(node_logger_, "failed to solve ik");  // 无解
-
+      // 无解
+      L::W("failed to solve ik");
     } catch (const std::exception &e) {
-      RCLCPP_ERROR(node_logger_, "exception occured during ik calculation: %s", e.what());  // 求解过程中有报错
+      // 求解过程中有报错
+      L::E("exception occured during ik calculation: %s", e.what());
     }
     return std::make_pair(false, trajectory_msgs::msg::JointTrajectoryPoint{});
   }
 
+  void SpawnObject(const moveit_msgs::msg::CollisionObject &object) {
+    if (!psi_.applyCollisionObject(object)) {
+      throw std::runtime_error("Failed to spawn object: " + object.id);
+    }
+  }
+
+  void RemoveObject(const std::string &object_id) { psi_.removeCollisionObjects({object_id}); }
+
+  void ClearPlanningScene() {
+    auto known_objects = psi_.getKnownObjectNames();
+    if (!known_objects.empty()) {
+      psi_.removeCollisionObjects(known_objects);
+    }
+  }
+
+  static Eigen::Isometry3d VectorToEigen(const std::vector<double> &values) {
+    if (values.size() != 6) {
+      throw std::runtime_error("VectorToEigen requires a vector of size 6");
+    }
+    return Eigen::Translation3d(values[0], values[1], values[2]) *
+           Eigen::AngleAxisd(values[3], Eigen::Vector3d::UnitX()) *
+           Eigen::AngleAxisd(values[4], Eigen::Vector3d::UnitY()) *
+           Eigen::AngleAxisd(values[5], Eigen::Vector3d::UnitZ());
+  }
+
+  static geometry_msgs::msg::Pose VectorToPose(const std::vector<double> &values) {
+    return tf2::toMsg(VectorToEigen(values));
+  };
+
+  moveit::planning_interface::PlanningSceneInterface &psi() { return psi_; }
+
  private:
+  MoveitHelper() = default;  // 私有构造函数
+
   rclcpp::Node::SharedPtr node_;
-  rclcpp::Logger node_logger_;
-  moveit::core::RobotModelPtr kinematic_model_;
-  moveit::core::RobotStatePtr robot_state_;
-  std::string joint_model_group_;
+  moveit::planning_interface::PlanningSceneInterface psi_;
 };
+}  // namespace amorph

@@ -17,20 +17,15 @@ include_directories(include/amorph_host)
 include_directories(src/mtc)
 
 file(GLOB_RECURSE ${PROJECT_NAME}_SOURCES src/*.cc)
+
+# Generate parameter library for pick_place_task
+generate_parameter_library(pick_place_task_params src/mtc/pick_place_task/parameters.yaml)
+
 ament_auto_add_executable(${PROJECT_NAME}_node ${${PROJECT_NAME}_SOURCES})
 target_link_libraries(${PROJECT_NAME}_node
   ${PROJECT_NAME}_libs
+  pick_place_task_params
 )
-
-function(add_mtc_task name)
-  file(GLOB_RECURSE ${name}_SOURCES src/mtc/${name}/*.cc)
-	ament_auto_add_library(mtc_task_${name} SHARED ${${name}_SOURCES})
-  generate_parameter_library(${name}_params src/mtc/${name}/parameters.yaml)
-  target_link_libraries(mtc_task_${name} ${name}_params)
-  target_link_libraries(${PROJECT_NAME}_node mtc_task_${name})
-endfunction()
-
-add_mtc_task(pick_place_task)
 
 install(DIRECTORY assets config
   DESTINATION share/${PROJECT_NAME})

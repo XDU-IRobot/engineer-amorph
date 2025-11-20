@@ -6,6 +6,8 @@
 
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
+namespace amorph {
+
 template <typename T>
 void Print(const std::vector<T> &vec) {
   std::cout << "[";
@@ -52,3 +54,5 @@ inline void Print(const trajectory_msgs::msg::JointTrajectoryPoint &point) {
   std::cout << "  effort: ";
   Print(point.effort);
 }
+
+}  // namespace amorph

@@ -8,6 +8,8 @@
 
 #include <rpc_core.hpp>
 
+namespace amorph {
+
 /**
  * @note    slave -> host only
  */
@@ -64,3 +66,5 @@ struct SbusFrame {
   std::vector<float> ch;
   RPC_CORE_DEFINE_TYPE_INNER(ch);
 };
+
+}  // namespace amorph

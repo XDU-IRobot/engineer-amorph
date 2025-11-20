@@ -25,6 +25,8 @@
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 #include <moveit_task_constructor_msgs/action/execute_task_solution.hpp>
 
+namespace amorph {
+
 class PickPlaceTask {
  public:
   explicit PickPlaceTask(const std::string& task_name);
@@ -36,9 +38,11 @@ class PickPlaceTask {
 
   bool execute();
 
-  const auto task() const { return task_; }
+  auto &task() const { return task_; }
 
  private:
   std::string task_name_;
   moveit::task_constructor::TaskPtr task_;
 };
+
+}  // namespace amorph

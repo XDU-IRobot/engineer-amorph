@@ -3,6 +3,8 @@
 
 #include <string>
 
+namespace amorph {
+
 struct RosParams {
   struct {
     std::string can_port;
@@ -10,3 +12,5 @@ struct RosParams {
     int miso_frame_id;
   } rpc;
 };
+
+}  // namespace amorph
