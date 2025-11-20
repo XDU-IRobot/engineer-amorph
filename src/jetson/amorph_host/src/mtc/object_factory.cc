@@ -13,7 +13,7 @@ namespace amorph {
 
 namespace object_factory {
 
-moveit_msgs::msg::CollisionObject Table(    //
+moveit_msgs::msg::CollisionObject Table(          //
     const std::string& table_name,                //
     const std::string& table_reference_frame,     //
     const std::vector<double>& table_dimensions,  //
@@ -31,10 +31,10 @@ moveit_msgs::msg::CollisionObject Table(    //
   return object;
 }
 
-moveit_msgs::msg::CollisionObject EnergyUnit(  //
-    const std::string& object_name,                  //
-    const std::string& object_reference_frame,       //
-    const std::vector<double>& pose                  //
+moveit_msgs::msg::CollisionObject EnergyUnit(   //
+    const std::string& object_name,             //
+    const std::string& object_reference_frame,  //
+    const std::vector<double>& pose             //
 ) {
   moveit_msgs::msg::CollisionObject object;
   object.id = object_name;

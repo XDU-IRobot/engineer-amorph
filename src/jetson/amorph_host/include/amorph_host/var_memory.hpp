@@ -65,4 +65,3 @@ class VarMemory {
     return prev;
   }
 };
-

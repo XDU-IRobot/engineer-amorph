@@ -20,9 +20,8 @@ void SetupDemoScene(const pick_place_task::Params& params) {
   rclcpp::sleep_for(std::chrono::microseconds(100));  // Wait for ApplyPlanningScene service
   auto& mvh = MoveitHelper::GetInstance();
   mvh.SpawnObject(object_factory::Table(params.table_name, params.table_reference_frame, params.table_dimensions,
-                                              params.table_pose));
-  mvh.SpawnObject(
-      object_factory::EnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
+                                        params.table_pose));
+  mvh.SpawnObject(object_factory::EnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
 }
 
 PickPlaceTask::PickPlaceTask(const std::string& task_name) : task_name_(task_name) {}
