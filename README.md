@@ -42,6 +42,9 @@ sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-realsense2-* ros-
 
 ### librealsense
 
+- librealsense `== 2.56.5`
+- realsense-ros `== 4.56.4`
+
 编译安装librealsense，注意和realsense-ros的版本一一对应
 
 这一步会缺一堆东西，缺什么用apt装什么即可
@@ -53,4 +56,14 @@ cmake -DFORCE_LIBUVC=true -DCMAKE_BUILD_TYPE=release -Bbuild
 cd build
 make -j6
 sudo make install
+```
+
+### ultralytics
+
+建一个虚拟环境，然后安装ultralytics
+
+```bash
+python3 -m venv ~/ultralytics_venv
+source ~/ultralytics_venv/bin/activate
+pip install ultralytics
 ```

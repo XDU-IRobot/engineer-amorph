@@ -1,6 +1,9 @@
 .idea
 .cache
 
+.venv
+__pycache__
+
 .vscode/c_cpp_properties.json
 
 custom_ctrl_build
