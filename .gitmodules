@@ -41,6 +41,3 @@
 [submodule "src/jetson/amorph_host/libs/pfr"]
 	path = src/jetson/amorph_host/libs/pfr
 	url = https://github.com/boostorg/pfr.git
-[submodule "src/jetson/realsense-ros"]
-	path = src/jetson/realsense-ros
-	url = https://github.com/IntelRealSense/realsense-ros.git

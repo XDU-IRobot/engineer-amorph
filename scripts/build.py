@@ -14,11 +14,6 @@ THIRDPARTY_PACKAGES = [
     "moveit_task_constructor_msgs",
     "moveit_task_constructor_capabilities",
     "moveit_task_constructor_visualization",
-    
-    # RS-ROS
-    "realsense2_camera",
-    "realsense2_camera_msgs",
-    "realsense2_description",
 ]
 
 CMAKE_ARGS = [
@@ -32,7 +27,7 @@ ARGS = ["--merge-install", "--symlink-install", "--cmake-force-configure",
     "--packages-ignore", *IGNORE_PACKAGES, "--cmake-args", *CMAKE_ARGS]
 
 def main():
-    # 先编mtc和realsense-ros，这两个包编译特别慢，而且不会有任何改动，所以单独编好放在另外的build目录不再动
+    # 先编mtc，这个包编译特别慢，而且不会有任何改动，所以单独编好放在另外的build目录不再动
     env = os.environ.copy()
     env["MAKEFLAGS"] = "-j 12"      # 并行数太多内存会爆
     

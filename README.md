@@ -48,24 +48,6 @@ sudo docker run --privileged --net=host --name moveit_test -it ros:jazzy
 
 ```bash
 sudo apt update
-sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library
+sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library ros-jazzy-librealsense2 ros-jazzy-realsense2*
 unminimize
-```
-
-### librealsense
-
-- librealsense `== 2.56.5`
-- realsense-ros `== 4.56.4`
-
-编译安装librealsense，注意和realsense-ros的版本一一对应
-
-这一步会缺一堆东西，缺什么用apt装什么即可
-
-```bash
-git clone --depth 1 https://github.com/IntelRealSense/librealsense.git
-cd librealsense
-cmake -DFORCE_LIBUVC=true -DCMAKE_BUILD_TYPE=release -Bbuild -DBUILD_EXAMPLES=false -DBUILD_UNIT_TESTS=false
-cd build
-make -j6
-sudo make install
 ```
