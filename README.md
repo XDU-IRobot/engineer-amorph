@@ -12,10 +12,21 @@
 
 ### ROS2
 
-安装 galactic 版本
+安装 foxy 版本
 
 ```bash
 wget http://fishros.com/install -O fishros && . fishros
+```
+
+### ultralytics
+
+建一个虚拟环境，然后安装pytorch和ultralytics
+
+```bash
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
+# ...安装jetson对应的pytorch版本
+pip install ultralytics
 ```
 
 ## 环境配置（Docker容器内）
@@ -37,7 +48,7 @@ sudo docker run --privileged --net=host --name moveit_test -it ros:jazzy
 
 ```bash
 sudo apt update
-sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-realsense2-* ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library
+sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library
 ```
 
 ### librealsense
@@ -52,18 +63,8 @@ sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-realsense2-* ros-
 ```bash
 git clone --depth 1 https://github.com/IntelRealSense/librealsense.git
 cd librealsense
-cmake -DFORCE_LIBUVC=true -DCMAKE_BUILD_TYPE=release -Bbuild
+cmake -DFORCE_LIBUVC=true -DCMAKE_BUILD_TYPE=release -Bbuild -DBUILD_EXAMPLES=false -DBUILD_UNIT_TESTS=false
 cd build
 make -j6
 sudo make install
-```
-
-### ultralytics
-
-建一个虚拟环境，然后安装ultralytics
-
-```bash
-python3 -m venv ~/ultralytics_venv
-source ~/ultralytics_venv/bin/activate
-pip install ultralytics
 ```
