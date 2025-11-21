@@ -37,7 +37,7 @@ class PickEnergyUnitTask {
 
   bool execute();
 
-  auto &task() const { return task_; }
+  auto& task() const { return task_; }
 
  private:
   std::string task_name_;

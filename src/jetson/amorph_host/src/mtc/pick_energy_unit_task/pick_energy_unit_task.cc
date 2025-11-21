@@ -4,7 +4,7 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
-#include "amorph_host/pick_place_task_params.hpp" // 复用 pick_place_task 的参数，或者新建一个
+#include "amorph_host/pick_place_task_params.hpp"  // 复用 pick_place_task 的参数，或者新建一个
 #include "mtc/object_factory.hpp"
 #include "mtc/moveit_helper.hpp"
 
@@ -26,7 +26,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
   // Add object to planning scene
   rclcpp::sleep_for(std::chrono::microseconds(100));  // Wait for ApplyPlanningScene service
   auto& mvh = MoveitHelper::GetInstance();
-  
+
   // 清空场景，确保没有残留物体
   mvh.ClearPlanningScene();
 
@@ -200,7 +200,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
       stage->setDirection(vec);
       grasp->insert(std::move(stage));
     }
-    
+
     pick_stage_ptr = grasp.get();
     t.add(std::move(grasp));
   }
