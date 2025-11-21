@@ -32,11 +32,9 @@ class PickPlaceTask {
   explicit PickPlaceTask(const std::string& task_name);
   ~PickPlaceTask() = default;
 
-  bool init(const rclcpp::Node::SharedPtr& node);
+  bool Init(const rclcpp::Node::SharedPtr& node);
 
-  bool plan(std::size_t max_solutions);
-
-  bool execute();
+  bool Plan(std::size_t max_solutions);
 
   auto& task() const { return task_; }
 

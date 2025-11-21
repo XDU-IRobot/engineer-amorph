@@ -12,6 +12,22 @@
 namespace amorph {
 
 namespace object_factory {
+moveit_msgs::msg::CollisionObject Table(          //
+    const std::string& table_name,                //
+    const std::string& table_reference_frame,     //
+    const std::vector<double>& table_dimensions,  //
+    geometry_msgs::msg::Pose table_pose           //
+) {
+  moveit_msgs::msg::CollisionObject object;
+  object.id = table_name;
+  object.header.frame_id = table_reference_frame;
+  object.primitives.resize(1);
+  object.primitives[0].type = shape_msgs::msg::SolidPrimitive::BOX;
+  object.primitives[0].dimensions = {table_dimensions.at(0), table_dimensions.at(1), table_dimensions.at(2)};
+  table_pose.position.z -= 0.5 * table_dimensions[2];  // align surface with world
+  object.primitive_poses.push_back(table_pose);
+  return object;
+}
 
 moveit_msgs::msg::CollisionObject Table(          //
     const std::string& table_name,                //
@@ -19,22 +35,13 @@ moveit_msgs::msg::CollisionObject Table(          //
     const std::vector<double>& table_dimensions,  //
     const std::vector<double>& table_pose         //
 ) {
-  geometry_msgs::msg::Pose pose = MoveitHelper::VectorToPose(table_pose);
-  moveit_msgs::msg::CollisionObject object;
-  object.id = table_name;
-  object.header.frame_id = table_reference_frame;
-  object.primitives.resize(1);
-  object.primitives[0].type = shape_msgs::msg::SolidPrimitive::BOX;
-  object.primitives[0].dimensions = {table_dimensions.at(0), table_dimensions.at(1), table_dimensions.at(2)};
-  pose.position.z -= 0.5 * table_dimensions[2];  // align surface with world
-  object.primitive_poses.push_back(pose);
-  return object;
+  return Table(table_name, table_reference_frame, table_dimensions, MoveitHelper::VectorToPose(table_pose));
 }
 
 moveit_msgs::msg::CollisionObject EnergyUnit(   //
     const std::string& object_name,             //
     const std::string& object_reference_frame,  //
-    const std::vector<double>& pose             //
+    const geometry_msgs::msg::Pose& pose        //
 ) {
   moveit_msgs::msg::CollisionObject object;
   object.id = object_name;
@@ -51,7 +58,7 @@ moveit_msgs::msg::CollisionObject EnergyUnit(   //
     mesh_msg = boost::get<shape_msgs::msg::Mesh>(mesh_shape_msg);
 
     object.meshes.push_back(mesh_msg);
-    object.mesh_poses.push_back(MoveitHelper::VectorToPose(pose));
+    object.mesh_poses.push_back(pose);
 
     delete mesh;  // 清理内存
   } else {
@@ -65,6 +72,14 @@ moveit_msgs::msg::CollisionObject EnergyUnit(   //
   }
 
   return object;
+}
+
+moveit_msgs::msg::CollisionObject EnergyUnit(   //
+    const std::string& object_name,             //
+    const std::string& object_reference_frame,  //
+    const std::vector<double>& pose             //
+) {
+  return EnergyUnit(object_name, object_reference_frame, MoveitHelper::VectorToPose(pose));
 }
 
 }  // namespace object_factory

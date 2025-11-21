@@ -1,0 +1,7 @@
+# energy_unit_locator用到的 外部可以通过这个service向locator节点请求一次精确定位
+
+float64 duration
+---
+bool success
+string message
+geometry_msgs/Pose pose

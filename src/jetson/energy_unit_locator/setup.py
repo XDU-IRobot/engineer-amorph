@@ -12,7 +12,10 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/assets', ['assets/251120_epoch335.pt']),
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'amorph_msgs',
+    ],
     zip_safe=True,
     maintainer='s',
     maintainer_email='messenger@lunariio.work',

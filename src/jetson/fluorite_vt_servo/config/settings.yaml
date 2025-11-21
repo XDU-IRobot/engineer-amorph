@@ -1,5 +1,0 @@
-fluorite_vt_servo:
-  ros__parameters:
-    pwm_pin: 13
-    angle_multiplier: 0.7
-    zero_offset_degs: -16.0

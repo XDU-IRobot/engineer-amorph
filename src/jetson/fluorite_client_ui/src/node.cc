@@ -9,7 +9,7 @@
 #include <rm2_referee_msgs/msg/robot_status.hpp>
 #include <rm2_referee_msgs/msg/remote_control.hpp>
 #include <rm2_referee_msgs/srv/tx.hpp>
-#include <fluorite_msgs/msg/arm_state.hpp>
+#include <amorph_msgs/msg/arm_state.hpp>
 
 #include "ui.h"
 #include "arm_renderer.hpp"
@@ -71,16 +71,16 @@ class FluoriteClientUINode : public rclcpp::Node {
           //     << ui_main_dynamic_pitch2->end_x << ", " << ui_main_dynamic_pitch2->end_y << ")\n";
           // RCLCPP_INFO(get_logger(), "%s", oss.str().c_str());
         });
-    arm_state_sub_ = create_subscription<fluorite_msgs::msg::ArmState>(
+    arm_state_sub_ = create_subscription<amorph_msgs::msg::ArmState>(
         "/fluorite/blackbox/arm_state", rclcpp::SystemDefaultsQoS(),
-        [&](const fluorite_msgs::msg::ArmState::SharedPtr msg) {
+        [&](const amorph_msgs::msg::ArmState::SharedPtr msg) {
           ui_main_dynamic_arm_pump->color = [&] {
             switch (msg->arm_pump) {
-              case fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_OFF:
+              case amorph_msgs::msg::ArmState::ARM_PUMP_STATE_OFF:
                 return 7;
-              case fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_SUCK:
+              case amorph_msgs::msg::ArmState::ARM_PUMP_STATE_SUCK:
                 return 2;
-              case fluorite_msgs::msg::ArmState::ARM_PUMP_STATE_BLOW:
+              case amorph_msgs::msg::ArmState::ARM_PUMP_STATE_BLOW:
                 return 3;
               default:
                 return 7;
@@ -90,23 +90,23 @@ class FluoriteClientUINode : public rclcpp::Node {
           ui_main_dynamic_right_storage->color = msg->right_storage ? 2 : 7;
 
           switch (msg->fsm_state) {
-            case fluorite_msgs::msg::ArmState::FSM_STATE_IDLE: {
+            case amorph_msgs::msg::ArmState::FSM_STATE_IDLE: {
               std::strcpy(ui_main_dynamic_arm_status->string, "         ");
               break;
             }
-            case fluorite_msgs::msg::ArmState::FSM_STATE_EXEC: {
+            case amorph_msgs::msg::ArmState::FSM_STATE_EXEC: {
               std::strcpy(ui_main_dynamic_arm_status->string, "EXECUTING");
               break;
             }
-            case fluorite_msgs::msg::ArmState::FSM_STATE_MANUAL: {
+            case amorph_msgs::msg::ArmState::FSM_STATE_MANUAL: {
               std::strcpy(ui_main_dynamic_arm_status->string, "MANUAL   ");
               break;
             }
-            case fluorite_msgs::msg::ArmState::FSM_STATE_NOFORCE: {
+            case amorph_msgs::msg::ArmState::FSM_STATE_NOFORCE: {
               std::strcpy(ui_main_dynamic_arm_status->string, "NOFORCE  ");
               break;
             }
-            case fluorite_msgs::msg::ArmState::FSM_STATE_RETRACTED: {
+            case amorph_msgs::msg::ArmState::FSM_STATE_RETRACTED: {
               std::strcpy(ui_main_dynamic_arm_status->string, "RETRACTED");
               break;
             }
@@ -161,7 +161,7 @@ class FluoriteClientUINode : public rclcpp::Node {
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
   rclcpp::Subscription<rm2_referee_msgs::msg::RemoteControl>::SharedPtr keyboard_sub_;
   rclcpp::Subscription<rm2_referee_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_;
-  rclcpp::Subscription<fluorite_msgs::msg::ArmState>::SharedPtr arm_state_sub_;
+  rclcpp::Subscription<amorph_msgs::msg::ArmState>::SharedPtr arm_state_sub_;
   rclcpp::TimerBase::SharedPtr ui_update_timer_{};
   rclcpp::TimerBase::SharedPtr tx_timer_{};
   std::deque<std::vector<uint8_t>> tx_queue_{};

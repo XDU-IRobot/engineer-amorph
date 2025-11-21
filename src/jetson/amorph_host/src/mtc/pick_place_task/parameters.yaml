@@ -1,7 +1,4 @@
 pick_place_task:
-  execute:
-    type: bool
-    default_value: false
   table_name:
     type: string
     validation:

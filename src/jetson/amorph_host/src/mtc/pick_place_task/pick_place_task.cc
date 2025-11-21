@@ -15,25 +15,20 @@ namespace amorph {
 
 namespace mtc = moveit::task_constructor;
 
-void SetupDemoScene(const pick_place_task::Params& params) {
+PickPlaceTask::PickPlaceTask(const std::string& task_name) : task_name_(task_name) {}
+
+bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
+  L::I("Initializing task pipeline");
+
+  const auto param_listener = std::make_shared<pick_place_task::ParamListener>(node);
+  const auto params = param_listener->get_params();
+
   // Add table and object to planning scene
   rclcpp::sleep_for(std::chrono::microseconds(100));  // Wait for ApplyPlanningScene service
   auto& mvh = MoveitHelper::GetInstance();
   mvh.SpawnObject(object_factory::Table(params.table_name, params.table_reference_frame, params.table_dimensions,
                                         params.table_pose));
   mvh.SpawnObject(object_factory::EnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
-}
-
-PickPlaceTask::PickPlaceTask(const std::string& task_name) : task_name_(task_name) {}
-
-bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
-  L::I("Initializing task pipeline");
-
-  const auto param_listener = std::make_shared<pick_place_task::ParamListener>(node, task_name_);
-  const auto params = param_listener->get_params();
-  SetupDemoScene(params);
-
-  const auto& mvh = amorph::MoveitHelper::GetInstance();
 
   // Reset ROS introspection before constructing the new object
   // TODO(v4hn): global storage for Introspection services to enable one-liner
@@ -386,24 +381,10 @@ bool PickPlaceTask::init(const rclcpp::Node::SharedPtr& node) {
   return true;
 }
 
-bool PickPlaceTask::plan(std::size_t max_solutions) {
+bool PickPlaceTask::Plan(std::size_t max_solutions) {
   L::I("Start searching for task solutions");
 
   return static_cast<bool>(task_->plan(max_solutions));
-}
-
-bool PickPlaceTask::execute() {
-  L::I("Executing solution trajectory");
-  moveit_msgs::msg::MoveItErrorCodes execute_result;
-
-  execute_result = task_->execute(*task_->solutions().front());
-
-  if (execute_result.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
-    L::E("Task execution failed and returned: %d", execute_result.val);
-    return false;
-  }
-
-  return true;
 }
 
 }  // namespace amorph
