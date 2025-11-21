@@ -15,6 +15,12 @@ THIRDPARTY_PACKAGES = [
     "moveit_task_constructor_msgs",
     "moveit_task_constructor_capabilities",
     "moveit_task_constructor_visualization",
+    # rm2
+    "rm2_referee",
+    "rm2_remote",
+    # sbus_ros2
+    "sbus_bridge",
+    "sbus_interface",
 ]
 
 CMAKE_ARGS = [
@@ -30,22 +36,27 @@ ARGS = ["--merge-install", "--symlink-install", "--cmake-force-configure",
 def main():
     parser = argparse.ArgumentParser(description='Build ROS 2 workspace with MTC')
     parser.add_argument('-j', '--jobs', type=int, default=12,
-                        help='Number of parallel jobs for MTC compilation (default: 12)')
+                        help='Number of parallel jobs for thirdparty compilation (default: 12)')
+    parser.add_argument('-s', '--skip-thirdparty', action='store_true',
+                        help='Skip building thirdparty packages (assumes they are already built)')
     args = parser.parse_args()
-    
-    # 先编mtc，这个包编译特别慢，而且不会有任何改动，所以单独编好放在另外的build目录不再动
-    env = os.environ.copy()
-    env["MAKEFLAGS"] = f"-j {args.jobs}"      # 并行数太多内存会爆
     
     # Use sys.executable to run colcon module, ensuring we stay in the current python environment (venv)
     colcon_cmd = [sys.executable, "-m", "colcon"]
-
-    status = subprocess.run(colcon_cmd + ["build", "--parallel-workers", "1", "--build-base", "build_mtc", "--install-base", "install_mtc",
-                            "--packages-select", *THIRDPARTY_PACKAGES, *ARGS], env=env)
-    if status.returncode != 0:
-        return status.returncode
     
-    # source编译好的mtc和rs-ros
+    # 先编第三方的包，这些包不会有任何改动，所以单独编好放在另外的build和install目录不再动
+    if not args.skip_thirdparty:
+        env = os.environ.copy()
+        env["MAKEFLAGS"] = f"-j {args.jobs}"      # 并行数太多内存会爆
+
+        status = subprocess.run(colcon_cmd + ["build", "--parallel-workers", "1", "--build-base", "build_mtc", "--install-base", "install_mtc",
+                                "--packages-select", *THIRDPARTY_PACKAGES, *ARGS], env=env)
+        if status.returncode != 0:
+            return status.returncode
+    else:
+        print("Skipping thirdparty packages compilation (--skip-thirdparty flag set)")
+    
+    # source编译好的thirdparty packages
     workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     mtc_setup = os.path.join(workspace_root, "install_mtc", "setup.bash")
     env_for_build = os.environ.copy()

@@ -7,7 +7,7 @@ if [ "$command" == "create" ]; then
 elif [ "$command" == "start" ]; then
     docker start amorph_container
 elif [ "$command" == "attach" ]; then
-    docker attach -i amorph_container
+    docker attach --detach-keys="ctrl-x" amorph_container
 else
     echo "Usage: $0 {create|start|attach}"
     exit 1

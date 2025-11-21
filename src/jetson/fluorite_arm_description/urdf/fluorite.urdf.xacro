@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="fluorite">
-  <xacro:arg name="use_mock_hardware" default="false" />
-
-  <!-- base urdf -->
-  <xacro:include filename="$(find fluorite_arm_description)/urdf/fluorite_arm_description.urdf.xacro" />
-
-</robot>

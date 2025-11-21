@@ -33,6 +33,7 @@ class AmorphArmNode {
                                                          .allow_undeclared_parameters(true)  //
                                                          .automatically_declare_parameters_from_overrides(true))} {
     // 临时创建一个节点用来获取参数，避免污染其他两个主程序节点的命名空间
+    // TODO: 这样搞不行，明天修一下
     auto param_getter_node = std::make_shared<rclcpp::Node>("param_getter_node",                    //
                                                             rclcpp::NodeOptions()                   //
                                                                 .allow_undeclared_parameters(true)  //
@@ -53,7 +54,7 @@ class AmorphArmNode {
         std::this_thread::sleep_for(100ms);
       }
       const auto &task = mtc_tasks_.pick_place_task.task();
-      task->reset();
+      // task->reset();
       mtc_tasks_.pick_place_task.Init(mtc_ros_node_);
       mtc_tasks_.pick_place_task.Plan(10);
       task->publishAllSolutions(false);
