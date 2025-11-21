@@ -214,7 +214,7 @@ class EnergyUnitLocator(Node):
             return
 
         # 推理
-        results = self.model(cv_rgb, verbose=False, conf=self.conf_thresh)
+        results = self.model(cv_rgb, verbose=True, conf=self.conf_thresh)
 
         for result in results:
             if result.masks is None:
