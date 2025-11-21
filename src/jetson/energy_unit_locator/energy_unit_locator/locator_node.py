@@ -1,4 +1,13 @@
 import os
+# 解决 Jetson 平台 libgomp.so.1 TLS 加载问题
+import sys
+import ctypes
+try:
+    ctypes.CDLL('/lib/aarch64-linux-gnu/libgomp.so.1', mode=ctypes.RTLD_GLOBAL)
+except OSError:
+    # 非 ARM64 平台或库不存在时忽略
+    pass
+
 import rclpy
 import time
 from rclpy.node import Node
