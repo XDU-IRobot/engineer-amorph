@@ -8,8 +8,7 @@ __pycache__
 
 custom_ctrl_build
 
-build_mtc
-install_mtc
+build_3rdparty
 build
 install
 log

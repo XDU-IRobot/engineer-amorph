@@ -17,7 +17,6 @@ from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
 from geometry_msgs.msg import TransformStamped
 from std_srvs.srv import SetBool
 import struct
-from amorph_msgs.srv import GetAccuratePose
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -40,11 +39,7 @@ class EnergyUnitLocator(Node):
         self.enabled = True
         self.srv = self.create_service(SetBool, 'enable_locator', self.enable_callback)
 
-        # 精确测量服务
-        self.collecting = False
-        self.collected_poses = []
-        self.cb_group = ReentrantCallbackGroup()
-        self.measure_srv = self.create_service(GetAccuratePose, 'get_accurate_pose', self.measure_callback, callback_group=self.cb_group)
+        
 
         # 获取模型路径
         model_path = self.get_parameter('model_path').get_parameter_value().string_value
@@ -93,60 +88,6 @@ class EnergyUnitLocator(Node):
         response.success = True
         response.message = f"Locator enabled: {self.enabled}"
         self.get_logger().info(response.message)
-        return response
-
-    def measure_callback(self, request, response):
-        self.get_logger().info(f"Starting accurate measurement for {request.duration} seconds...")
-        
-        # 确保节点是开启的
-        original_enabled = self.enabled
-        self.enabled = True
-        
-        self.collected_poses = []
-        self.collecting = True
-        
-        # 收集数据
-        time.sleep(request.duration)
-        
-        self.collecting = False
-        self.enabled = original_enabled # 恢复原来的状态
-        
-        if not self.collected_poses:
-            response.success = False
-            response.message = "No energy units detected during the measurement period."
-            self.get_logger().warn(response.message)
-            return response
-            
-        # 数据融合：去除离群点并取平均
-        poses = np.array(self.collected_poses) # shape: (N, 3)
-        
-        # 简单的统计滤波：去除距离均值超过2倍标准差的点
-        mean = np.mean(poses, axis=0)
-        std = np.std(poses, axis=0)
-        
-        # 避免标准差为0的情况
-        std[std == 0] = 1e-6
-        
-        z_scores = np.abs((poses - mean) / std)
-        valid_mask = (z_scores < 2).all(axis=1)
-        
-        valid_poses = poses[valid_mask]
-        
-        if len(valid_poses) == 0:
-            # 如果所有点都被过滤了（不太可能），就退回到原始均值
-            final_pose = mean
-        else:
-            final_pose = np.mean(valid_poses, axis=0)
-            
-        response.success = True
-        response.message = f"Measurement successful. Collected {len(poses)} samples, used {len(valid_poses)} valid samples."
-        response.pose.position.x = final_pose[0]
-        response.pose.position.y = final_pose[1]
-        response.pose.position.z = final_pose[2]
-        # 旋转保持默认（单位四元数）
-        response.pose.orientation.w = 1.0
-        
-        self.get_logger().info(f"Result: x={final_pose[0]:.4f}, y={final_pose[1]:.4f}, z={final_pose[2]:.4f}")
         return response
 
     def info_callback(self, msg):
@@ -256,9 +197,6 @@ class EnergyUnitLocator(Node):
                 # Y = (v - cy) * Z / fy
                 x_meters = (cX - self.intrinsics['cx']) * z_meters / self.intrinsics['fx']
                 y_meters = (cY - self.intrinsics['cy']) * z_meters / self.intrinsics['fy']
-
-                if self.collecting:
-                    self.collected_poses.append([x_meters, y_meters, z_meters])
 
                 # 生成mask区域的点云用于可视化
                 ys, xs = np.where(binary_mask)

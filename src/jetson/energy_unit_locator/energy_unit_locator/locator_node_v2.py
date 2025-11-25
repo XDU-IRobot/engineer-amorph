@@ -19,7 +19,6 @@ from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
 from geometry_msgs.msg import TransformStamped
 from std_srvs.srv import SetBool
 import struct
-from amorph_msgs.srv import GetAccuratePose
 from cv_bridge import CvBridge
 import cv2
 import numpy as np

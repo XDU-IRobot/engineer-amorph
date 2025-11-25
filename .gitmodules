@@ -1,15 +1,9 @@
-[submodule "src/robomaster2"]
+[submodule "src/jetson/robomaster2"]
 	path = src/jetson/robomaster2
 	url = https://github.com/XDU-IRobot/robomaster2.git
-[submodule "src/common/sbus_ros2"]
+[submodule "src/jetson/sbus_ros2"]
 	path = src/jetson/sbus_ros2
 	url = https://github.com/eryeden/sbus_ros2.git
-[submodule "src/opi/fluorite_behaviour_tree/libs/rapidjson"]
-	path = src/jetson/fluorite_behaviour_tree/libs/rapidjson
-	url = https://github.com/Tencent/rapidjson.git
-[submodule "src/opi/fluorite_behaviour_tree/libs/tweeny"]
-	path = src/jetson/fluorite_behaviour_tree/libs/tweeny
-	url = https://github.com/mobius3/tweeny.git
 [submodule "src/stm32/amorph_arm_controller/libs/librm"]
 	path = src/stm32/amorph_arm_controller/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
@@ -27,19 +21,19 @@
 [submodule "src/stm32/amorph_custom_controller/libs/CMSIS-DSP"]
 	path = src/stm32/amorph_custom_controller/libs/CMSIS-DSP
 	url = https://github.com/ARM-software/CMSIS-DSP.git
-[submodule "src/jetson/amorph_host/libs/librm"]
-	path = src/jetson/amorph_host/libs/librm
+[submodule "src/jetson/amorph_transport/libs/librm"]
+	path = src/jetson/amorph_transport/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
-[submodule "src/jetson/amorph_host/libs/rpc_core"]
-	path = src/jetson/amorph_host/libs/rpc_core
+[submodule "src/jetson/amorph_transport/libs/rpc_core"]
+	path = src/jetson/amorph_transport/libs/rpc_core
 	url = https://github.com/shuai132/rpc_core.git
 [submodule "src/jetson/moveit_task_constructor"]
 	path = src/jetson/moveit_task_constructor
 	url = https://github.com/moveit/moveit_task_constructor.git
 	branch = jazzy
-[submodule "src/jetson/amorph_host/libs/pfr"]
-	path = src/jetson/amorph_host/libs/pfr
+[submodule "src/jetson/amorph_transport/libs/pfr"]
+	path = src/jetson/amorph_transport/libs/pfr
 	url = https://github.com/boostorg/pfr.git
 [submodule "src/jetson/OrbbecSDK_ROS2"]
 	path = src/jetson/OrbbecSDK_ROS2

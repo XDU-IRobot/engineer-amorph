@@ -32,34 +32,36 @@ CMAKE_ARGS = [
 ]
 
 ARGS = ["--merge-install", "--symlink-install", "--cmake-force-configure",
-    "--packages-ignore", *IGNORE_PACKAGES, "--cmake-args", *CMAKE_ARGS]
+        "--packages-ignore", *IGNORE_PACKAGES, "--cmake-args", *CMAKE_ARGS]
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Build ROS 2 workspace with MTC')
+    parser = argparse.ArgumentParser()
     parser.add_argument('-j', '--jobs', type=int, default=12,
                         help='Number of parallel jobs for thirdparty compilation (default: 12)')
-    parser.add_argument('-s', '--skip-thirdparty', action='store_true',
-                        help='Skip building thirdparty packages (assumes they are already built)')
+    parser.add_argument('-f', '--fast', action='store_true',
+                        help='Parallel build third-party packages.')
     args = parser.parse_args()
-    
+
     # Use sys.executable to run colcon module, ensuring we stay in the current python environment (venv)
     colcon_cmd = [sys.executable, "-m", "colcon"]
-    
-    # 先编第三方的包，这些包不会有任何改动，所以单独编好放在另外的build和install目录不再动
-    if not args.skip_thirdparty:
-        env = os.environ.copy()
-        env["MAKEFLAGS"] = f"-j {args.jobs}"      # 并行数太多内存会爆
 
-        status = subprocess.run(colcon_cmd + ["build", "--parallel-workers", "1", "--build-base", "build_mtc", "--install-base", "install_mtc",
-                                "--packages-select", *THIRDPARTY_PACKAGES, *ARGS], env=env)
-        if status.returncode != 0:
-            return status.returncode
+    # 先编第三方的包，这些包不会有任何改动，所以单独编好放在另外的build和install目录不再动
+    env = os.environ.copy()
+    env["MAKEFLAGS"] = f"-j {args.jobs}"      # 并行数太多内存会爆
+    if args.fast:
+        status = subprocess.run(colcon_cmd + ["build", "--build-base", "build_3rdparty",
+                                              "--packages-select", *THIRDPARTY_PACKAGES, *ARGS], env=env)
     else:
-        print("Skipping thirdparty packages compilation (--skip-thirdparty flag set)")
-    
+        status = subprocess.run(colcon_cmd + ["build", "--parallel-workers", "1", "--build-base", "build_3rdparty",
+                                              "--packages-select", *THIRDPARTY_PACKAGES, *ARGS], env=env)
+    if status.returncode != 0:
+        return status.returncode
+
     # source编译好的thirdparty packages
-    workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    mtc_setup = os.path.join(workspace_root, "install_mtc", "setup.bash")
+    workspace_root = os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))
+    mtc_setup = os.path.join(workspace_root, "install", "setup.bash")
     env_for_build = os.environ.copy()
     # 通过bash执行source命令并导出环境变量
     result = subprocess.run(
@@ -73,7 +75,7 @@ def main():
             if '=' in line:
                 key, value = line.split('=', 1)
                 env_for_build[key] = value
-    
+
     # 然后编剩下的包
     status = subprocess.run(
         colcon_cmd + ["build", "--cmake-force-configure", "--packages-skip", *THIRDPARTY_PACKAGES, *ARGS], env=env_for_build)
