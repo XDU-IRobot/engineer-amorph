@@ -29,6 +29,7 @@ setup(
     entry_points={
         'console_scripts': [
             'locator = energy_unit_locator.locator_node:main',
+            'locator_v2 = energy_unit_locator.locator_node_v2:main',
             'yolo_test = energy_unit_locator.yolo_test_node:main',
         ],
     },

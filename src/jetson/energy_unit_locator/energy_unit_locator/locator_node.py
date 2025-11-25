@@ -13,9 +13,10 @@ import time
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image, CameraInfo, PointCloud2, PointField
 from geometry_msgs.msg import TransformStamped
 from std_srvs.srv import SetBool
+import struct
 from amorph_msgs.srv import GetAccuratePose
 from cv_bridge import CvBridge
 import cv2
@@ -32,6 +33,8 @@ class EnergyUnitLocator(Node):
         # 参数
         self.declare_parameter('model_path', '')
         self.declare_parameter('confidence_threshold', 0.5)
+        self.declare_parameter('erosion_kernel_size', 5)
+        self.declare_parameter('erosion_iterations', 1)
         
         # 开关服务的状态
         self.enabled = True
@@ -53,9 +56,14 @@ class EnergyUnitLocator(Node):
         self.get_logger().info(f'Loading YOLO model from: {model_path}')
         self.model = YOLO(model_path)
         self.conf_thresh = self.get_parameter('confidence_threshold').get_parameter_value().double_value
+        self.erosion_kernel_size = self.get_parameter('erosion_kernel_size').get_parameter_value().integer_value
+        self.erosion_iterations = self.get_parameter('erosion_iterations').get_parameter_value().integer_value
 
         # tf broadcaster
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
+        
+        # 点云发布器,用于可视化调试
+        self.pointcloud_pub = self.create_publisher(PointCloud2, 'masked_pointcloud', 10)
 
         self.bridge = CvBridge()
 
@@ -63,13 +71,13 @@ class EnergyUnitLocator(Node):
         self.intrinsics = None
         self.sub_info = self.create_subscription(
             CameraInfo,
-            '/camera/camera/aligned_depth_to_color/camera_info',
+            '/camera/depth/camera_info',
             self.info_callback,
             10)
 
         # 对齐到彩色的深度图
-        self.sub_rgb = message_filters.Subscriber(self, Image, '/camera/camera/color/image_raw')
-        self.sub_depth = message_filters.Subscriber(self, Image, '/camera/camera/aligned_depth_to_color/image_raw')
+        self.sub_rgb = message_filters.Subscriber(self, Image, '/camera/color/image_raw')
+        self.sub_depth = message_filters.Subscriber(self, Image, '/camera/depth/image_raw')
 
         self.ts = message_filters.ApproximateTimeSynchronizer(
             [self.sub_rgb, self.sub_depth], 
@@ -227,12 +235,15 @@ class EnergyUnitLocator(Node):
             if masks.shape[1:] != cv_depth.shape:
                  masks = np.array([cv2.resize(mask, (cv_depth.shape[1], cv_depth.shape[0]), interpolation=cv2.INTER_NEAREST) for mask in masks])
 
+            # 收集所有mask后的点云用于可视化
+            all_points = []
+            
             for i, mask in enumerate(masks):
                 binary_mask = mask.astype(bool)
                 
-                # 出来的mask可能会有一点边边露出背景，所以把边缘腐蚀掉一点，确保只取到目标部分
-                kernel = np.ones((5, 5), np.uint8)
-                eroded_mask = cv2.erode(mask.astype(np.uint8), kernel, iterations=1)
+                # 出来的mask可能会有一点边边露出背景,所以把边缘腐蚀掉一点,确保只取到目标部分
+                kernel = np.ones((self.erosion_kernel_size, self.erosion_kernel_size), np.uint8)
+                eroded_mask = cv2.erode(mask.astype(np.uint8), kernel, iterations=self.erosion_iterations)
                 binary_mask = eroded_mask.astype(bool)
 
                 cX, cY, z_meters = self.compute_depth_and_centroid(mask, boxes[i], cv_depth, binary_mask)
@@ -248,6 +259,19 @@ class EnergyUnitLocator(Node):
 
                 if self.collecting:
                     self.collected_poses.append([x_meters, y_meters, z_meters])
+
+                # 生成mask区域的点云用于可视化
+                ys, xs = np.where(binary_mask)
+                for y, x in zip(ys, xs):
+                    depth = cv_depth[y, x]
+                    if depth > 0:
+                        z = depth / 1000.0
+                        px = (x - self.intrinsics['cx']) * z / self.intrinsics['fx']
+                        py = (y - self.intrinsics['cy']) * z / self.intrinsics['fy']
+                        # 获取对应的RGB值
+                        b, g, r = cv_rgb[y, x]
+                        rgb = struct.unpack('I', struct.pack('BBBB', b, g, r, 255))[0]
+                        all_points.append([px, py, z, rgb])
 
                 # 发布TF
                 t = TransformStamped()
@@ -266,6 +290,37 @@ class EnergyUnitLocator(Node):
                 t.transform.rotation.w = 1.0
 
                 self.tf_broadcaster.sendTransform(t)
+            
+            # 发布点云
+            if all_points:
+                self.publish_pointcloud(all_points, depth_msg.header)
+    
+    def publish_pointcloud(self, points, header):
+        """发布点云用于可视化"""
+        fields = [
+            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+            PointField(name='rgb', offset=12, datatype=PointField.UINT32, count=1),
+        ]
+        
+        # 打包点云数据
+        cloud_data = []
+        for point in points:
+            cloud_data.append(struct.pack('fffI', point[0], point[1], point[2], int(point[3])))
+        
+        cloud_msg = PointCloud2()
+        cloud_msg.header = header
+        cloud_msg.height = 1
+        cloud_msg.width = len(points)
+        cloud_msg.fields = fields
+        cloud_msg.is_bigendian = False
+        cloud_msg.point_step = 16
+        cloud_msg.row_step = cloud_msg.point_step * cloud_msg.width
+        cloud_msg.is_dense = True
+        cloud_msg.data = b''.join(cloud_data)
+        
+        self.pointcloud_pub.publish(cloud_msg)
 
 def main(args=None):
     rclpy.init(args=args)

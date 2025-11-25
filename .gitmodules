@@ -41,3 +41,9 @@
 [submodule "src/jetson/amorph_host/libs/pfr"]
 	path = src/jetson/amorph_host/libs/pfr
 	url = https://github.com/boostorg/pfr.git
+[submodule "src/jetson/OrbbecSDK_ROS2"]
+	path = src/jetson/OrbbecSDK_ROS2
+	url = https://github.com/orbbec/OrbbecSDK_ROS2.git
+[submodule "src/jetson/easy_handeye2"]
+	path = src/jetson/easy_handeye2
+	url = https://github.com/marcoesposito1988/easy_handeye2.git

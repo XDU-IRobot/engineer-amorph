@@ -16,7 +16,8 @@ THIRDPARTY_PACKAGES = [
     "moveit_task_constructor_capabilities",
     "moveit_task_constructor_visualization",
     # rm2
-    "rm2_referee",
+    "referee_node",
+    "rm2_referee_msgs",
     "rm2_remote",
     # sbus_ros2
     "sbus_bridge",
