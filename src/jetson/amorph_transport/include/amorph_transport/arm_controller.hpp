@@ -22,12 +22,10 @@ class ArmControllerNode : public rclcpp::Node {
   rclcpp_action::Server<FollowJointTrajectory>::SharedPtr action_server_;
   RPC stm32_;
 
-  rclcpp_action::GoalResponse handle_goal(
-      const rclcpp_action::GoalUUID &uuid,
-      std::shared_ptr<const FollowJointTrajectory::Goal> goal);
+  rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID &uuid,
+                                          std::shared_ptr<const FollowJointTrajectory::Goal> goal);
 
-  rclcpp_action::CancelResponse handle_cancel(
-      const std::shared_ptr<GoalHandleFollowJointTrajectory> goal_handle);
+  rclcpp_action::CancelResponse handle_cancel(const std::shared_ptr<GoalHandleFollowJointTrajectory> goal_handle);
 
   void handle_accepted(const std::shared_ptr<GoalHandleFollowJointTrajectory> goal_handle);
 

@@ -62,7 +62,6 @@ class AmorphMasterNode {
   }
 
  protected:
-
   /**
    * @brief 开始接收所有链路的用户输入：sbus遥控器、图传链路键鼠、自定义控制器
    */
