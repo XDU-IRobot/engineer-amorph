@@ -1,20 +1,27 @@
 
 #pragma once
 
+#include <array>
+
 #include <librm.hpp>
-#include <etl/array.h>
 
 #include "dynamics.hpp"
 #include "trajectory_tracker.hpp"
-#include "etl_stl_portals.hpp"
 
 class ArmController {
  public:
   template <size_t NJoints>
   struct Output {
-    etl::array<float, NJoints> positions;   ///< 关节位置输出，单位：rad
-    etl::array<float, NJoints> velocities;  ///< 关节速度输出，单位：rad/s
-    etl::array<float, NJoints> efforts;     ///< 关节力矩输出，单位：Nm
+    static Output Zero() {
+      Output out;
+      out.positions.fill(0.f);
+      out.velocities.fill(0.f);
+      out.efforts.fill(0.f);
+      return out;
+    }
+    std::array<float, NJoints> positions;   ///< 关节位置输出，单位：rad
+    std::array<float, NJoints> velocities;  ///< 关节速度输出，单位：rad/s
+    std::array<float, NJoints> efforts;     ///< 关节力矩输出，单位：Nm
   };
 
   enum Status {
@@ -57,7 +64,7 @@ class ArmController {
     }
   }
 
-  void Update(etl::array<float, 6> current_positions, etl::array<float, 6> current_velocities, float dt = 1.f) {
+  void Update(std::array<float, 6> current_positions, std::array<float, 6> current_velocities, float dt = 1.f) {
     current_positions_ = current_positions;
     trajectory_tracker_.Update();
     const auto &ref_point = trajectory_tracker_.current_point();
@@ -88,15 +95,14 @@ class ArmController {
       output_.positions = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
       output_.velocities = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
       output_.efforts = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
-      return;
     }
   }
 
-  void ResetAt(etl::array<float, 6> positions) {
+  void ResetAt(std::array<float, 6> positions) {
     current_positions_ = positions;
     trajectory_tracker_.SwitchReferenceTrajectory([&] {
       JointTrajectoryPoint point;
-      point.positions = etl_array_to_std_vector(positions);
+      point.positions = std::vector(positions.begin(), positions.end());
       point.velocities = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
       return point;
     }());
@@ -152,7 +158,7 @@ class ArmController {
     if (tracker_finished && all_limiters_converged) {
       const auto position_delta = [&] {
         const auto target_position = trajectory_tracker_.current_point().positions;
-        etl::array<float, 6> deltas;
+        std::array<float, 6> deltas;
         for (size_t i = 0; i < 6; ++i) {
           deltas[i] = std::abs(target_position[i] - current_positions_[i]);
         }
@@ -168,29 +174,29 @@ class ArmController {
       }
       fault_counter_++;  // tracker和limiter都已经执行到位，但机械臂并没有到达目标位置，递增一次故障计数
       status_ =
-          fault_counter_ >= 20
-              ? kFault  // 20个周期仍然没有到达目标，可能是撞到东西了，也可能是电机离线没有反馈了，总之进入故障状态停止运行
-              : kExecuting;  // 20个周期以内暂时认为机械臂还在执行中
+          fault_counter_ >= 500
+              ? kFault  // 500个周期仍然没有到达目标，可能是撞到东西了，也可能是电机离线没有反馈了，总之进入故障状态停止运行
+              : kExecuting;  // 500个周期以内暂时认为机械臂还在执行中
       return;
     }
     status_ = kExecuting;
   }
 
  private:
-  etl::array<float, 6> current_positions_{};
+  std::array<float, 6> current_positions_{};
   Output<6> output_{};
   TrajectoryTracker<6> trajectory_tracker_{{-M_PI, M_PI}, {-M_PI, M_PI}, {-M_PI, M_PI},
                                            {-M_PI, M_PI}, {-M_PI, M_PI}, {-M_PI, M_PI}};  // placeholder joint limits
   DynamicModel dynamic_model_;
-  etl::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_  //
+  std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_  //
       {rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
        rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
        rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
        rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
        rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
        rm::modules::TrajectoryLimiter{1.f, 1.f}};
-  etl::array<rm::modules::PID, 6> speed_pid_;
-  etl::array<rm::modules::PID, 6> position_pid_;
+  std::array<rm::modules::PID, 6> speed_pid_;
+  std::array<rm::modules::PID, 6> position_pid_;
 
   Status status_{kIdle};
   int fault_counter_{0};

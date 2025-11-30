@@ -24,15 +24,13 @@ class PollingTimer {
     // and then clear them from the main list. This avoids iterator invalidation issues.
     std::vector<std::function<void()>> to_run;
 
-    tasks_.erase(std::remove_if(tasks_.begin(), tasks_.end(),
-                                [&](const Task& task) {
-                                  if (task.due_time <= now) {
-                                    to_run.push_back(task.func);
-                                    return true;  // Remove from tasks_
-                                  }
-                                  return false;
-                                }),
-                 tasks_.end());
+    std::erase_if(tasks_, [&](const Task& task) {
+      if (task.due_time <= now) {
+        to_run.push_back(task.func);
+        return true;  // Remove from tasks_
+      }
+      return false;
+    });
 
     for (auto& func : to_run) {
       func();

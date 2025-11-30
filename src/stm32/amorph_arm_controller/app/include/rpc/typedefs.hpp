@@ -4,7 +4,6 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 #include <rpc_core.hpp>
 
@@ -16,22 +15,6 @@ struct LogMessage {
   LogLevel log_level{LogLevel::kInfo};
   std::string str;
   RPC_CORE_DEFINE_TYPE_INNER(log_level, str);
-};
-
-/**
- * @note    host -> slave only
- */
-struct Heartbeat {
-  uint8_t seq;
-  RPC_CORE_DEFINE_TYPE_INNER(seq);
-};
-
-/**
- * @note    slave -> host only
- */
-struct HeartbeatAck {
-  uint8_t seq;
-  RPC_CORE_DEFINE_TYPE_INNER(seq);
 };
 
 /**

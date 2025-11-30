@@ -1,6 +1,7 @@
 
 #include "tim.h"
 
+#include "rpc/host_api.hpp"
 #include "bsp/timer_task.hpp"
 #include "globals.hpp"
 
@@ -32,6 +33,8 @@ extern "C" {
 [[noreturn]] void AppMain(void) {
   globals = new Globals;
   globals->Init();
+
+  host::Init(globals->rpc.rpc());
 
   // 创建主循环定时任务，定频1khz
   TimerTask mainloop_1000hz{

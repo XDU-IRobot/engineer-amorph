@@ -1,12 +1,9 @@
 #pragma once
 
-#include <format>
-
 #include <rpc_core.hpp>
 
 #include "fdcan_transport.hpp"
 #include "typedefs.hpp"
-#include "globals.hpp"
 #include "polling_timer.hpp"
 
 /**
@@ -57,50 +54,4 @@ class RPC {
   std::shared_ptr<rpc_core::rpc> rpc_{nullptr};
   std::shared_ptr<FdCanTransport> conn_{nullptr};
   PollingTimer timer_;  ///< 轮询定时器
-
-  // remote functions
- public:
-  template <typename... Args>
-  void Debug(const std::string &fmt, Args &&...args) {
-    LogMessage msg;
-    msg.log_level = LogMessage::LogLevel::kDebug;
-    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-    rpc_->cmd("log_message")->msg(msg)->call();
-  }
-
-  template <typename... Args>
-  void Info(const std::string &fmt, Args &&...args) {
-    LogMessage msg;
-    msg.log_level = LogMessage::LogLevel::kInfo;
-    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-    rpc_->cmd("log_message")->msg(msg)->call();
-  }
-
-  template <typename... Args>
-  void Warn(const std::string &fmt, Args &&...args) {
-    LogMessage msg;
-    msg.log_level = LogMessage::LogLevel::kWarn;
-    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-    rpc_->cmd("log_message")->msg(msg)->call();
-  }
-
-  template <typename... Args>
-  void Error(const std::string &fmt, Args &&...args) {
-    LogMessage msg;
-    msg.log_level = LogMessage::LogLevel::kError;
-    msg.str = fmt;
-    rpc_->cmd("log_message")->msg(msg)->call();
-  }
-
-  template <typename... Args>
-  [[noreturn]] void Fatal(const std::string &fmt, Args &&...args) {
-    LogMessage msg;
-    msg.log_level = LogMessage::LogLevel::kFatal;
-    msg.str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-    rpc_->cmd("log_message")->msg(msg)->call();
-    while (true) {
-    }
-  }
-
-  void ReportJointPosition(const JointPosition &jp) const { rpc_->cmd("joint_position")->msg(jp)->call(); }
 };
