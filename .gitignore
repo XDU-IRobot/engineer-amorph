@@ -12,6 +12,7 @@ build_3rdparty
 build
 install
 log
+Log
 
 *.ikcache
 

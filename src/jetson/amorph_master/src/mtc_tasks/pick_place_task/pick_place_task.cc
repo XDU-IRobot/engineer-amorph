@@ -5,9 +5,10 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
-#include "pick_place_task_params.hpp"
+#include "amorph_master/pick_place_task_params.hpp"
 #include "object_factory.hpp"
 #include "moveit_helper.hpp"
+#include <moveit/task_constructor/trajectory_execution_info.h>
 
 #include "logger.hpp"
 
@@ -22,6 +23,14 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
 
   const auto param_listener = std::make_shared<pick_place_task::ParamListener>(node);
   const auto params = param_listener->get_params();
+
+  // Prepare execution info for arm and hand using controller names (param defaults set in parameters.yaml)
+  mtc::TrajectoryExecutionInfo arm_exec_info;
+  arm_exec_info.controller_names = {params.arm_controller_name};
+  mtc::TrajectoryExecutionInfo hand_exec_info;
+  hand_exec_info.controller_names = {params.hand_controller_name};
+  mtc::TrajectoryExecutionInfo both_exec_info;
+  both_exec_info.controller_names = {params.arm_controller_name, params.hand_controller_name};
 
   // Add table and object to planning scene
   rclcpp::sleep_for(std::chrono::microseconds(100));  // Wait for ApplyPlanningScene service
@@ -90,6 +99,8 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     auto stage = std::make_unique<mtc::stages::MoveTo>("open hand", sampling_planner);
     stage->setGroup(params.hand_group_name);
     stage->setGoal(params.hand_open_pose);
+    // Explicitly set controller for hand trajectories
+    stage->properties().set("trajectory_execution_info", hand_exec_info);
     initial_state_ptr = stage.get();  // remember start state for monitoring grasp pose generator
     t.add(std::move(stage));
   }
@@ -106,6 +117,8 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     auto stage = std::make_unique<mtc::stages::Connect>("move to pick", planners);
     stage->setTimeout(5.0);
     stage->properties().configureInitFrom(mtc::Stage::PARENT);
+    // Connect composes arm and hand: set both controllers
+    stage->properties().set("trajectory_execution_info", both_exec_info);
     t.add(std::move(stage));
   }
 
@@ -137,6 +150,8 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.hand_frame;
       vec.vector.z = 1.0;
       stage->setDirection(vec);
+      // Likely belongs to arm (group inherited from task); be defensive and allow both controllers
+      stage->properties().set("trajectory_execution_info", both_exec_info);
       grasp->insert(std::move(stage));
     }
 
@@ -185,6 +200,8 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       auto stage = std::make_unique<mtc::stages::MoveTo>("close hand", sampling_planner);
       stage->setGroup(params.hand_group_name);
       stage->setGoal(params.hand_close_pose);
+      // Hand stage -> use hand controller
+      stage->properties().set("trajectory_execution_info", hand_exec_info);
       grasp->insert(std::move(stage));
     }
 
@@ -221,6 +238,8 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.world_frame;
       vec.vector.z = 1.0;
       stage->setDirection(vec);
+      // Arm lifting -> use arm controller
+      stage->properties().set("trajectory_execution_info", arm_exec_info);
       grasp->insert(std::move(stage));
     }
 
@@ -250,6 +269,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
         "move to place", mtc::stages::Connect::GroupPlannerVector{{params.arm_group_name, sampling_planner}});
     stage->setTimeout(5.0);
     stage->properties().configureInitFrom(mtc::Stage::PARENT);
+    stage->properties().set("trajectory_execution_info", both_exec_info);
     t.add(std::move(stage));
   }
 
@@ -279,6 +299,8 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.world_frame;
       vec.vector.z = -1.0;
       stage->setDirection(vec);
+      // Arm motion for lowering -> use arm controller
+      stage->properties().set("trajectory_execution_info", arm_exec_info);
       place->insert(std::move(stage));
     }
 
@@ -316,6 +338,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       auto stage = std::make_unique<mtc::stages::MoveTo>("open hand", sampling_planner);
       stage->setGroup(params.hand_group_name);
       stage->setGoal(params.hand_open_pose);
+      stage->properties().set("trajectory_execution_info", hand_exec_info);
       place->insert(std::move(stage));
     }
 
@@ -350,6 +373,8 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
       vec.header.frame_id = params.hand_frame;
       vec.vector.z = -1.0;
       stage->setDirection(vec);
+      // Retreat -> arm
+      stage->properties().set("trajectory_execution_info", arm_exec_info);
       place->insert(std::move(stage));
     }
 
@@ -367,6 +392,7 @@ bool PickPlaceTask::Init(const rclcpp::Node::SharedPtr& node) {
     stage->properties().configureInitFrom(mtc::Stage::PARENT, {"group"});
     stage->setGoal(params.arm_home_pose);
     stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
+    stage->properties().set("trajectory_execution_info", arm_exec_info);
     t.add(std::move(stage));
   }
 

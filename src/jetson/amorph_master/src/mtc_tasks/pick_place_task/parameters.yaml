@@ -65,6 +65,12 @@ pick_place_task:
     type: string
     validation:
       not_empty<>: []
+  arm_controller_name:
+    type: string
+    default_value: "panda_arm_controller"
+  hand_controller_name:
+    type: string
+    default_value: "panda_hand_controller"
   # Scene frames
   world_frame:
     type: string

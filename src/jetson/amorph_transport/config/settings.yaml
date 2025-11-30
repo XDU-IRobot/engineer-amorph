@@ -4,3 +4,5 @@
       can_port: "can0"
       mosi_frame_id: 0x23
       miso_frame_id: 0x33
+    arm_action_server_name: "/amorph_arm_controller/follow_joint_trajectory"
+    gripper_action_server_name: "/amorph_hand_controller/gripper_cmd"

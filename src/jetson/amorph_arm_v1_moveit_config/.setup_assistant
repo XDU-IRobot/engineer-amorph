@@ -1,0 +1,10 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: amorph_arm_v1_description
+    relative_path: urdf/amorph.urdf.xacro
+  srdf:
+    relative_path: config/amorph.srdf
+  package_settings:
+    author_name: lunarifish
+    author_email: messenger@lunariio.work
+    generated_timestamp: 1764232564

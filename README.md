@@ -48,6 +48,6 @@ sudo docker run --privileged --net=host --name moveit_test -it ros:jazzy
 
 ```bash
 sudo apt update
-sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library ros-jazzy-librealsense2 ros-jazzy-realsense2* ros-jazzy-py-binding-tools ros-jazzy-ros2-control
+sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library ros-jazzy-librealsense2 ros-jazzy-realsense2* ros-jazzy-py-binding-tools ros-jazzy-ros2-control ros-jazzy-moveit-ros-perception ros-jazzy-apriltag-ros
 unminimize
 ```

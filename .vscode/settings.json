@@ -43,6 +43,6 @@
     "--query-driver=gcc"
   ],
   "ros.distro": "humble",
-  "cmake.sourceDirectory": "/root/engineer-2025/src/custom_controller/t265/libs/librm/src",
+  "cmake.sourceDirectory": "/home/lunarifish/engineer-amorph/build_3rdparty/easy_handeye2_msgs/easy_handeye2_msgs__py",
   "github.copilot.chat.codeGeneration.useInstructionFiles": true
 }

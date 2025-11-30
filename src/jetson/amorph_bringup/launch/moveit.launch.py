@@ -1,85 +1,74 @@
-
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
-
-from launch_ros.actions import Node, SetParameter
-from launch_ros.substitutions import FindPackageShare
-
+from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
 from moveit_configs_utils.launches import generate_move_group_launch
 
 
 def generate_launch_description():
-    declared_arguments = list()
+    moveit_config = (
+        MoveItConfigsBuilder("amorph_arm_v1")
+        .planning_pipelines(pipelines=["ompl"])
+        .robot_description(file_path="config/amorph.urdf.xacro")
+        # .trajectory_execution(file_path="config/moveit_controllers.yaml")
+        .joint_limits(file_path="config/joint_limits.yaml")
+        .robot_description_kinematics(file_path="config/kinematics.yaml")
+        .to_moveit_configs()
+    )
 
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "description_package",
-            default_value="fluorite_arm_description",
-            description="Description package with robot URDF/xacro files. Usually the argument \
-        is not set, it enables use of a custom description.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "description_file",
-            default_value="fluorite.urdf.xacro",
-            description="URDF/XACRO description file with the robot.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "jsp",
-            default_value="false",
-            description="Start joint state publisher gui",
-        )
-    )
-    jsp = LaunchConfiguration("jsp")
+    # # Load  ExecuteTaskSolutionCapability so we can execute found solutions in simulation
+    # move_group_capabilities = {
+    #     "capabilities": "move_group/ExecuteTaskSolutionCapability"}
 
-    robot_description_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare(LaunchConfiguration("description_package")),
-                 "urdf", LaunchConfiguration("description_file")]
-            ),
-        ]
+    nodes = list()
+    
+    # Static TF(world -> arm_base)
+    static_tf_world_to_base = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="static_tf_world_to_base",
+        output="log",
+        arguments=["--frame-id", "world", "--child-frame-id", "arm_base"],
     )
-    robot_description = {"robot_description": robot_description_content}
+    nodes.append(static_tf_world_to_base)
 
-    moveit_config = MoveItConfigsBuilder(
-        "fluorite", package_name="fluorite_arm_moveit_config").to_moveit_configs()
+    # Static TF(arm_base -> link_1)
+    static_tf_base_to_arm = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="static_tf_base_to_arm",
+        output="log",
+        arguments=["--frame-id", "arm_base", "--child-frame-id", "link_1"],
+    )
+    nodes.append(static_tf_base_to_arm)
 
-    joint_state_publisher_gui_node = Node(
-        package="joint_state_publisher_gui",
-        executable="joint_state_publisher_gui",
-        condition=IfCondition(jsp),
+    # Static TF(arm_base -> camera_link)
+    static_tf_base_to_cam = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="static_tf_base_to_cam",
+        output="log",
+            arguments=["--frame-id", "arm_base", 
+                       "--child-frame-id", "camera_link",
+                       "--x", "0.0",
+                       "--y", "0.25",
+                       "--z", "0.75",
+                           "--qx", "0.0",
+                           "--qy", "0.0",
+                           "--qz", "-0.7071",
+                           "--qw", "0.7071"],
     )
-    joint_state_publisher_node = Node(
-        package="joint_state_publisher",
-        executable="joint_state_publisher",
-        parameters=[{"source_list": ["/fluorite/arm/joint_states", ],
-                     "rate": 50,}],
-        output="both",
-    )
-    robot_state_publisher_node = Node(
+    nodes.append(static_tf_base_to_cam)
+
+    # rsp
+    robot_state_publisher = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
+        # name="robot_state_publisher",
         output="both",
-        parameters=[robot_description],
+        parameters=[moveit_config.robot_description],
     )
+    nodes.append(robot_state_publisher)
 
-    nodes = [
-        joint_state_publisher_node,
-        joint_state_publisher_gui_node,
-        robot_state_publisher_node,
-    ]
-
-    launch = LaunchDescription(
-        declared_arguments + nodes + [SetParameter(name='use_sim_time', value=True),])
+    launch = LaunchDescription(nodes)
     launch.add_entity(generate_move_group_launch(moveit_config))
-
     return launch

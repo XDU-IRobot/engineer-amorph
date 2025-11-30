@@ -1,5 +1,3 @@
-./src/opi/fluorite_control/libs/*
-
 ./src/stm32/amorph_arm_controller/Core/*
 ./src/stm32/amorph_arm_controller/Drivers/*
 ./src/stm32/amorph_arm_controller/Middlewares/*

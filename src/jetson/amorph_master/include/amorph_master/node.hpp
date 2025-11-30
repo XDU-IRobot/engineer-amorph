@@ -12,6 +12,7 @@
 #include "var_memory.hpp"
 
 #include "pick_place_task/pick_place_task.hpp"
+#include "pick_energy_unit_task/pick_energy_unit_task.hpp"
 
 namespace amorph {
 
@@ -38,12 +39,18 @@ class AmorphMasterNode {
       while (!executor_running_.load()) {
         std::this_thread::sleep_for(100ms);
       }
-      const auto &task = mtc_tasks_.pick_place_task.task();
+      const auto &task = mtc_tasks_.pick_energy_unit_task.task();
       // task->reset();
-      mtc_tasks_.pick_place_task.Init(mtc_ros_node_);
-      mtc_tasks_.pick_place_task.Plan(10);
+      mtc_tasks_.pick_energy_unit_task.init(mtc_ros_node_);
+      mtc_tasks_.pick_energy_unit_task.plan(10);
       task->publishAllSolutions(false);
-      auto best_solution = task->solutions().front();
+      if (task->numSolutions() > 0) {
+        auto best_solution = task->solutions().front();
+      }
+
+      // std::this_thread::sleep_for(1s);
+      // L::I("Executing pick and place task..."_greenbg);
+      // task->execute(*best_solution);
     }).detach();
   }
 
@@ -121,6 +128,7 @@ class AmorphMasterNode {
   } subs_{};
   struct {
     PickPlaceTask pick_place_task{"pick_place_task"};
+    PickEnergyUnitTask pick_energy_unit_task{"pick_energy_unit_task"};
   } mtc_tasks_{};
 };
 

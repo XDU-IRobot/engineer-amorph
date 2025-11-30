@@ -22,7 +22,7 @@
   <exec_depend>moveit_task_constructor_visualization</exec_depend>
   <exec_depend>moveit_task_constructor_capabilities</exec_depend>
 
-  <exec_depend>fluorite_arm_moveit_config</exec_depend>
+  <exec_depend>amorph_arm_v1_moveit_config</exec_depend>
   <depend>rm2_referee_msgs</depend>
   <depend>sbus_interface</depend>
   <depend>keyboard_msgs</depend>

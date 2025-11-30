@@ -10,6 +10,7 @@ def generate_launch_description():
     node = Node(
         package=package,
         executable="amorph_transport_node",
+        name="amorph_transport",
         output="screen",
         parameters=[
             os.path.join(package_shared_path, "config", "settings.yaml"),

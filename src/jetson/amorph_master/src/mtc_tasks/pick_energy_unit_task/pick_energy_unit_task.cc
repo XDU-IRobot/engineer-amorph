@@ -4,7 +4,7 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
-#include "pick_energy_unit_task_params.hpp"
+#include "amorph_master/pick_energy_unit_task_params.hpp"
 #include "object_factory.hpp"
 #include "moveit_helper.hpp"
 
@@ -16,10 +16,9 @@ namespace mtc = moveit::task_constructor;
 
 PickEnergyUnitTask::PickEnergyUnitTask(const std::string& task_name) : task_name_(task_name) {}
 
-bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometry_msgs::msg::Pose& object_pose) {
+bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
   L::I("Initializing PickEnergyUnitTask pipeline");
 
-  // 这里暂时复用 pick_place_task 的参数，实际项目中建议新建一个 parameters.yaml
   const auto param_listener = std::make_shared<pick_energy_unit_task::ParamListener>(node, "pick_energy_unit_task");
   const auto params = param_listener->get_params();
 
@@ -32,7 +31,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
 
   // 生成能量单元物体
   // 注意：这里使用传入的 object_pose
-  mvh.SpawnObject(object_factory::EnergyUnit(params.object_name, params.object_reference_frame, object_pose));
+  mvh.SpawnObject(object_factory::EnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
 
   // Reset ROS introspection before constructing the new object
   task_.reset();
@@ -113,6 +112,16 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
     t.properties().exposeTo(grasp->properties(), {"eef", "hand", "group", "ik_frame"});
     grasp->properties().configureInitFrom(mtc::Stage::PARENT, {"eef", "hand", "group", "ik_frame"});
 
+    // 在 grasp container 最前面允许夹爪与物体碰撞
+    {
+      auto allow_collision_grasp =
+          std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object) for grasp");
+      allow_collision_grasp->allowCollisions(
+          params.object_name,
+          t.getRobotModel()->getJointModelGroup(params.hand_group_name)->getLinkModelNamesWithCollisionGeometry(),
+          true);
+      grasp->insert(std::move(allow_collision_grasp));
+    }
     /****************************************************
      *               Approach Object                    *
      ***************************************************/
@@ -126,7 +135,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
       // Set hand forward direction
       geometry_msgs::msg::Vector3Stamped vec;
       vec.header.frame_id = params.hand_frame;
-      vec.vector.z = 1.0;
+      vec.vector.x = 1.0;
       stage->setDirection(vec);
       grasp->insert(std::move(stage));
     }
@@ -136,10 +145,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
      ***************************************************/
     {
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object)");
-      stage->allowCollisions(
-          params.object_name,
-          t.getRobotModel()->getJointModelGroup(params.hand_group_name)->getLinkModelNamesWithCollisionGeometry(),
-          true);
+      stage->allowCollisions(params.object_name, true);
       grasp->insert(std::move(stage));
     }
 
@@ -167,6 +173,13 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
     /****************************************************
      *               Close Hand                         *
      ***************************************************/
+    // 在 close hand 前允许夹爪与物体碰撞
+    {
+      auto allow_collision_close =
+          std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object) for close");
+      allow_collision_close->allowCollisions(params.object_name, true);
+      grasp->insert(std::move(allow_collision_close));
+    }
     {
       auto stage = std::make_unique<mtc::stages::MoveTo>("close hand", sampling_planner);
       stage->setGroup(params.hand_group_name);
@@ -205,6 +218,27 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
     t.add(std::move(grasp));
   }
 
+  /******************************************************
+   *                                                    *
+   *          Move to Home                              *
+   *                                                    *
+   *****************************************************/
+  {
+    auto stage = std::make_unique<mtc::stages::MoveTo>("move home", sampling_planner);
+    stage->properties().configureInitFrom(mtc::Stage::PARENT, {"group"});
+    stage->setGoal(params.arm_home_pose);
+    stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
+    t.add(std::move(stage));
+  }
+
+  // prepare Task structure for planning
+  try {
+    t.init();
+  } catch (mtc::InitStageException& e) {
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("amorph_mtc"), "Initialization failed: " << e);
+    return false;
+  }
+
   return true;
 }
 
@@ -230,10 +264,6 @@ bool PickEnergyUnitTask::execute() {
   L::I("Executing task solution");
   if (task_->numSolutions() > 0) {
     const auto& solution = task_->solutions().front();
-    // TODO: Execute the solution
-    // moveit_task_constructor_msgs::action::ExecuteTaskSolution::Goal goal;
-    // goal.solution = *solution;
-    // ...
     return true;
   }
   return false;
