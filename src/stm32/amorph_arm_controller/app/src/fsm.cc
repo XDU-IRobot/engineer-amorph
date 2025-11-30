@@ -9,4 +9,4 @@ Manual manual;
 Idle idle;
 Executing executing;
 Fault fault;
-}
+}  // namespace fsm::state
