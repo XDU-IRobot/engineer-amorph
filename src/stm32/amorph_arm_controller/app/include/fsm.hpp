@@ -83,7 +83,6 @@ class Arm : public etl::fsm {
     actuator_.j6 = j6;
   }
 
-
   ArmController controller_;
   struct Actuator {
     void SetEnable(bool enable) const {
