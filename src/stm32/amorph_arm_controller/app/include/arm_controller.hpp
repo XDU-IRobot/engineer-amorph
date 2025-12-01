@@ -64,7 +64,8 @@ class ArmController {
     }
   }
 
-  void Update(std::array<float, 6> current_positions, std::array<float, 6> current_velocities, float dt = 1.f) {
+  void Update(const std::array<float, 6> &current_positions, const std::array<float, 6> &current_velocities,
+              float dt = 1.f) {
     current_positions_ = current_positions;
     trajectory_tracker_.Update();
     const auto &ref_point = trajectory_tracker_.current_point();
@@ -83,12 +84,13 @@ class ArmController {
       output_.efforts[i] = speed_pid_[i].out();
     }
 
-    // // 对前三个关节叠加动力学前馈力矩
-    // const auto feedforward_efforts =
-    //     dynamic_model_.Inverse({current_positions[0], current_positions[1], current_positions[2]});
-    // for (size_t i = 0; i < 3; ++i) {
-    //   output_.efforts[i] += feedforward_efforts[i];
-    // }
+    // 对前三个关节叠加动力学前馈力矩
+    const auto feedforward_efforts =
+        dynamic_model_.Inverse({current_positions[0], current_positions[1], current_positions[2]});
+    for (size_t i = 0; i < 3; ++i) {
+      output_.efforts[i] += feedforward_efforts[i];
+    }
+    output_.efforts[1] = -output_.efforts[1];  // j2反向安装
 
     UpdateStatus();
     if (status_ == kFault || status_ == kDisabled) {  // 故障状态和控制器禁用状态下输出全零
@@ -98,7 +100,7 @@ class ArmController {
     }
   }
 
-  void ResetAt(std::array<float, 6> positions) {
+  void ResetAt(const std::array<float, 6> &positions) {
     current_positions_ = positions;
     trajectory_tracker_.SwitchReferenceTrajectory([&] {
       JointTrajectoryPoint point;
@@ -189,12 +191,12 @@ class ArmController {
                                            {-M_PI, M_PI}, {-M_PI, M_PI}, {-M_PI, M_PI}};  // placeholder joint limits
   DynamicModel dynamic_model_;
   std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_  //
-      {rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
-       rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
-       rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
-       rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
-       rm::modules::TrajectoryLimiter{1.f, 1.f},                     //
-       rm::modules::TrajectoryLimiter{1.f, 1.f}};
+      {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                //
+       rm::modules::TrajectoryLimiter{2.175f, 1.875f},               //
+       rm::modules::TrajectoryLimiter{2.175f, 2.5f},                 //
+       rm::modules::TrajectoryLimiter{2.175f, 3.125f},               //
+       rm::modules::TrajectoryLimiter{2.61f, 3.75f},                 //
+       rm::modules::TrajectoryLimiter{2.61f, 5.f}};
   std::array<rm::modules::PID, 6> speed_pid_;
   std::array<rm::modules::PID, 6> position_pid_;
 

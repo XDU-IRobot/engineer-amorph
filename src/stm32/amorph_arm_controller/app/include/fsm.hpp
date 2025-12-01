@@ -5,7 +5,7 @@
 #include <etl/fsm.h>
 
 #include "arm_controller.hpp"
-#include "rpc/host_api.hpp"
+#include "globals.hpp"
 
 namespace fsm {
 
@@ -35,17 +35,21 @@ struct StateId {
 namespace event {
 /*******************************************/
 struct ControlLoop : etl::message<EventId::kControlLoop> {
+  ControlLoop(const std::array<float, 6> &positions, const std::array<float, 6> &velocities)
+      : current_positions(positions), current_velocities(velocities) {}
   std::array<float, 6> current_positions;
   std::array<float, 6> current_velocities;
 };
 
 /*******************************************/
 struct ForceModeSwitch : etl::message<EventId::kForceModeSwitch> {
+  explicit ForceModeSwitch(etl::fsm_state_id_t target) : target_mode(target) {}
   etl::fsm_state_id_t target_mode;
 };
 
 /*******************************************/
 struct ExecutionReq : etl::message<EventId::kExecutionReq> {
+  explicit ExecutionReq(const JointTrajectory &traj) : trajectory(traj) {}
   JointTrajectory trajectory;
 };
 
@@ -68,45 +72,10 @@ struct OpticalSwitchTriggered : etl::message<EventId::kOpticalSwitchTriggered> {
 class Arm : public etl::fsm {
   constexpr static etl::message_router_id_t kMessageRouterId = 0;
 
-  using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;
-  using DmMitSettings = rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>;
-
  public:
   Arm() : fsm(kMessageRouterId) {}
-
-  void SetActuator(DmMit *j1, DmMit *j2, DmMit *j3, DmMit *j4, DmMit *j5, rm::device::M2006 *j6) {
-    actuator_.j1 = j1;
-    actuator_.j2 = j2;
-    actuator_.j3 = j3;
-    actuator_.j4 = j4;
-    actuator_.j5 = j5;
-    actuator_.j6 = j6;
-  }
-
-  ArmController controller_;
-  struct Actuator {
-    void SetEnable(bool enable) const {
-      const auto cmd = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
-      j1->SendInstruction(cmd);
-      j2->SendInstruction(cmd);
-      j3->SendInstruction(cmd);
-      j4->SendInstruction(cmd);
-      j5->SendInstruction(cmd);
-    }
-    void ApplyOutput(const ArmController::Output<6> &output) const {
-      j1->SetPosition(0, 0, output.efforts[0], 0, 0);
-      j2->SetPosition(0, 0, output.efforts[1], 0, 0);
-      j3->SetPosition(0, 0, output.efforts[2], 0, 0);
-      j4->SetPosition(0, 0, output.efforts[3], 0, 0);
-      j5->SetPosition(0, 0, output.efforts[4], 0, 0);
-      j6->SetCurrent(output.efforts[5]);
-      rm::device::DjiMotor<>::SendCommand();
-    }
-    Actuator() = default;
-    DmMit *j1, *j2, *j3, *j4, *j5;
-    rm::device::M2006 *j6;
-  } actuator_{};
 };
+extern Arm arm;
 
 namespace state {
 
@@ -124,19 +93,18 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    auto &arm = get_fsm_context();
-    arm.actuator_.SetEnable(false);
-    arm.controller_.Enable(false);
+    globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    globals->actuator.SetEnable(false, 1);
+    globals->arm_controller.Enable(false);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    auto &arm = get_fsm_context();
-    arm.controller_.Update(e.current_positions, e.current_velocities);
-    arm.actuator_.SetEnable(false);
+    globals->arm_controller.Update(e.current_positions, e.current_velocities);
+    globals->actuator.SetEnable(false, 1);
     return No_State_Change;
   }
 };
-extern NoForce no_force;
 
 /*******************************************/
 struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
@@ -145,57 +113,74 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    auto &arm = get_fsm_context();
-    arm.controller_.Enable(true);
+    globals->arm_controller.Enable(true);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    auto &arm = get_fsm_context();
-    arm.controller_.Update(e.current_positions, e.current_velocities);
-    arm.actuator_.ApplyOutput(arm.controller_.output());
+    globals->arm_controller.Update(e.current_positions, e.current_velocities);
+    // globals->actuator.ApplyOutput(globals->arm_controller.output());
     return No_State_Change;
   }
 };
-extern Manual manual;
+
+inline DynamicModel::Vec3 gcomp;
 
 /*******************************************/
 struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
                              event::ForceModeSwitch,     //
-                             event::ExecutionReq> {
+                             event::ExecutionReq,        //
+                             event::ControlLoop> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    auto &arm = get_fsm_context();
-    arm.controller_.Enable(true);
+    globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
+    globals->arm_controller.Enable(true);
+    globals->actuator.SetEnable(true);
+    globals->arm_controller.GoTo({
+        .positions = {0, 1.57f, -1.57f, 0, 0, 0},
+        .velocities = {0, 0, 0, 0, 0, 0},
+        .accelerations = {0, 0, 0, 0, 0, 0},
+        .effort = {0, 0, 0, 0, 0, 0},
+    });
     return No_State_Change;
   }
   REACT(event::ExecutionReq) {
-    auto &arm = get_fsm_context();
-    if (arm.controller_.status() == ArmController::kIdle) {
-      arm.controller_.Execute(e.trajectory);
+    if (globals->arm_controller.status() == ArmController::kIdle) {
+      globals->arm_controller.Execute(e.trajectory);
       return StateId::kExecuting;
     }
+    return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    auto &arm = get_fsm_context();
-    arm.controller_.Update(e.current_positions, e.current_velocities);
-    arm.actuator_.ApplyOutput(arm.controller_.output());
+    static DynamicModel dm;
+    gcomp = dm.Inverse({e.current_positions[0], e.current_positions[1], e.current_positions[2]});
+    globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.001f);
+    ArmController::Output<6> out = ArmController::Output<6>::Zero();
+    out.efforts[1] = -gcomp(1);
+    out.efforts[2] = gcomp(2);
+    // out.positions[1] = globals->arm_controller.output().positions[1];
+    // out.positions[2] = globals->arm_controller.output().positions[2];
+    globals->actuator.ApplyOutput(out);
+    // globals->actuator.ApplyOutput(ArmController::Output<6>::Zero());
+    // if (globals->arm_controller.status() == ArmController::kFault) {
+    //   return StateId::kFault;
+    // }
     return No_State_Change;
   }
 };
-extern Idle idle;
 
 /*******************************************/
 struct Executing : etl::fsm_state<Arm, Executing, StateId::kExecuting,  //
+                                  event::ControlLoop,                   //
                                   event::ForceModeSwitch,               //
                                   event::CancelExecutionReq> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER { return No_State_Change; }
   REACT(event::CancelExecutionReq) {
-    auto &arm = get_fsm_context();
     const auto current_p = [&] {
-      const auto &current_pos = arm.controller_.output().positions;
+      const auto &current_pos = globals->arm_controller.output().positions;
       JointTrajectoryPoint p;
       p.positions.assign(current_pos.begin(), current_pos.end());
       p.velocities.resize(6);
@@ -203,14 +188,13 @@ struct Executing : etl::fsm_state<Arm, Executing, StateId::kExecuting,  //
       p.effort.resize(6);
       return p;
     }();
-    arm.controller_.GoTo(current_p);
+    globals->arm_controller.GoTo(current_p);
     return No_State_Change;  // 机械臂停下来需要时间，所以不立刻转换到idle状态，而是等控制器状态变为idle时再转换
   }
   REACT(event::ControlLoop) {
-    auto &arm = get_fsm_context();
-    arm.controller_.Update(e.current_positions, e.current_velocities);
-    arm.actuator_.ApplyOutput(arm.controller_.output());
-    switch (arm.controller_.status()) {
+    globals->arm_controller.Update(e.current_positions, e.current_velocities);
+    // globals->actuator.ApplyOutput(globals->arm_controller.output());
+    switch (globals->arm_controller.status()) {
       case ArmController::kIdle: {
         return StateId::kIdle;
       }
@@ -224,7 +208,6 @@ struct Executing : etl::fsm_state<Arm, Executing, StateId::kExecuting,  //
     }
   }
 };
-extern Executing executing;
 
 /*******************************************/
 struct J6Calibrating : etl::fsm_state<Arm, J6Calibrating, StateId::kJ6Calibrating,  //
@@ -233,27 +216,37 @@ struct J6Calibrating : etl::fsm_state<Arm, J6Calibrating, StateId::kJ6Calibratin
                                       event::OpticalSwitchTriggered> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
-  ENTER { auto &arm = get_fsm_context(); }
-  REACT(event::OpticalSwitchTriggered) {}
+  ENTER { return No_State_Change; }
+  REACT(event::ControlLoop) { return No_State_Change; }
+  REACT(event::OpticalSwitchTriggered) { return No_State_Change; }
 };
-extern J6Calibrating j6_calibrating;
 
 /*******************************************/
 struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
+                              event::ControlLoop,           //
                               event::FaultClear> {
+  // ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
-  ENTER { return No_State_Change; }
+  ENTER {
+    globals->actuator.SetEnable(false);
+    globals->arm_controller.Enable(false);
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) { return No_State_Change; }
   REACT(event::FaultClear) {
     UNUSED(e);
+    globals->arm_controller.FaultClear();
     return StateId::kIdle;
   }
 };
-extern Fault fault;
 
 #undef IGNORE_UNINTEREST_EVENT
 #undef ENTER
 #undef REACT
 
 }  // namespace state
+
+void Init();
 
 }  // namespace fsm

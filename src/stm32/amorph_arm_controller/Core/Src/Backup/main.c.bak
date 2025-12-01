@@ -111,7 +111,6 @@ int main(void)
   MX_SPI6_Init();
   MX_UART5_Init();
   MX_TIM13_Init();
-  MX_TIM14_Init();
   MX_CRC_Init();
   MX_RNG_Init();
   /* USER CODE BEGIN 2 */

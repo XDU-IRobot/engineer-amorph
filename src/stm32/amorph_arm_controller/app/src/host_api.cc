@@ -4,5 +4,5 @@
 namespace host {
 std::shared_ptr<rpc_core::rpc> rpc{nullptr};
 
-inline void Init(const std::shared_ptr<rpc_core::rpc> &rpc_instance) { rpc = rpc_instance; }
+void Init(const std::shared_ptr<rpc_core::rpc> &rpc_instance) { rpc = rpc_instance; }
 }  // namespace host

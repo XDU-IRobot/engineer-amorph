@@ -1,40 +1,72 @@
 
+#include <numbers>
+
+#include <etl/cyclic_value.h>
+
 #include "tim.h"
 
 #include "rpc/host_api.hpp"
 #include "bsp/timer_task.hpp"
 #include "globals.hpp"
+#include "fsm.hpp"
 
 Globals *globals{nullptr};
-ArmController test_ct;
 
 static void MainLoop() {
-  static int subloop_divisor = 0;
-  subloop_divisor = (subloop_divisor + 1) % 1000;
-  if ((subloop_divisor % 20) == 0) {
+  static etl::cyclic_value<int, 0, 1000> loop_divisor;
+  ++loop_divisor;
+  if ((loop_divisor % 20) == 0) {
+    // 50hz subloop
     const auto &[r, g, b] = globals->led_controller.Update();
     globals->led.SetColor(r, g, b);
     globals->buzzer.SetFrequency(globals->buzzer_controller.Update().frequency);
   }
-  globals->rc_sd_watcher.Update(globals->rc.channel(11));
-  test_ct.Update({0.f, globals->actuator.j1->pos(), globals->actuator.j2->pos(), 0.f, 0.f, 0.f},  //
-                 {0.f, 0.f, 0.f, 0.f, 0.f, 0.f},                                                  //
-                 0.001f);
-
-  if (test_ct.status() == ArmController::kFault || test_ct.status() == ArmController::kDisabled) {
-    globals->actuator.j1->SetPosition(0, 0, 0, 0, 0);
-  } else {
-    globals->actuator.j1->SetPosition(test_ct.output().positions[1], 0, 0, 7.5f, 2.0f);
+  if ((loop_divisor % 500) == 0) {
+    // 2hz subloop
+    host::L::I("hello!!");
+    // globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
   }
+
+  globals->rc_sd_watcher.Update(globals->rc.channel(11));
+
+  const auto current_positions =  //
+      std::array<float, 6>{globals->actuator.j1->pos(),
+                           globals->actuator.j2->pos(),
+                           globals->actuator.j3->pos() - globals->actuator.j2->pos(),  //
+                           globals->actuator.j4->pos(),
+                           globals->actuator.j5->pos(),
+                           globals->actuator.j6->pos_rad()};
+  const auto current_velocities =                                                      //
+      std::array<float, 6>{globals->actuator.j1->vel(),                                //
+                           globals->actuator.j2->vel(),                                //
+                           globals->actuator.j3->vel() - globals->actuator.j2->vel(),  //
+                           globals->actuator.j4->vel(),                                //
+                           globals->actuator.j5->vel(),                                //
+                           globals->actuator.j6->rpm() / 60.f * 2.f * std::numbers::pi_v<float>};
+  fsm::arm.receive(fsm::event::ControlLoop{current_positions, current_velocities});
 }
 
 extern "C" {
 
 [[noreturn]] void AppMain(void) {
   globals = new Globals;
-  globals->Init();
+  globals->Init();                 // 初始化全局对象
+  host::Init(globals->rpc.rpc());  // 初始化RPC上位机通信
+  fsm::Init();                     // 初始化状态机
 
-  host::Init(globals->rpc.rpc());
+  // 监听遥控器拨杆
+  globals->rc_sd_watcher.OnValueChange([](const int &old_value, const int &new_value) {
+    if (old_value == 0) {
+      return;  // 第一次触发不响应
+    }
+    if (new_value > 500) {
+      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNoForce});
+    }
+    if (new_value <= 500) {
+      fsm::arm.receive(fsm::event::FaultClear{});
+      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kIdle});
+    }
+  });
 
   // 创建主循环定时任务，定频1khz
   TimerTask mainloop_1000hz{
@@ -43,38 +75,9 @@ extern "C" {
   };
   mainloop_1000hz.Start();
 
-  globals->rc_sd_watcher.OnValueChange(
-      etl::delegate<void(const int &, const int &)>::create([](const int &old_value, const int &new_value) {
-        if (old_value == 0) {  // 第一次触发不响应
-          return;
-        }
-        globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
-        if (new_value > 500) {
-          globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-          test_ct.Enable(false);
-
-          globals->actuator.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
-          globals->actuator.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
-        }
-        if (new_value <= 500) {
-          globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
-          test_ct.FaultClear();
-          test_ct.Enable(true);
-
-          globals->actuator.j1->SendInstruction(rm::device::DmMotorInstructions::kEnable);
-          globals->actuator.j2->SendInstruction(rm::device::DmMotorInstructions::kEnable);
-
-          JointTrajectoryPoint p;
-          p.positions = {2.f, 1.75f, 2.f, 2.f, 2.f, 2.f};
-          p.velocities.resize(6);
-          test_ct.GoTo(p);
-        }
-      }));
-
   globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
   globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
   for (;;) {
-    __WFI();
   }
 }
 }

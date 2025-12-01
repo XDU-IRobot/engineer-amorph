@@ -7,7 +7,7 @@ namespace host {
 
 extern std::shared_ptr<rpc_core::rpc> rpc;
 
-inline void Init(const std::shared_ptr<rpc_core::rpc> &rpc_instance);
+void Init(const std::shared_ptr<rpc_core::rpc> &rpc_instance);
 
 namespace L {
 template <typename... Args>
