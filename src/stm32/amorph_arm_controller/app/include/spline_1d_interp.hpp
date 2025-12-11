@@ -6,7 +6,6 @@
 // #include <stdexcept>
 
 #include <Eigen/Dense>
-#include <Eigen/LU>
 
 enum class SplineType {
   kLinear,       ///< 线性样条

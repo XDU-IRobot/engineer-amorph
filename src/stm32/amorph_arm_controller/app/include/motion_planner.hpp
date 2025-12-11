@@ -7,8 +7,12 @@
 
 #include "dynamics.hpp"
 #include "trajectory_tracker.hpp"
+#include "encoder_counter.hpp"
 
-class ArmController {
+/**
+ * @brief 运动规划器，主要用来保证轨迹连续性和计算具体的关节控制量
+ */
+class MotionPlanner {
  public:
   template <size_t NJoints>
   struct Output {
@@ -31,7 +35,7 @@ class ArmController {
     kFault,
   };
 
-  ArmController() {
+  MotionPlanner() {
     // clang-format off
     position_pid_[0].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
     position_pid_[1].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
@@ -50,18 +54,20 @@ class ArmController {
 
   void Execute(const JointTrajectory &traj) {
     trajectory_tracker_.SwitchReferenceTrajectory(traj);
-    for (size_t i = 0; i < 6; ++i) {
-      speed_pid_[i].Clear();
-      position_pid_[i].Clear();
-    }
+    // for (size_t i = 0; i < 6; ++i) {
+    //   speed_pid_[i].Clear();
+    //   position_pid_[i].Clear();
+    // }
+    UpdateStatus();
   }
 
   void GoTo(const JointTrajectoryPoint &point) {
     trajectory_tracker_.SwitchReferenceTrajectory(point);
-    for (size_t i = 0; i < 6; ++i) {
-      speed_pid_[i].Clear();
-      position_pid_[i].Clear();
-    }
+    // for (size_t i = 0; i < 6; ++i) {
+    //   speed_pid_[i].Clear();
+    //   position_pid_[i].Clear();
+    // }
+    UpdateStatus();
   }
 
   void Update(const std::array<float, 6> &current_positions, const std::array<float, 6> &current_velocities,
@@ -73,28 +79,31 @@ class ArmController {
     for (size_t i = 0; i < 6; ++i) {
       // 轨迹限幅
       trajectory_limiter_[i].SetTarget(ref_point.positions[i]);
-      // 位置环PID
-      position_pid_[i].Update(trajectory_limiter_[i].Update(dt), current_positions[i], dt);
-      // 速度环PID
-      speed_pid_[i].Update(trajectory_limiter_[i].current_velocity() + position_pid_[i].out(), current_velocities[i],
-                           dt);
-      // 输出
+      trajectory_limiter_[i].Update(dt);
+      // // 位置环PID
+      // position_pid_[i].Update(trajectory_limiter_[i].Update(dt), current_positions[i], dt);
+      // // 速度环PID
+      // speed_pid_[i].Update(trajectory_limiter_[i].current_velocity() + position_pid_[i].out(), current_velocities[i],
+      //                      dt);
+      // // 输出
       output_.positions[i] = trajectory_limiter_[i].current_position();
-      output_.velocities[i] = trajectory_limiter_[i].current_velocity();
-      output_.efforts[i] = speed_pid_[i].out();
+      // output_.velocities[i] = trajectory_limiter_[i].current_velocity();
+      // output_.efforts[i] = speed_pid_[i].out();
+      output_.velocities[i] = 0.f;
+      output_.efforts[i] = 0.f;
     }
 
     // 对前三个关节叠加动力学前馈力矩
     const auto feedforward_efforts =
         dynamic_model_.Inverse({current_positions[0], current_positions[1], current_positions[2]});
     for (size_t i = 0; i < 3; ++i) {
-      output_.efforts[i] += feedforward_efforts[i];
+      output_.efforts[i] += feedforward_efforts(i);
     }
     output_.efforts[1] = -output_.efforts[1];  // j2反向安装
-
     UpdateStatus();
+
     if (status_ == kFault || status_ == kDisabled) {  // 故障状态和控制器禁用状态下输出全零
-      output_.positions = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+      // output_.positions = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};  // 位置不要动，保持输出故障之前的原位置
       output_.velocities = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
       output_.efforts = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
     }
@@ -145,6 +154,8 @@ class ArmController {
     }
   }
 
+  static const auto &joint_limits() { return kJointLimits; }
+  const auto &current_positions() const { return current_positions_; }
   const auto &output() const { return output_; }
   Status status() const { return status_; }
 
@@ -158,6 +169,10 @@ class ArmController {
         trajectory_limiter_, [](const rm::modules::TrajectoryLimiter &limiter) { return limiter.IsAtTarget(); });
     const bool tracker_finished = trajectory_tracker_.IsTrajectoryFinished();
     if (tracker_finished && all_limiters_converged) {
+      // 方便调试先禁用掉下面检测故障的逻辑
+      status_ = kIdle;
+      return;
+
       const auto position_delta = [&] {
         const auto target_position = trajectory_tracker_.current_point().positions;
         std::array<float, 6> deltas;
@@ -187,8 +202,8 @@ class ArmController {
  private:
   std::array<float, 6> current_positions_{};
   Output<6> output_{};
-  TrajectoryTracker<6> trajectory_tracker_{{-M_PI, M_PI}, {-M_PI, M_PI}, {-M_PI, M_PI},
-                                           {-M_PI, M_PI}, {-M_PI, M_PI}, {-M_PI, M_PI}};  // placeholder joint limits
+  TrajectoryTracker<6> trajectory_tracker_{kJointLimits[0], kJointLimits[1], kJointLimits[2],
+                                           kJointLimits[3], kJointLimits[4], kJointLimits[5]};
   DynamicModel dynamic_model_;
   std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_  //
       {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                //
@@ -199,6 +214,11 @@ class ArmController {
        rm::modules::TrajectoryLimiter{2.61f, 5.f}};
   std::array<rm::modules::PID, 6> speed_pid_;
   std::array<rm::modules::PID, 6> position_pid_;
+
+  constexpr static std::array<std::pair<float, float>, 6> kJointLimits{
+      std::make_pair(-M_PI, M_PI), std::make_pair(-M_PI, M_PI),
+      std::make_pair(-M_PI, M_PI), std::make_pair(-M_PI, M_PI),
+      std::make_pair(-M_PI, M_PI), std::make_pair(-M_PI, M_PI)};  // placeholder joint limits
 
   Status status_{kIdle};
   int fault_counter_{0};

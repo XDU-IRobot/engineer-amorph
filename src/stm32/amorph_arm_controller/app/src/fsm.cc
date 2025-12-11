@@ -3,6 +3,8 @@
 
 // fsm&state instances
 
+float caonima = 0;
+
 namespace fsm {
 Arm arm;
 namespace state {

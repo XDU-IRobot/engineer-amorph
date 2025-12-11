@@ -16,7 +16,7 @@ int vswprintf(wchar_t *wcs, size_t maxlen, const wchar_t *wformat, va_list args)
   char fmtbuf[FMT_BUFSZ];
   size_t i = 0;
   while (wformat[i] != (wchar_t)0 && i + 1 < FMT_BUFSZ) {
-    wchar_t wc = wformat[i];
+    const wchar_t wc = wformat[i];
     fmtbuf[i] = (wc >= 0 && wc <= 0x7F) ? (char)wc : '?';
     ++i;
   }

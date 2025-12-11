@@ -86,7 +86,7 @@ class FdCanTransport : public rpc_core::connection {
     void RxCallback(const rm::hal::CanFrame *msg) override {
       // 判断帧类型
       if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kHeartbeat) {
-        Heartbeat();  // 通知设备框架自己在线
+        ReportStatus(kOk);  // 通知设备框架自己在线
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameStart) {
         // 1. 收到起始帧，开始一个新的数据帧接收会话
         auto *frame_start = reinterpret_cast<const decltype(tx_buf_.frame_start) *>(msg->data.data());
@@ -216,5 +216,5 @@ class FdCanTransport : public rpc_core::connection {
    */
   void SendHeartbeat() { impl_.SendHeartbeat(); }
 
-  bool Connected() { return impl_.IsAlive(); }
+  bool Connected() { return impl_.Ok(); }
 };

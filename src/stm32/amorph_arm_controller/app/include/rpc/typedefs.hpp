@@ -31,7 +31,7 @@ struct JointTrajectoryPoint {
   std::vector<float> velocities;
   std::vector<float> accelerations;
   std::vector<float> effort;
-  std::chrono::duration<int, std::milli> time_from_start;
+  std::chrono::duration<int, std::milli> time_from_start{};
   RPC_CORE_DEFINE_TYPE_INNER(positions, velocities, accelerations, effort, time_from_start);
 };
 

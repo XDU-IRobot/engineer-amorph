@@ -26,3 +26,85 @@ class Buzzer {
   TIM_HandleTypeDef* htim_;
   uint32_t channel_;
 };
+
+namespace buzzer_melody {
+
+using rm::modules::BuzzerNote;
+
+class EnterManualMode : public rm::modules::BuzzerMelody {
+ public:
+  EnterManualMode() = default;
+
+  BuzzerNote Update(TimePoint now) override {
+    using Freq = rm::modules::NoteFreqStandard;
+    using Duration = rm::modules::NoteDuration160;
+
+    constexpr std::array kMelody = {
+        BuzzerNote(Freq::kC6, Duration::kSixteenth),
+        BuzzerNote(Freq::kE6, Duration::kSixteenth),
+    };
+
+    if (note_index_ >= kMelody.size()) {
+      return BuzzerNote(0, 0);  // 播放完毕
+    }
+
+    auto note = kMelody[note_index_];
+
+    auto elapsed = ElapsedMs(note_start_time_, now);
+    if (elapsed >= note.duration) {
+      note_index_++;
+      note_start_time_ = now;
+    }
+
+    return note;
+  }
+
+  void Reset(TimePoint now) override {
+    note_index_ = 0;
+    note_start_time_ = now;
+  }
+
+ private:
+  size_t note_index_{0};
+  TimePoint note_start_time_;
+};
+
+template <size_t BeepsCount>
+class HiBeeps : public rm::modules::BuzzerMelody {
+ public:
+  HiBeeps() = default;
+
+  BuzzerNote Update(TimePoint now) override {
+    using Freq = rm::modules::NoteFreqStandard;
+    using Duration = rm::modules::NoteDuration<210>;
+
+    if (note_index_ >= BeepsCount * 2) {
+      return BuzzerNote(0, 0);  // 播放完毕
+    }
+
+    BuzzerNote note;
+    if (note_index_ % 2 == 0) {
+      note = BuzzerNote(Freq::kF6, Duration::kThirtySecond);  // 响声
+    } else {
+      note = BuzzerNote(Freq::kRest, Duration::kThirtySecond);  // 静音
+    }
+
+    auto elapsed = ElapsedMs(note_start_time_, now);
+    if (elapsed >= note.duration) {
+      note_index_++;
+      note_start_time_ = now;
+    }
+
+    return note;
+  }
+
+  void Reset(TimePoint now) override {
+    note_index_ = 0;
+    note_start_time_ = now;
+  }
+
+ private:
+  size_t note_index_{0};
+  TimePoint note_start_time_;
+};
+}  // namespace buzzer_melody
