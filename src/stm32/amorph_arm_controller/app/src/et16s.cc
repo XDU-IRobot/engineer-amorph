@@ -41,4 +41,16 @@ void InitUserInput() {
       fsm::arm.receive(fsm::event::NextJoint{});
     }
   });
+  globals->rc(rc_ch::SG).OnValueChange([](const int &old_value, const int &new_value) {
+    UNUSED(old_value);
+    if (new_value > 1300 && new_value < 1700) {  // SG在外
+      fsm::arm.receive(fsm::event::GripperCommand{false});
+    }
+    if (new_value > 0 && new_value < 500) {  // SG在中
+      fsm::arm.receive(fsm::event::GripperCommand{true});
+    }
+    if (new_value > 500 && new_value < 1100) {  // SG在内
+      fsm::arm.receive(fsm::event::GripperCommand{true});
+    }
+  });
 }

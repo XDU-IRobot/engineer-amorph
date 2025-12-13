@@ -59,10 +59,10 @@ struct Globals {
     void ApplyOutput(const MotionPlanner::Output<6> &output, bool apply_position = false) const {
       // j1->SetPosition(0, 0, output.efforts[0], 0, 0);
       if (apply_position) {
-        j2->SetPosition(output.positions[1], 0, output.efforts[1], 70.f, 30.f);
-        j3->SetPosition(output.positions[1] + output.positions[2], 0, output.efforts[2], 40.f, 15.f);
-        j4->SetPosition(0, 0, output.efforts[3], 0, 0);
-        j5->SetPosition(0, 0, output.efforts[4], 0, 0);
+        j2->SetPosition(output.positions[1], 0, output.efforts[1], 75.f, 30.f);
+        j3->SetPosition(output.positions[1] + output.positions[2], 0, output.efforts[2], 50.f, 15.f);
+        j4->SetPosition(output.positions[3], 0, output.efforts[3], 35.f, 15.f);
+        j5->SetPosition(output.positions[4], 0, output.efforts[4], 35.f, 15.f);
       } else {
         j2->SetPosition(0, 0, output.efforts[1], 0, 0);
         j3->SetPosition(0, 0, output.efforts[2], 0, 0);

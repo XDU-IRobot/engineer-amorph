@@ -65,4 +65,12 @@ extern "C" {
   for (;;) {
   }
 }
+
+void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
+  // j6的回零位光电开关触发，通知状态机
+  if (gpio_pin == GPIO_PIN_13) {
+    globals->buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
+    fsm::arm.receive(fsm::event::OpticalSwitchTriggered{});
+  }
+}
 }

@@ -19,6 +19,7 @@ struct EventId {
     kExecutionReq,            ///< 轨迹执行请求
     kGoToPosReq,              ///< 定点去往请求
     kCancelExecutionReq,      ///< 取消轨迹执行请求
+    kGripperCommand,          ///< 夹爪控制命令
     kFaultClear,              ///< 故障清除命令
     kOpticalSwitchTriggered,  ///< 光电开关触发，j6回零完成
     kNextJoint,               ///< Manual模式下切换到下一个关节
@@ -70,6 +71,12 @@ struct GoToPosReq : etl::message<EventId::kGoToPosReq> {
 
 /*******************************************/
 struct CancelExecutionReq : etl::message<EventId::kCancelExecutionReq> {};
+
+/*******************************************/
+struct GripperCommand : etl::message<EventId::kGripperCommand> {
+  explicit GripperCommand(bool open) : target_position(open ? 0.453383446f : -1.11562538f) {}
+  float target_position;
+};
 
 /*******************************************/
 struct FaultClear : etl::message<EventId::kFaultClear> {};
@@ -133,7 +140,8 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
 struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
                                event::ForceModeSwitch,         //
                                event::ControlLoop,             //
-                               event::NextJoint> {
+                               event::NextJoint,               //
+                               event::GripperCommand> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
@@ -163,12 +171,7 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     }();
     globals->planner.GoTo(target_p);
     globals->planner.Update(e.current_positions, e.current_velocities, 0.002f);
-    MotionPlanner::Output<6> out = MotionPlanner::Output<6>::Zero();
-    out.efforts[1] = globals->planner.output().efforts[1];
-    out.efforts[2] = globals->planner.output().efforts[2];
-    out.positions[1] = globals->planner.output().positions[1];
-    out.positions[2] = globals->planner.output().positions[2];
-    globals->actuator.ApplyOutput(out, true);
+    globals->actuator.ApplyOutput(globals->planner.output(), true);
     return No_State_Change;
   }
   REACT(event::NextJoint) {
@@ -185,6 +188,10 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
       default: break;
         // clang-format on
     }
+    return No_State_Change;
+  }
+  REACT(event::GripperCommand) {
+    globals->actuator.gripper->SetPosition(e.target_position, 0, 0, 10.f, 5.f);
     return No_State_Change;
   }
 

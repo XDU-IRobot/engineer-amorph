@@ -73,8 +73,9 @@ void Error_Handler(void);
 #define GYRO_INT_Pin GPIO_PIN_12
 #define GYRO_INT_GPIO_Port GPIOE
 #define GYRO_INT_EXTI_IRQn EXTI15_10_IRQn
-#define CAMERA_TRIG_Pin GPIO_PIN_13
-#define CAMERA_TRIG_GPIO_Port GPIOE
+#define GPIO1_PE13_Pin GPIO_PIN_13
+#define GPIO1_PE13_GPIO_Port GPIOE
+#define GPIO1_PE13_EXTI_IRQn EXTI15_10_IRQn
 #define KEY_Pin GPIO_PIN_15
 #define KEY_GPIO_Port GPIOA
 #define KEY_EXTI_IRQn EXTI15_10_IRQn
