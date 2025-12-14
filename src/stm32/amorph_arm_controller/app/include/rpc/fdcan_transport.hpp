@@ -209,7 +209,7 @@ class FdCanTransport : public rpc_core::connection {
 
     uint16_t rx_stdid_base_;
     uint16_t tx_stdid_base_;
-    std::chrono::steady_clock::time_point last_tx_time_;      ///< 最后一次发送数据的时间戳，用于智能心跳
+    std::chrono::steady_clock::time_point last_tx_time_;  ///< 最后一次发送数据的时间戳，用于智能心跳
     std::function<void(std::string &)> frame_recv_callback_;  ///< 收到完整帧数据时的回调
     struct RxSession {
       uint16_t payload_len = 0;
