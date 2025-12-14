@@ -2,11 +2,14 @@
 
 #include <random>
 #include <cstring>
+#include <chrono>
 
 #include <librm.hpp>
 #include <etl/circular_buffer.h>
 #include <etl/unordered_map.h>
 #include <rpc_core.hpp>
+
+#include "logger.hpp"
 
 namespace amorph {
 
@@ -32,12 +35,14 @@ class FdCanTransport : public rpc_core::connection {
 
    public:
     static constexpr uint32_t kMaxPayloadBytes = 4096;
+    static constexpr uint32_t kHeartbeatIntervalMs = 200;  ///< 心跳间隔，小于超时时间的一半
 
     Impl(rm::hal::CanInterface &can, uint16_t rx_stdid_base, uint16_t tx_stdid_base)
         : rm::device::CanDevice(can, rx_stdid_base + StdIdOffset::kFrameStart, rx_stdid_base + StdIdOffset::kPayload,
                                 rx_stdid_base + StdIdOffset::kFrameEnd, rx_stdid_base + StdIdOffset::kHeartbeat),
           rx_stdid_base_{rx_stdid_base},
-          tx_stdid_base_{tx_stdid_base} {}
+          tx_stdid_base_{tx_stdid_base},
+          last_tx_time_{std::chrono::steady_clock::now()} {}
 
     /**
      * @brief 发送一个大数据包，该函数会将其分片并通过CAN FD总线发送
@@ -45,6 +50,9 @@ class FdCanTransport : public rpc_core::connection {
      * @param size 要发送的数据大小
      */
     void Send(const uint8_t *data, uint32_t size) {
+      // 更新最后发送时间，数据帧本身就能维持连接
+      last_tx_time_ = std::chrono::steady_clock::now();
+      
       // 1. 生成一个随机的帧ID，用于标识本次传输的所有分片
       static std::mt19937 rng{std::random_device{}()};
       tx_buf_.frame_start.frame_id = static_cast<uint8_t>(rng() & 0xff);
@@ -78,15 +86,31 @@ class FdCanTransport : public rpc_core::connection {
                   sizeof(tx_buf_.frame_end));
     }
 
-    void SendHeartbeat() { can_->Write(tx_stdid_base_ + StdIdOffset::kHeartbeat, nullptr, 0); }
+    /**
+     * @brief 智能心跳发送：仅在长时间无数据传输时发送心跳
+     * 
+     * 当有数据传输时，数据帧本身就能维持连接状态，无需额外发送心跳。
+     * 只有当距离上次发送超过kHeartbeatIntervalMs时，才发送心跳包。
+     */
+    void SendHeartbeatIfNeeded() {
+      auto now = std::chrono::steady_clock::now();
+      auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tx_time_).count();
+      if (elapsed_ms >= kHeartbeatIntervalMs) {
+        can_->Write(tx_stdid_base_ + StdIdOffset::kHeartbeat, nullptr, 0);
+        last_tx_time_ = now;
+      }
+    }
 
     void OnFrameRecv(std::function<void(std::string &)> callback) { frame_recv_callback_ = std::move(callback); }
 
    private:
     void RxCallback(const rm::hal::CanFrame *msg) override {
+      // 收到任何帧都更新连接状态，因为任何帧都能证明对方在线
+      ReportStatus(kOk);
+      
       // 判断帧类型
       if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kHeartbeat) {
-        Heartbeat();  // 通知设备框架自己在线
+        // 心跳帧，已在上面更新状态
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameStart) {
         // 1. 收到起始帧，开始一个新的数据帧接收会话
         const auto *frame_start = reinterpret_cast<const decltype(tx_buf_.frame_start) *>(msg->data.data());
@@ -98,10 +122,15 @@ class FdCanTransport : public rpc_core::connection {
           rx_sessions_.erase(frame_start->frame_id);
           return;
         }
+        // 检查会话池是否已满，如果满了且是新会话，则淘汰最不活跃的会话
+        if (rx_sessions_.find(frame_start->frame_id) == rx_sessions_.end() && rx_sessions_.full()) {
+          EvictLeastRecentlyUsedSession();
+        }
         auto &session = rx_sessions_[frame_start->frame_id];
         session.payload_len = frame_start->payload_len;
         session.payload_crc8 = frame_start->payload_crc8;
         session.next_fragment_seq = 0;
+        session.last_active_time = std::chrono::steady_clock::now();  // 更新活跃时间
         session.buffer.clear();
         session.buffer.reserve(frame_start->payload_len);
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kPayload) {
@@ -124,6 +153,7 @@ class FdCanTransport : public rpc_core::connection {
         }
         session.buffer.insert(session.buffer.end(), payload->fragment_data, payload->fragment_data + data_len);
         session.next_fragment_seq++;
+        session.last_active_time = std::chrono::steady_clock::now();  // 更新活跃时间
 
       } else if (msg->rx_std_id == rx_stdid_base_ + StdIdOffset::kFrameEnd) {
         // 3. 收到结束帧
@@ -183,17 +213,43 @@ class FdCanTransport : public rpc_core::connection {
 
     uint16_t rx_stdid_base_;
     uint16_t tx_stdid_base_;
+    std::chrono::steady_clock::time_point last_tx_time_;  ///< 最后一次发送数据的时间戳，用于智能心跳
     std::function<void(std::string &)> frame_recv_callback_;  ///< 收到完整帧数据时的回调
     struct RxSession {
       uint16_t payload_len = 0;
       uint8_t payload_crc8 = 0;
       uint16_t next_fragment_seq = 0;
+      std::chrono::steady_clock::time_point last_active_time;  ///< 最后活跃时间，用于LRU淘汰
       etl::vector<uint8_t, kMaxPayloadBytes> buffer;  ///< 4kb应该够了，不够再调
     };
     etl::unordered_map<uint8_t,  ///< frame_id
                        RxSession,
-                       3>  ///< 大多数情况下不会有超过3个并发的帧重组会话
+                       5>  ///< 大多数情况下不会有超过3个并发的帧重组会话
         rx_sessions_;      ///< 并发管理多个帧重组会话
+    
+    /**
+     * @brief 淘汰最不活跃的会话（LRU策略）
+     * 
+     * 当会话池满时，找出最长时间未更新的会话并删除，为新会话腾出空间。
+     * 这样可以自动清理因丢包而永远无法完成的僵尸会话。
+     */
+    void EvictLeastRecentlyUsedSession() {
+      if (rx_sessions_.empty()) return;
+
+      L::W(text::Yellow("Evicting least recently used RX session due to capacity limit."));
+      
+      auto oldest_it = rx_sessions_.begin();
+      auto oldest_time = oldest_it->second.last_active_time;
+      
+      for (auto it = rx_sessions_.begin(); it != rx_sessions_.end(); ++it) {
+        if (it->second.last_active_time < oldest_time) {
+          oldest_time = it->second.last_active_time;
+          oldest_it = it;
+        }
+      }
+      
+      rx_sessions_.erase(oldest_it);
+    }
   } impl_;
 
  public:
@@ -212,11 +268,14 @@ class FdCanTransport : public rpc_core::connection {
   virtual ~FdCanTransport() = default;
 
   /**
-   * @brief 保证至少每0.5秒调用一次，发送心跳包，让对方知道自己在线
+   * @brief 智能心跳维护：仅在必要时发送心跳包
+   * 
+   * 建议周期性调用(如每200ms调用一次)。如果距离上次发送数据已超过心跳间隔，
+   * 才会实际发送心跳包。这样在有数据传输时不会浪费带宽发送心跳。
    */
-  void SendHeartbeat() { impl_.SendHeartbeat(); }
+  void SendHeartbeat() { impl_.SendHeartbeatIfNeeded(); }
 
-  bool Connected() { return impl_.IsAlive(); }
+  bool Connected() { return impl_.online_status() == rm::device::Device::kOk; }
 };
 
 }  // namespace amorph

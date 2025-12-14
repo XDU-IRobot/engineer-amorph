@@ -5,6 +5,7 @@
 #include <control_msgs/action/follow_joint_trajectory.hpp>
 #include <control_msgs/action/gripper_command.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
 
 #include "rpc/rpc.hpp"
 #include "params_manager.hpp"
@@ -30,11 +31,14 @@ class TransportNode : public rclcpp::Node {
  private:
   void InitActionServers();
 
-  ParamsManager<RosParams> params_manager_{rclcpp::Node::SharedPtr(this)};
+  ParamsManager<RosParams> params_manager_{this};
+
+  rclcpp::TimerBase::SharedPtr rpc_heartbeat_timer_{nullptr};
 
   rclcpp_action::Server<FollowJointTrajectory>::SharedPtr arm_action_server_;
   rclcpp_action::Server<GripperCommand>::SharedPtr gripper_action_server_;
   RPC stm32_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_publisher_;
 
   void Execute(const std::shared_ptr<GoalHandleFollowJointTrajectory> goal_handle);
   void Execute(const std::shared_ptr<GoalHandleGripperCommand> goal_handle);

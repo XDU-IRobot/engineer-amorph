@@ -1,12 +1,10 @@
 #pragma once
 
-#include <format>
 #include <thread>
 
 #include <rpc_core.hpp>
 
 #include "fdcan_transport.hpp"
-#include "typedefs.hpp"
 
 namespace amorph {
 

@@ -1,13 +1,11 @@
+
 #pragma once
 
 #include <chrono>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 #include <rpc_core.hpp>
-
-namespace amorph {
 
 /**
  * @note    slave -> host only
@@ -23,8 +21,9 @@ struct LogMessage {
  * @brief   用于向上位机反馈当前关节位置，因为需要高频传输，所以只传位置，节省带宽
  * @note    slave -> host only
  */
+template <size_t N>
 struct JointPosition {
-  std::vector<float> positions;
+  std::array<float, N> positions;
   RPC_CORE_DEFINE_TYPE_INNER(positions);
 };
 
@@ -33,7 +32,7 @@ struct JointTrajectoryPoint {
   std::vector<float> velocities;
   std::vector<float> accelerations;
   std::vector<float> effort;
-  std::chrono::duration<int, std::milli> time_from_start;
+  std::chrono::duration<int, std::milli> time_from_start{};
   RPC_CORE_DEFINE_TYPE_INNER(positions, velocities, accelerations, effort, time_from_start);
 };
 
@@ -45,9 +44,7 @@ struct JointTrajectory {
 /**
  * @note    host -> slave only
  */
-struct ExecutionRequest {
-  JointTrajectory trajectory;
-  RPC_CORE_DEFINE_TYPE_INNER(trajectory);
+struct SbusFrame {
+  std::vector<float> ch;
+  RPC_CORE_DEFINE_TYPE_INNER(ch);
 };
-
-}  // namespace amorph

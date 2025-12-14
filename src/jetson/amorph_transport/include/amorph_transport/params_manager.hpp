@@ -36,7 +36,7 @@ class ParamsManager {
   ParamsManager() = delete;
   ~ParamsManager() = default;
 
-  ParamsManager(rclcpp::Node::SharedPtr node) : node_(node) {}
+  explicit ParamsManager(rclcpp::Node* node) : node_(node) {}
 
   const ParamsStructType &data() const { return ros_params_; }
 
@@ -45,7 +45,8 @@ class ParamsManager {
     LoadParams("", ros_params_);
 
     // 递归统计最大长度
-    int max_name_length = 0, max_value_length = 0;
+    int max_name_length = 0;
+    int max_value_length = 0;
     CalcMaxLength("", ros_params_, max_name_length, max_value_length);
     RCLCPP_INFO(node_->get_logger(), "ROSParamsManager: params ok");
     RCLCPP_INFO(node_->get_logger(),
@@ -146,7 +147,7 @@ class ParamsManager {
   }
 
  private:
-  rclcpp::Node::SharedPtr node_;
+  rclcpp::Node* node_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
   ParamsStructType ros_params_{};
 };

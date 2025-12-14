@@ -5,7 +5,6 @@ from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from moveit_configs_utils import MoveItConfigsBuilder
-from moveit_configs_utils.launches import generate_move_group_launch
 
 
 def generate_launch_description():
@@ -13,7 +12,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "launch_jsp",
-            default_value="true",
+            default_value="false",
             description="Start jsp gui",
         )
     )
@@ -46,7 +45,6 @@ def generate_launch_description():
             moveit_config.robot_description_kinematics,
             moveit_config.planning_pipelines,
         ],
-        condition=IfCondition(launch_jsp),
     )
     nodes.append(rviz_node)
 

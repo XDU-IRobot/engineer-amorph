@@ -7,18 +7,22 @@
 
 #include <librm.hpp>
 
-#include "librm/hal/can_interface.hpp"
 #include "logger.hpp"
+#include "rpc/typedefs.hpp"
 
 namespace amorph {
 
 using namespace text::literals;
 
 TransportNode::TransportNode(const rclcpp::NodeOptions &options) : Node("arm_controller", options) {
-  using namespace std::placeholders;
-
   params_manager_.Init();
+  InitRpc();
   InitActionServers();
+
+  joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(  //
+      params_manager_.data().joint_state_topic,                             //
+      10                                                                    //
+  );
 
   L::I("node initialized."_green);
 }
@@ -28,13 +32,20 @@ void TransportNode::InitRpc() {
   const int mosi_frame_id = params_manager_.data().rpc.mosi_frame_id;
   const int miso_frame_id = params_manager_.data().rpc.miso_frame_id;
 
+  static rm::modules::SparseValueWatcher<bool, true> rpc_connection_watcher;
+  rpc_connection_watcher.OnValueChange([](const bool &old_value, const bool &new_value) {
+    (void)old_value;  // unused
+    if (new_value) {
+      L::I("RPC connection established."_green);
+    } else {
+      L::W("RPC connection lost."_yellow);
+    }
+  });
+
   static rm::hal::Can rpc_can{can_port.c_str()};
   auto fdcan_transport = std::make_shared<FdCanTransport>(rpc_can, miso_frame_id, mosi_frame_id);
   stm32_.AttachToConnection(fdcan_transport);
   rpc_can.Begin();
-
-  uint8_t data[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
-  rpc_can.Write(0x133, data, sizeof(data));
 
   // 订阅日志消息
   stm32_.rpc()->subscribe("log_message", [this](const LogMessage &msg) {
@@ -60,8 +71,20 @@ void TransportNode::InitRpc() {
     }
   });
 
+  // 订阅关节位置，发布JointState
+  static sensor_msgs::msg::JointState joint_state_msg;
+  joint_state_msg.header.stamp = this->now();
+  joint_state_msg.name = params_manager_.data().joint_names;
+  stm32_.rpc()->subscribe("joint_position", [this](const JointPosition<6> &msg) {
+    joint_state_msg.position.assign(msg.positions.begin(), msg.positions.end());
+    joint_state_publisher_->publish(joint_state_msg);
+  });
+
   // rpc心跳定时器
-  auto heartbeat_timer = create_wall_timer(std::chrono::milliseconds(300), [this]() { stm32_.KeepConnection(); });
+  rpc_heartbeat_timer_ = create_wall_timer(std::chrono::milliseconds(100), [this]() {
+    rpc_connection_watcher.Update(stm32_.Connected());
+    stm32_.KeepConnection();
+  });
 
   L::I("RPC with stm32 ok."_green);
 }
@@ -113,7 +136,7 @@ void TransportNode::Execute(const std::shared_ptr<GoalHandleFollowJointTrajector
   const auto goal = goal_handle->get_goal();
   auto result = std::make_shared<FollowJointTrajectory::Result>();
 
-  // 转换轨迹
+  // 把ROS的轨迹消息转换为RPC的轨迹消息
   JointTrajectory traj;
   for (const auto &point : goal->trajectory.points) {
     JointTrajectoryPoint jt_point;
@@ -137,15 +160,13 @@ void TransportNode::Execute(const std::shared_ptr<GoalHandleFollowJointTrajector
     for (const auto &v : point.effort) {
       jt_point.effort.push_back(v);
     }
-    jt_point.time_from_start =
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(point.time_from_start.sec) +
-                                                              std::chrono::nanoseconds(point.time_from_start.nanosec));
+    jt_point.time_from_start = rclcpp::Duration(point.time_from_start).to_chrono<decltype(jt_point.time_from_start)>();
     traj.points.push_back(jt_point);
   }
 
   // 发送执行请求
-  ExecutionRequest exec_req;
-  exec_req.trajectory = traj;
+  JointTrajectory exec_req;
+  exec_req.points = traj.points;
   // stm32_.rpc()->cmd("execution_request")->msg(exec_req)->call();
 
   // TODO: 处理执行反馈
