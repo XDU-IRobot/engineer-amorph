@@ -18,7 +18,9 @@ struct Globals {
   rm::hal::Can left_can{hfdcan1}, right_can{hfdcan2}, rpc_can{hfdcan3};  ///< 用于电机和RPC通信的CAN总线
   rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
                               rm::hal::stm32::UartMode::kInterrupt};  ///< 用于接收遥控器信号的串口
-  RPC rpc;                                                            ///< RPC对象，负责与上位机通信
+
+  RPC rpc;  ///< RPC对象，负责与上位机通信
+  rm::modules::SparseValueWatcher<bool, true> rpc_connection_watcher;
 
   Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
   rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
@@ -32,6 +34,7 @@ struct Globals {
   rm::modules::RgbLedController<rm::modules::led_pattern::Off,          //
                                 rm::modules::led_pattern::GreenBreath,  //
                                 rm::modules::led_pattern::RedFlash,     //
+                                led_pattern::YellowFlash,               //
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
@@ -45,7 +48,7 @@ struct Globals {
     void SetEnable(bool enable, int repeats = 5) const {
       const auto cmd = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
       for (int i = 0; i < repeats; ++i) {
-        // j1->SendInstruction(cmd);
+        j1->SendInstruction(cmd);
         j2->SendInstruction(cmd);
         j3->SendInstruction(cmd);
         j4->SendInstruction(cmd);
@@ -57,13 +60,14 @@ struct Globals {
       }
     }
     void ApplyOutput(const MotionPlanner::Output<6> &output, bool apply_position = false) const {
-      // j1->SetPosition(0, 0, output.efforts[0], 0, 0);
       if (apply_position) {
+        j1->SetPosition(output.positions[0], 0, output.efforts[0], 35.f, 15.f);
         j2->SetPosition(output.positions[1], 0, output.efforts[1], 75.f, 30.f);
         j3->SetPosition(output.positions[1] + output.positions[2], 0, output.efforts[2], 50.f, 15.f);
         j4->SetPosition(output.positions[3], 0, output.efforts[3], 35.f, 15.f);
         j5->SetPosition(output.positions[4], 0, output.efforts[4], 35.f, 15.f);
       } else {
+        j1->SetPosition(0, 0, 0, 0, 0);
         j2->SetPosition(0, 0, output.efforts[1], 0, 0);
         j3->SetPosition(0, 0, output.efforts[2], 0, 0);
         j4->SetPosition(0, 0, output.efforts[3], 0, 0);
@@ -74,6 +78,8 @@ struct Globals {
     }
     DmMit *j1, *j2, *j3, *j4, *j5, *gripper;
     rm::device::M2006 *j6;
+    EncoderCounter j6_encoder{36.f * 1.75f,  // 2006减速比1:36，齿轮传动1:1.75
+                              2.f * M_PI};
   } actuator;
   rm::device::DeviceManager<10> device_manager;  ///< 设备管理器
 
@@ -144,9 +150,8 @@ struct Globals {
     rc.Begin();
 
     // 把设备都注册给设备管理器
-    device_manager << &rc
-                   // << actuator.j1
-                   << actuator.j2 << actuator.j3 << actuator.j4 << actuator.j5 << actuator.j6 << actuator.gripper;
+    device_manager << &rc << actuator.j1 << actuator.j2 << actuator.j3 << actuator.j4 << actuator.j5 << actuator.j6;
+    // << actuator.gripper;
   }
 };
 

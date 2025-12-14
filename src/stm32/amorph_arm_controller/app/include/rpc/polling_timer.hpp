@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
-#include <vector>
+
+#include <etl/vector.h>
 
 /**
  * @brief   基于轮询的定时器，用于在裸机环境下实现延时调用功能
@@ -22,9 +23,9 @@ class PollingTimer {
     auto now = Clock::now();
     // A simple way to handle re-entrant calls to DeferredCall is to copy tasks to be run
     // and then clear them from the main list. This avoids iterator invalidation issues.
-    std::vector<std::function<void()>> to_run;
+    etl::vector<std::function<void()>, 10> to_run;
 
-    std::erase_if(tasks_, [&](const Task& task) {
+    etl::erase_if(tasks_, [&](const Task& task) {
       if (task.due_time <= now) {
         to_run.push_back(task.func);
         return true;  // Remove from tasks_
@@ -47,5 +48,5 @@ class PollingTimer {
     std::function<void()> func;
   };
 
-  std::vector<Task> tasks_;
+  etl::vector<Task, 10> tasks_;
 };

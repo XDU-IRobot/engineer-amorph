@@ -8,8 +8,6 @@
 #include "motion_planner.hpp"
 #include "globals.hpp"
 
-extern float caonima;
-
 namespace fsm {
 
 struct EventId {
@@ -122,7 +120,6 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     get_fsm_context().planner_need_reset_ = true;
-    globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     globals->actuator.SetEnable(false, 1);
     globals->planner.Enable(false);
@@ -146,7 +143,6 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     target_positions_ = globals->planner.output().positions;
-    globals->led_controller.SetPattern<rm::modules::led_pattern::RgbFlow>();
     globals->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
     globals->planner.Enable(true);
     globals->actuator.SetEnable(true);
@@ -209,7 +205,6 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
     globals->planner.Enable(true);
     globals->actuator.SetEnable(true);
@@ -258,7 +253,6 @@ struct Executing : etl::fsm_state<Arm, Executing, StateId::kExecuting,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->led_controller.SetPattern<rm::modules::led_pattern::RgbFlow>();
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Success>();
     globals->planner.Enable(true);
     globals->actuator.SetEnable(true);
@@ -335,7 +329,6 @@ struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
     get_fsm_context().planner_need_reset_ = true;
     globals->actuator.SetEnable(false);
     globals->planner.Enable(false);
-    globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
     return No_State_Change;
   }

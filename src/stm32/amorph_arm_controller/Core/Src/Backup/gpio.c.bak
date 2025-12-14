@@ -70,11 +70,17 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ACC_INT_Pin GYRO_INT_Pin GPIO1_PE13_Pin */
-  GPIO_InitStruct.Pin = ACC_INT_Pin|GYRO_INT_Pin|GPIO1_PE13_Pin;
+  /*Configure GPIO pins : ACC_INT_Pin GYRO_INT_Pin */
+  GPIO_InitStruct.Pin = ACC_INT_Pin|GYRO_INT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : GPIO1_PE13_Pin */
+  GPIO_InitStruct.Pin = GPIO1_PE13_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIO1_PE13_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : KEY_Pin */
   GPIO_InitStruct.Pin = KEY_Pin;

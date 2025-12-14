@@ -3,7 +3,6 @@
 #include <rpc_core.hpp>
 
 #include "fdcan_transport.hpp"
-#include "typedefs.hpp"
 #include "polling_timer.hpp"
 
 /**

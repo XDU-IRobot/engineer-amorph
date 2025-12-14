@@ -21,8 +21,9 @@ struct LogMessage {
  * @brief   用于向上位机反馈当前关节位置，因为需要高频传输，所以只传位置，节省带宽
  * @note    slave -> host only
  */
+template <size_t N>
 struct JointPosition {
-  std::vector<float> positions;
+  std::array<float, N> positions;
   RPC_CORE_DEFINE_TYPE_INNER(positions);
 };
 

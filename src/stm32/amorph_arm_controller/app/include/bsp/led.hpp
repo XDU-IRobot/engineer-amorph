@@ -34,3 +34,29 @@ class WS2812Led {
  private:
   SPI_HandleTypeDef *hspi_;
 };
+
+namespace led_pattern {
+/**
+ * @brief 黄灯闪烁
+ * @note  闪烁周期为1000ms（500ms开，500ms关）
+ */
+class YellowFlash : public rm::modules::RgbLedPattern {
+ public:
+  YellowFlash() = default;
+
+  Rgb Update(TimePoint now) override {
+    auto elapsed = ElapsedMs(start_time_, now);
+    // 闪烁周期：1000ms
+    uint32_t phase = elapsed % 1000;
+    if (phase < 500) {
+      return Rgb(255, 255, 0);
+    }
+    return Rgb(0, 0, 0);
+  }
+
+  void Reset(TimePoint now) override { start_time_ = now; }
+
+ private:
+  TimePoint start_time_;
+};
+}  // namespace led_pattern

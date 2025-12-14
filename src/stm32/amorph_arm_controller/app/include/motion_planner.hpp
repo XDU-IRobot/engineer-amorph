@@ -93,10 +93,10 @@ class MotionPlanner {
       output_.efforts[i] = 0.f;
     }
 
-    // 对前三个关节叠加动力学前馈力矩
+    // 对j2 j3叠加动力学前馈力矩
     const auto feedforward_efforts =
         dynamic_model_.Inverse({current_positions[0], current_positions[1], current_positions[2]});
-    for (size_t i = 0; i < 3; ++i) {
+    for (size_t i = 1; i < 3; ++i) {
       output_.efforts[i] += feedforward_efforts(i);
     }
     output_.efforts[1] = -output_.efforts[1];  // j2反向安装
@@ -216,9 +216,8 @@ class MotionPlanner {
   std::array<rm::modules::PID, 6> position_pid_;
 
   constexpr static std::array<std::pair<float, float>, 6> kJointLimits{
-      std::make_pair(-M_PI, M_PI), std::make_pair(-M_PI, M_PI),
-      std::make_pair(-M_PI, M_PI), std::make_pair(-M_PI, M_PI),
-      std::make_pair(-M_PI, M_PI), std::make_pair(-M_PI, M_PI)};  // placeholder joint limits
+      std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI},
+      std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}};  // placeholder joint limits
 
   Status status_{kIdle};
   int fault_counter_{0};

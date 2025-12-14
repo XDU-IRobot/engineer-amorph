@@ -1,7 +1,9 @@
 
 #pragma once
 
-#include "rpc.hpp"
+#include <rpc_core.hpp>
+
+#include "typedefs.hpp"
 
 namespace host {
 
@@ -43,6 +45,13 @@ void F(const char *fmt, Args &&...args) {
 }
 };  // namespace L
 
-inline void ReportJointPosition(const JointPosition &jp) { rpc->cmd("joint_position")->msg(jp)->call(); }
+template <size_t N>
+void ReportJointPosition(const JointPosition<N> &jp) {
+  rpc->cmd("joint_position")->msg(jp)->call();
+}
+template <size_t N>
+void ReportJointPosition(const JointPosition<N> &&jp) {
+  rpc->cmd("joint_position")->msg(std::forward<const JointPosition<N>>(jp))->call();
+}
 
 }  // namespace host
