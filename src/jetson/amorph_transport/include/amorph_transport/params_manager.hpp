@@ -36,7 +36,7 @@ class ParamsManager {
   ParamsManager() = delete;
   ~ParamsManager() = default;
 
-  explicit ParamsManager(rclcpp::Node* node) : node_(node) {}
+  explicit ParamsManager(rclcpp::Node *node) : node_(node) {}
 
   const ParamsStructType &data() const { return ros_params_; }
 
@@ -147,7 +147,7 @@ class ParamsManager {
   }
 
  private:
-  rclcpp::Node* node_;
+  rclcpp::Node *node_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
   ParamsStructType ros_params_{};
 };
