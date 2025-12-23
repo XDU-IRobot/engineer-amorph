@@ -1,4 +1,3 @@
-
 /**
  * @brief 操作手可使用自定义控制器通过图传链路向对应的机器人发送数据。
  *        命令码ID：0x0302
@@ -21,6 +20,13 @@
 #include <vector>
 
 #include <librm.hpp>
+
+struct __attribute__((__packed__)) CustomControllerCmd {
+  bool ok;
+  float joint_positions[6];
+};
+
+static_assert(sizeof(CustomControllerCmd) <= 30, "Payload struct too large");
 
 class PacketBuilder {
  public:
@@ -45,7 +51,7 @@ class PacketBuilder {
   struct __attribute__((__packed__)) {
     // header
     const uint8_t kSof{0xa5};
-    const uint16_t kDataLength{30u};
+    const uint16_t kDataLength{30};
     uint8_t seq{0};
     uint8_t header_crc8;
 
@@ -53,7 +59,7 @@ class PacketBuilder {
     const uint16_t kCmdId{0x0302};
 
     // payload
-    uint8_t data[30]{0};
+    uint8_t data[30]{};
 
     // tail
     uint16_t tail_crc16;

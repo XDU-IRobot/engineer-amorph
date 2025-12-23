@@ -31,6 +31,8 @@ struct Globals {
                                 rm::modules::buzzer_melody::SuperMario>
       buzzer_controller;
 
+  rm::device::HipnucImuCan *hipnuc_imu;
+
   rm::modules::SparseValueWatcher<bool> g_comp_enable_watcher;
 
   struct {
@@ -43,6 +45,7 @@ struct Globals {
     imu = new rm::device::BMI088{hspi1, CS1_ACCEL_GPIO_Port, CS1_ACCEL_Pin, CS1_GYRO_GPIO_Port, CS1_GYRO_Pin};
     rc = new rm::device::DR16{*dbus};
     motor_can = new rm::hal::Can{hcan1};
+    hipnuc_imu = new rm::device::HipnucImuCan{*motor_can, 8};
     motors.j0 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{*motor_can, 1};
     motors.j1 = new rm::device::DmMotor{
         *motor_can, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0x25,
