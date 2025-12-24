@@ -1,6 +1,3 @@
-[submodule "src/jetson/robomaster2"]
-	path = src/jetson/robomaster2
-	url = https://github.com/XDU-IRobot/robomaster2.git
 [submodule "src/jetson/sbus_ros2"]
 	path = src/jetson/sbus_ros2
 	url = https://github.com/eryeden/sbus_ros2.git
@@ -41,3 +38,6 @@
 [submodule "src/jetson/easy_handeye2"]
 	path = src/jetson/easy_handeye2
 	url = https://github.com/marcoesposito1988/easy_handeye2.git
+[submodule "src/jetson/rm_referee_ros2"]
+	path = src/jetson/rm_referee_ros2
+	url = https://github.com/XDU-IRobot/rm_referee_ros2.git

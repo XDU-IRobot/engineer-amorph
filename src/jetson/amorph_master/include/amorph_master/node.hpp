@@ -4,8 +4,8 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 
 #include "sbus_interface/msg/sbus.hpp"
-#include "rm2_referee_msgs/msg/remote_control.hpp"
-#include "rm2_referee_msgs/msg/custom_robot_data.hpp"
+#include "rm_referee_msgs/msg/remote_control.hpp"
+#include "rm_referee_msgs/msg/custom_robot_data.hpp"
 
 #include "logger.hpp"
 #include "moveit_helper.hpp"
@@ -80,16 +80,16 @@ class AmorphMasterNode {
             return;
           }
         });
-    subs_.vt_remote = main_ros_node_->create_subscription<rm2_referee_msgs::msg::RemoteControl>(
-        "/rm2_referee/remote_control", rclcpp::SensorDataQoS(),
-        [this](rm2_referee_msgs::msg::RemoteControl::SharedPtr msg) {
+    subs_.vt_remote = main_ros_node_->create_subscription<rm_referee_msgs::msg::RemoteControl>(
+        "/rm_referee/remote_control", rclcpp::SensorDataQoS(),
+        [this](rm_referee_msgs::msg::RemoteControl::SharedPtr msg) {
           static uint16_t last_keyboard_value = 0;
 #define KEY_DOWN(key_value) ((msg->keyboard_value == (key_value)) && (msg->keyboard_value ^ last_keyboard_value))
 #define KEY_UP(key_value) \
   (((msg->keyboard_value ^ last_keyboard_value) == (key_value)) && (last_keyboard_value == (key_value)))
 #define KEY_HOLD(key_value) (msg->keyboard_value == (key_value))
 #define KEY_NOT_HOLD(key_value) (msg->keyboard_value != (key_value))
-          using RC = rm2_referee_msgs::msg::RemoteControl;
+          using RC = rm_referee_msgs::msg::RemoteControl;
           if (KEY_DOWN(RC::KEY_W)) {
             L::I("Key W down");
           }
@@ -105,9 +105,9 @@ class AmorphMasterNode {
 #undef KEY_NOT_HOLD
           last_keyboard_value = msg->keyboard_value;
         });
-    subs_.custom_controller = main_ros_node_->create_subscription<rm2_referee_msgs::msg::CustomRobotData>(
-        "/rm2_referee/custom_robot_data", rclcpp::SensorDataQoS(),
-        [this](rm2_referee_msgs::msg::CustomRobotData::SharedPtr msg) {
+    subs_.custom_controller = main_ros_node_->create_subscription<rm_referee_msgs::msg::CustomRobotData>(
+        "/rm_referee/custom_robot_data", rclcpp::SensorDataQoS(),
+        [this](rm_referee_msgs::msg::CustomRobotData::SharedPtr msg) {
 
         });
     L::I("User input ok."_green);
@@ -123,8 +123,8 @@ class AmorphMasterNode {
   } timers_{};
   struct {
     rclcpp::Subscription<sbus_interface::msg::Sbus>::SharedPtr sbus_remote{nullptr};
-    rclcpp::Subscription<rm2_referee_msgs::msg::RemoteControl>::SharedPtr vt_remote{nullptr};
-    rclcpp::Subscription<rm2_referee_msgs::msg::CustomRobotData>::SharedPtr custom_controller{nullptr};
+    rclcpp::Subscription<rm_referee_msgs::msg::RemoteControl>::SharedPtr vt_remote{nullptr};
+    rclcpp::Subscription<rm_referee_msgs::msg::CustomRobotData>::SharedPtr custom_controller{nullptr};
   } subs_{};
   struct {
     PickPlaceTask pick_place_task{"pick_place_task"};
