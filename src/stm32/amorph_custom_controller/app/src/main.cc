@@ -15,15 +15,6 @@ namespace {
 etl::debounce<10, 10, 10> button_db;
 bool g_comp_enable = false;
 
-rm::modules::PID speed_pid[6]{
-    rm::modules::PID{1, 0, 0, 400, 0},  //
-    rm::modules::PID{0, 0, 0, 0, 0},    //
-    rm::modules::PID{0, 0, 0, 0, 0},    //
-    rm::modules::PID{1, 0, 0, 400, 0},  //
-    rm::modules::PID{1, 0, 0, 400, 0},  //
-    rm::modules::PID{1, 0, 0, 400, 0},  //
-};
-
 void MainLoop() {
   static int subloop_counter = 0;
   subloop_counter = (subloop_counter + 1) % 1000;
@@ -56,9 +47,10 @@ void MainLoop() {
 
   button_db.add(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14) == GPIO_PIN_RESET);
 
-  globals.imu->Update();
-  globals.ahrs.Update(rm::modules::ImuData6Dof{globals.imu->gyro_x(), globals.imu->gyro_y(), globals.imu->gyro_z(),
-                                               globals.imu->accel_x(), globals.imu->accel_x(), globals.imu->accel_x()});
+  // globals.imu->Update();
+  // globals.ahrs.Update(rm::modules::ImuData6Dof{globals.imu->gyro_x(), globals.imu->gyro_y(), globals.imu->gyro_z(),
+  //                                              globals.imu->accel_x(), globals.imu->accel_x(),
+  //                                              globals.imu->accel_x()});
 
   static bool all_motors_online = true;  // 第一次假设所有电机在线，不然进不了后续逻辑
   if (!all_motors_online) {
@@ -66,9 +58,6 @@ void MainLoop() {
     globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
     return;  // 有电机离线则不运行后续逻辑
   }
-  speed_pid[3].Update(0, globals.motors.j3->feedback().speed_rad_ps);
-  speed_pid[4].Update(0, globals.motors.j4->feedback().speed_rad_ps);
-  speed_pid[5].Update(0, globals.motors.j5->feedback().speed_rad_ps);
 
   if (g_comp_enable) {
     const DynamicModel::Vec3 q_current = {0.f, globals.motors.j1->pos(), globals.motors.j2->pos()};
