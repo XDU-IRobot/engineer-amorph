@@ -1,12 +1,6 @@
 
 #include "node.hpp"
 
-#include <memory>
-#include <thread>
-#include <chrono>
-
-#include <librm.hpp>
-
 #include "logger.hpp"
 #include "rpc/typedefs.hpp"
 
@@ -16,18 +10,18 @@ using namespace text::literals;
 
 TransportNode::TransportNode(const rclcpp::NodeOptions &options) : Node("arm_controller", options) {
   params_manager_.Init();
-  InitRpc();
+  InitComm();
   InitActionServers();
 
-  joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(  //
-      params_manager_.data().joint_state_topic,                             //
-      10                                                                    //
+  joint_state_pub_ = create_publisher<sensor_msgs::msg::JointState>(  //
+      params_manager_.data().joint_state_topic,                       //
+      10                                                              //
   );
 
   L::I("node initialized."_green);
 }
 
-void TransportNode::InitRpc() {
+void TransportNode::InitComm() {
   const std::string can_port = params_manager_.data().rpc.can_port;
   const int mosi_frame_id = params_manager_.data().rpc.mosi_frame_id;
   const int miso_frame_id = params_manager_.data().rpc.miso_frame_id;
@@ -42,10 +36,10 @@ void TransportNode::InitRpc() {
     }
   });
 
-  static rm::hal::Can rpc_can{can_port.c_str()};
-  auto fdcan_transport = std::make_shared<FdCanTransport>(rpc_can, miso_frame_id, mosi_frame_id);
+  comm_can_ = std::make_unique<rm::hal::Can>(can_port.c_str());
+  auto fdcan_transport = std::make_shared<FdCanTransport>(*comm_can_, miso_frame_id, mosi_frame_id);
   stm32_.AttachToConnection(fdcan_transport);
-  rpc_can.Begin();
+  comm_can_->Begin();
 
   // 订阅日志消息
   stm32_.rpc()->subscribe("log_message", [this](const LogMessage &msg) {
@@ -77,7 +71,7 @@ void TransportNode::InitRpc() {
   joint_state_msg.name = params_manager_.data().joint_names;
   stm32_.rpc()->subscribe("joint_position", [this](const JointPosition<6> &msg) {
     joint_state_msg.position.assign(msg.positions.begin(), msg.positions.end());
-    joint_state_publisher_->publish(joint_state_msg);
+    joint_state_pub_->publish(joint_state_msg);
   });
 
   // rpc心跳定时器
@@ -86,7 +80,17 @@ void TransportNode::InitRpc() {
     stm32_.KeepConnection();
   });
 
-  L::I("RPC with stm32 ok."_green);
+  // 订阅自定义控制器数据，转发到CAN总线上
+  custom_controller_ = std::make_unique<CustomController>(*comm_can_);
+  custom_ctrl_sub_ = create_subscription<rm_referee_msgs::msg::CustomRobotData>(  //
+      "rm_referee/custom_robot_data",                                             //
+      rclcpp::SensorDataQoS(),                                                    //
+      [this](const rm_referee_msgs::msg::CustomRobotData::SharedPtr msg) {
+        memcpy(&custom_controller_->data, msg->data.data(), sizeof(custom_controller_->data));
+        custom_controller_->Write();
+      });
+
+  L::I("Comm with stm32 ok."_green);
 }
 
 void TransportNode::InitActionServers() {
@@ -190,3 +194,6 @@ void TransportNode::Execute(const std::shared_ptr<GoalHandleGripperCommand> goal
 }
 
 }  // namespace amorph
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(amorph::TransportNode)

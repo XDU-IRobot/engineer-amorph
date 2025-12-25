@@ -18,9 +18,16 @@ include_directories(src/mtc)
 
 file(GLOB_RECURSE ${PROJECT_NAME}_SOURCES src/*.cc)
 
-ament_auto_add_executable(${PROJECT_NAME}_node ${${PROJECT_NAME}_SOURCES})
-target_link_libraries(${PROJECT_NAME}_node
+# 创建组件库
+ament_auto_add_library(${PROJECT_NAME}_component SHARED ${${PROJECT_NAME}_SOURCES})
+target_link_libraries(${PROJECT_NAME}_component
   ${PROJECT_NAME}_libs
+)
+
+# 注册组件
+rclcpp_components_register_node(${PROJECT_NAME}_component
+  PLUGIN "amorph::TransportNode"
+  EXECUTABLE ${PROJECT_NAME}_node
 )
 
 install(DIRECTORY config

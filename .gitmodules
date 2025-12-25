@@ -19,9 +19,6 @@
 	path = src/jetson/amorph_transport/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
-[submodule "src/jetson/amorph_transport/libs/rpc_core"]
-	path = src/jetson/amorph_transport/libs/rpc_core
-	url = https://github.com/shuai132/rpc_core.git
 [submodule "src/jetson/moveit_task_constructor"]
 	path = src/jetson/moveit_task_constructor
 	url = https://github.com/moveit/moveit_task_constructor.git
