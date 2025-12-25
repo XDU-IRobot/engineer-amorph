@@ -9,6 +9,7 @@
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
 #include "rpc/rpc.hpp"
+#include "rpc/custom_controller.hpp"
 #include "et16s.hpp"
 
 /**
@@ -41,6 +42,8 @@ struct Globals {
   WflyET16s rc{sbus_serial};  ///< 遥控器
 
   MotionPlanner planner;  ///< 运动规划器
+
+  CustomController custom_controller{rpc_can};  ///< 自定义控制器，上位机通过CANFD总线转发来的数据
 
   struct Actuator {
     using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;

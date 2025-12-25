@@ -70,6 +70,7 @@ extern "C" {
     }
   });
 
+  // 监听设备状态变化，所有设备正常时LED为绿色呼吸灯，否则红灯闪烁
   globals->device_manager.OnDeviceStatusChange([](rm::device::Device *) {
     if (globals->device_manager.all_device_ok()) {
       globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
@@ -77,6 +78,10 @@ extern "C" {
       globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
     }
   });
+
+  // 注册自定义控制器的接收回调，转发命令给状态机
+  globals->custom_controller.OnRecv(
+      [&] { fsm::arm.receive(fsm::event::CustomCtrlCommand(globals->custom_controller.data)); });
 
   // 创建主循环定时任务，定频500hz
   TimerTask mainloop{

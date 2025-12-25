@@ -5,6 +5,7 @@
 #include <etl/fsm.h>
 #include <etl/cyclic_value.h>
 
+#include "rpc/custom_controller.hpp"
 #include "motion_planner.hpp"
 #include "globals.hpp"
 
@@ -18,6 +19,7 @@ struct EventId {
     kGoToPosReq,              ///< 定点去往请求
     kCancelExecutionReq,      ///< 取消轨迹执行请求
     kGripperCommand,          ///< 夹爪控制命令
+    kCustomCtrlCommand,       ///< 自定义控制器命令
     kFaultClear,              ///< 故障清除命令
     kOpticalSwitchTriggered,  ///< 光电开关触发，j6回零完成
     kNextJoint,               ///< Manual模式下切换到下一个关节
@@ -27,10 +29,11 @@ struct EventId {
 struct StateId {
   enum : etl::fsm_state_id_t {
     kNoForce,        ///< 强制无力
-    kManual,         ///< 遥控器手动模式
-    kIdle,           ///< 空闲，可执行
-    kExecuting,      ///< 正在执行运动
-    kJ6Calibrating,  ///< j6回零中
+    kManual,         ///< 遥控器调试模式，调试/检录的时候用
+    kIdle,           ///< 空闲，可执行轨迹
+    kExecuting,      ///< 正在运动
+    kCustomCtrl,     ///< 自定义控制器操作
+    kJ6Calibrating,  ///< j6校准位置中
     kFault,          ///< 故障状态
   };
 };
@@ -74,6 +77,13 @@ struct CancelExecutionReq : etl::message<EventId::kCancelExecutionReq> {};
 struct GripperCommand : etl::message<EventId::kGripperCommand> {
   explicit GripperCommand(bool open) : target_position(open ? 0.453383446f : -1.11562538f) {}
   float target_position;
+};
+
+/*******************************************/
+struct CustomCtrlCommand : etl::message<EventId::kCustomCtrlCommand>, CustomController::Command {
+  using Command::Command;
+  CustomCtrlCommand() = default;
+  explicit CustomCtrlCommand(const Command &command) : Command(command) {}
 };
 
 /*******************************************/
@@ -201,7 +211,8 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
                              event::ForceModeSwitch,     //
                              event::ExecutionReq,        //
                              event::ControlLoop,         //
-                             event::GoToPosReq> {
+                             event::GoToPosReq,          //
+                             event::CustomCtrlCommand> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
@@ -241,6 +252,12 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     out.positions[2] = globals->planner.output().positions[2];
     globals->actuator.ApplyOutput(out, true);
 
+    return No_State_Change;
+  }
+  REACT(event::CustomCtrlCommand) {
+    if (e.buttons.a) {  // 按下按钮a，进入CustomCtrl模式
+      return StateId::kCustomCtrl;
+    }
     return No_State_Change;
   }
 };
@@ -297,6 +314,63 @@ struct Executing : etl::fsm_state<Arm, Executing, StateId::kExecuting,  //
     out.positions[1] = globals->planner.output().positions[1];
     out.positions[2] = globals->planner.output().positions[2];
     globals->actuator.ApplyOutput(out, true);
+    return No_State_Change;
+  }
+};
+
+/*******************************************/
+struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
+                                   event::ControlLoop,                     //
+                                   event::ForceModeSwitch,                 //
+                                   event::CustomCtrlCommand> {
+  ACCEPT_MODE_SWITCH();
+  IGNORE_UNINTEREST_EVENT();
+  ENTER {
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Success>();
+    globals->planner.Enable(true);
+    globals->actuator.SetEnable(true);
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) {
+    switch (globals->planner.status()) {
+      case MotionPlanner::kIdle: {
+        return StateId::kIdle;
+      }
+      case MotionPlanner::kFault: {
+        return StateId::kFault;
+      }
+      case MotionPlanner::kExecuting:
+      default: {
+        // no state change
+        break;
+      }
+    }
+    if (get_fsm_context().planner_need_reset_) {
+      globals->planner.ResetAt(e.current_positions);
+      get_fsm_context().planner_need_reset_ = false;
+    }
+    globals->planner.Update(e.current_positions, e.current_velocities, 0.002f);
+    MotionPlanner::Output<6> out = MotionPlanner::Output<6>::Zero();
+    out.efforts[1] = globals->planner.output().efforts[1];
+    out.efforts[2] = globals->planner.output().efforts[2];
+    out.positions[1] = globals->planner.output().positions[1];
+    out.positions[2] = globals->planner.output().positions[2];
+    globals->actuator.ApplyOutput(out, true);
+    return No_State_Change;
+  }
+  REACT(event::CustomCtrlCommand) {
+    if (!e.buttons.a) {  // 松开按钮a，退出CustomCtrl模式
+      return StateId::kIdle;
+    }
+    const auto target_p = [&] {
+      JointTrajectoryPoint p;
+      p.positions.assign(std::begin(e.joint_positions), std::end(e.joint_positions));
+      p.velocities.resize(6);
+      p.accelerations.resize(6);
+      p.effort.resize(6);
+      return p;
+    }();
+    globals->planner.GoTo(target_p);
     return No_State_Change;
   }
 };
