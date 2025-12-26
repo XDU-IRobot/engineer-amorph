@@ -89,14 +89,10 @@ class AmorphMasterNode {
                      L::I("Key A down with modifiers: 0x%X", key_event.modifiers);
                    })  //
         .OnKeyDown(rm_referee_msgs::msg::RemoteControl::KEY_A, rm_referee_msgs::msg::RemoteControl::KEY_LCTRL,
-                   [](const rm::modules::KeyEvent &) {
-                     L::I("Key Ctrl+A down"_green);
-                   });
+                   [](const rm::modules::KeyEvent &) { L::I("Key Ctrl+A down"_green); });
     subs_.vt_remote = main_ros_node_->create_subscription<rm_referee_msgs::msg::RemoteControl>(
         "/rm_referee/remote_control", rclcpp::SensorDataQoS(),
-        [this](rm_referee_msgs::msg::RemoteControl::SharedPtr msg) {
-          keyboard_handler.Update(msg->keyboard_value);
-        });
+        [this](rm_referee_msgs::msg::RemoteControl::SharedPtr msg) { keyboard_handler.Update(msg->keyboard_value); });
     L::I("User input ok."_green);
   }
 
