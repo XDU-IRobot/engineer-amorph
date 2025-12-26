@@ -15,7 +15,6 @@ class CustomController : public rm::device::CanDevice {
 
   struct __attribute__((__packed__)) Command {
     bool ok;
-    float joint_positions[6];
     struct __attribute__((__packed__)) {
       bool a : 1;
       bool b : 1;
@@ -25,7 +24,8 @@ class CustomController : public rm::device::CanDevice {
       bool f : 1;
       bool g : 1;
       bool h : 1;
-    } buttons;
+    } buttons{};
+    float joint_positions[6];
   } data{};
 
  protected:

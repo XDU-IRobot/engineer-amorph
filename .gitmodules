@@ -35,3 +35,7 @@
 [submodule "src/jetson/rm_referee_ros2"]
 	path = src/jetson/rm_referee_ros2
 	url = https://github.com/XDU-IRobot/rm_referee_ros2.git
+[submodule "src/jetson/amorph_master/libs/librm"]
+	path = src/jetson/amorph_master/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
+	branch = develop

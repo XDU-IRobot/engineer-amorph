@@ -8,7 +8,10 @@ namespace amorph {
 
 using namespace text::literals;
 
-TransportNode::TransportNode(const rclcpp::NodeOptions &options) : Node("arm_controller", options) {
+TransportNode::TransportNode(const rclcpp::NodeOptions &options)
+    : Node("arm_controller", rclcpp::NodeOptions()                   //
+                                 .allow_undeclared_parameters(true)  //
+                                 .automatically_declare_parameters_from_overrides(true)) {
   params_manager_.Init();
   InitComm();
   InitActionServers();
@@ -87,6 +90,23 @@ void TransportNode::InitComm() {
       rclcpp::SensorDataQoS(),                                                    //
       [this](const rm_referee_msgs::msg::CustomRobotData::SharedPtr msg) {
         memcpy(&custom_controller_->data, msg->data.data(), sizeof(custom_controller_->data));
+        // // log the message
+        // std::stringstream ss;
+        // ss << "Received custom robot data: \n"
+        //    << "Joint positions: ";
+        // for (int i = 0; i < 6; ++i) {
+        //   ss << std::setprecision(4) << custom_controller_->data.joint_positions[i] << " ";
+        // }
+        // ss << "\nButtons: ";
+        // ss << std::hex << static_cast<int>(custom_controller_->data.buttons.a) << " "
+        //    << static_cast<int>(custom_controller_->data.buttons.b) << " "
+        //    << static_cast<int>(custom_controller_->data.buttons.c) << " "
+        //    << static_cast<int>(custom_controller_->data.buttons.d) << " "
+        //    << static_cast<int>(custom_controller_->data.buttons.e) << " "
+        //    << static_cast<int>(custom_controller_->data.buttons.f) << " "
+        //    << static_cast<int>(custom_controller_->data.buttons.g) << " "
+        //    << static_cast<int>(custom_controller_->data.buttons.h) << "\n";
+        // L::D("%s", ss.str().c_str());
         custom_controller_->Write();
       });
 
