@@ -39,3 +39,7 @@
 	path = src/jetson/amorph_master/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
+[submodule "src/stm32/chassis/libs/librm"]
+	path = src/stm32/chassis/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
+	branch = develop
