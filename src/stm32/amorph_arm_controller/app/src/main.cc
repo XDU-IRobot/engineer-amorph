@@ -80,8 +80,9 @@ extern "C" {
   });
 
   // 注册自定义控制器的接收回调，转发命令给状态机
-  globals->custom_controller.OnRecv(
-      [&] { fsm::arm.receive(fsm::event::CustomCtrlCommand(globals->custom_controller.data)); });
+  globals->custom_controller.OnRecv([&] {  //
+    fsm::arm.receive(fsm::event::CustomCtrlCommand(globals->custom_controller.data));
+  });
 
   // 创建主循环定时任务，定频500hz
   TimerTask mainloop{

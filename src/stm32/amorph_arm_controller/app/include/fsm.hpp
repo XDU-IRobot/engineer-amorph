@@ -246,11 +246,7 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
 
     globals->planner.Update(e.current_positions, e.current_velocities, 0.002f);
     MotionPlanner::Output<6> out = MotionPlanner::Output<6>::Zero();
-    out.efforts[1] = globals->planner.output().efforts[1];
-    out.efforts[2] = globals->planner.output().efforts[2];
-    out.positions[1] = globals->planner.output().positions[1];
-    out.positions[2] = globals->planner.output().positions[2];
-    globals->actuator.ApplyOutput(out, true);
+    globals->actuator.ApplyOutput(globals->planner.output(), true);
 
     return No_State_Change;
   }
@@ -326,24 +322,14 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Success>();
+    globals->buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
     globals->planner.Enable(true);
     globals->actuator.SetEnable(true);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    switch (globals->planner.status()) {
-      case MotionPlanner::kIdle: {
-        return StateId::kIdle;
-      }
-      case MotionPlanner::kFault: {
-        return StateId::kFault;
-      }
-      case MotionPlanner::kExecuting:
-      default: {
-        // no state change
-        break;
-      }
+    if (globals->planner.status() == MotionPlanner::kFault) {
+      return StateId::kFault;
     }
     if (get_fsm_context().planner_need_reset_) {
       globals->planner.ResetAt(e.current_positions);
@@ -351,25 +337,27 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     }
     globals->planner.Update(e.current_positions, e.current_velocities, 0.002f);
     MotionPlanner::Output<6> out = MotionPlanner::Output<6>::Zero();
-    out.efforts[1] = globals->planner.output().efforts[1];
-    out.efforts[2] = globals->planner.output().efforts[2];
-    out.positions[1] = globals->planner.output().positions[1];
-    out.positions[2] = globals->planner.output().positions[2];
-    globals->actuator.ApplyOutput(out, true);
+    globals->actuator.ApplyOutput(globals->planner.output(), true);
     return No_State_Change;
   }
   REACT(event::CustomCtrlCommand) {
     if (!e.buttons.a) {  // 松开按钮a，退出CustomCtrl模式
       return StateId::kIdle;
     }
-    const auto target_p = [&] {
+    if (!e.ok) {
+      return No_State_Change;
+    }
+    auto target_p = [&] {
+      const auto &current_pos = globals->planner.output().positions;
       JointTrajectoryPoint p;
-      p.positions.assign(std::begin(e.joint_positions), std::end(e.joint_positions));
+      p.positions.assign(current_pos.begin(), current_pos.end());
       p.velocities.resize(6);
       p.accelerations.resize(6);
       p.effort.resize(6);
       return p;
     }();
+    target_p.positions[1] = e.joint_positions[1];
+    target_p.positions[2] = e.joint_positions[2];
     globals->planner.GoTo(target_p);
     return No_State_Change;
   }

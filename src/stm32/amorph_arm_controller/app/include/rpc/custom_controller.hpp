@@ -15,7 +15,6 @@ class CustomController : public rm::device::CanDevice {
 
   struct __attribute__((__packed__)) Command {
     bool ok;
-    float joint_positions[6];
     struct __attribute__((__packed__)) {
       bool a : 1;
       bool b : 1;
@@ -25,14 +24,25 @@ class CustomController : public rm::device::CanDevice {
       bool f : 1;
       bool g : 1;
       bool h : 1;
-    } buttons;
+    } buttons{};
+    float joint_positions[6];
   } data{};
 
- protected:
   void RxCallback(const rm::hal::CanFrame *msg) override {
-    if (msg->dlc == sizeof(data)) {
-      ReportStatus(kOk);
-      memcpy(&data, msg->data.data(), sizeof(data));
+    static Command temp;
+    temp = *reinterpret_cast<const Command *>(msg->data.data());
+    for (int i = 0; i < 6; ++i) {
+      if (std::isnan(temp.joint_positions[i]) ||  //
+          std::isinf(temp.joint_positions[i]) ||  //
+          std::abs(temp.joint_positions[i]) > 20.f) {
+        return;  // 数据异常，忽略这一包
+      }
+    }
+    // 数据没问题
+    ReportStatus(kOk);
+    data = temp;
+    if (on_recv_cb_) {
+      on_recv_cb_();
     }
   }
 
