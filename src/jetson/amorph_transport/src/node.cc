@@ -70,10 +70,13 @@ void TransportNode::InitComm() {
 
   // 订阅关节位置，发布JointState
   static sensor_msgs::msg::JointState joint_state_msg;
-  joint_state_msg.header.stamp = this->now();
   joint_state_msg.name = params_manager_.data().joint_names;
   stm32_.rpc()->subscribe("joint_position", [this](const JointPosition<6> &msg) {
+    joint_state_msg.header.stamp = this->now();
+    joint_state_msg.position.resize(6);
     joint_state_msg.position.assign(msg.positions.begin(), msg.positions.end());
+    // 下位机暂时不反馈j7_l(夹爪)，先填0防止moveit报错
+    joint_state_msg.position.push_back(0.0);
     joint_state_pub_->publish(joint_state_msg);
   });
 

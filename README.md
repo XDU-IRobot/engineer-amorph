@@ -132,6 +132,6 @@ sudo docker run --privileged --net=host --name moveit_test -it ros:jazzy
 
 ```bash
 sudo apt update
-sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library ros-jazzy-librealsense2 ros-jazzy-realsense2* ros-jazzy-py-binding-tools ros-jazzy-ros2-control ros-jazzy-moveit-ros-perception ros-jazzy-apriltag-ros libgflags-dev nlohmann-json3-dev ros-$ROS_DISTRO-image-transport ros-${ROS_DISTRO}-image-transport-plugins ros-${ROS_DISTRO}-compressed-image-transport ros-$ROS_DISTRO-image-publisher ros-$ROS_DISTRO-camera-info-manager ros-$ROS_DISTRO-diagnostic-updater ros-$ROS_DISTRO-diagnostic-msgs ros-$ROS_DISTRO-statistics-msgs libdw-dev
+sudo apt install -y ros-jazzy-moveit ros-jazzy-xacro ros-jazzy-backward-ros ros-jazzy-trac-ik ros-jazzy-generate-parameter-library ros-jazzy-librealsense2 ros-jazzy-realsense2* ros-jazzy-py-binding-tools ros-jazzy-ros2-control ros-jazzy-moveit-ros-perception ros-jazzy-apriltag-ros python3-transforms3d libgflags-dev nlohmann-json3-dev ros-$ROS_DISTRO-image-transport ros-${ROS_DISTRO}-image-transport-plugins ros-${ROS_DISTRO}-compressed-image-transport ros-$ROS_DISTRO-image-publisher ros-$ROS_DISTRO-camera-info-manager ros-$ROS_DISTRO-diagnostic-updater ros-$ROS_DISTRO-diagnostic-msgs ros-$ROS_DISTRO-statistics-msgs libdw-dev
 unminimize
 ```

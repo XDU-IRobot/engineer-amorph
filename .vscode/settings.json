@@ -44,5 +44,6 @@
   ],
   "ros.distro": "humble",
   "cmake.sourceDirectory": "/home/lunarifish/engineer-amorph/build_3rdparty/easy_handeye2_msgs/easy_handeye2_msgs__py",
-  "github.copilot.chat.codeGeneration.useInstructionFiles": true
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+  "ROS2.distro": "jazzy"
 }

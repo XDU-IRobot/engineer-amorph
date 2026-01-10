@@ -17,7 +17,6 @@
 
 namespace amorph {
 
-using namespace std::chrono_literals;
 using namespace text::literals;
 using VM = VarMemory;
 
@@ -35,24 +34,6 @@ class AmorphMasterNode {
     MoveitHelper::GetInstance().Init(mtc_ros_node_);
     InitUserInput();
     L::I("node initialized."_green);
-
-    // std::thread([this] {
-    //   while (!executor_running_.load()) {
-    //     std::this_thread::sleep_for(100ms);
-    //   }
-    //   const auto &task = mtc_tasks_.pick_energy_unit_task.task();
-    //   // task->reset();
-    //   mtc_tasks_.pick_energy_unit_task.init(mtc_ros_node_);
-    //   mtc_tasks_.pick_energy_unit_task.plan(10);
-    //   task->publishAllSolutions(false);
-    //   if (task->numSolutions() > 0) {
-    //     auto best_solution = task->solutions().front();
-    //   }
-
-    //   // std::this_thread::sleep_for(1s);
-    //   // L::I("Executing pick and place task..."_greenbg);
-    //   // task->execute(*best_solution);
-    // }).detach();
   }
 
   ~AmorphMasterNode() {
@@ -81,18 +62,43 @@ class AmorphMasterNode {
             return;
           }
         });
-    static rm::modules::KeyboardHandler keyboard_handler(rm_referee_msgs::msg::RemoteControl::KEY_LCTRL |
-                                                         rm_referee_msgs::msg::RemoteControl::KEY_LSHIFT);
-    keyboard_handler  //
-        .OnKeyDown(rm_referee_msgs::msg::RemoteControl::KEY_A,
-                   [](const rm::modules::KeyEvent &key_event) {
-                     L::I("Key A down with modifiers: 0x%X", key_event.modifiers);
-                   })  //
-        .OnKeyDown(rm_referee_msgs::msg::RemoteControl::KEY_A, rm_referee_msgs::msg::RemoteControl::KEY_LCTRL,
-                   [](const rm::modules::KeyEvent &) { L::I("Key Ctrl+A down"_green); });
-    subs_.vt_remote = main_ros_node_->create_subscription<rm_referee_msgs::msg::RemoteControl>(
+
+    using moveit::task_constructor::SolutionBase;
+    using rm_referee_msgs::msg::RemoteControl;
+    static rm::modules::KeyboardHandler keyboard_handler(RemoteControl::KEY_LCTRL | RemoteControl::KEY_LSHIFT);
+
+    // 注册键位
+    keyboard_handler                                                //
+        .OnKeyDown(RemoteControl::KEY_A, RemoteControl::KEY_LCTRL,  //
+                   [&](const rm::modules::KeyEvent &) {
+                     L::I("Key Ctrl+A down"_green);
+                     if (planning_in_progress_.load()) {
+                       L::W("Planning in progress, canceled."_yellow);
+                       return;
+                     }
+                     std::jthread([&]() -> std::optional<const std::shared_ptr<const SolutionBase>> {
+                       if (!executor_running_.load()) {
+                         return std::nullopt;
+                       }
+                       planning_in_progress_.store(true);
+                       mtc_tasks_.pick_energy_unit_task.init(mtc_ros_node_);
+                       mtc_tasks_.pick_energy_unit_task.plan(10);
+                       const auto &task = mtc_tasks_.pick_energy_unit_task.task();
+                       // task->reset();
+                       task->publishAllSolutions(false);
+                       planning_in_progress_.store(false);
+                       if (task->numSolutions() > 0) {
+                         return task->solutions().front();
+                       }
+                       return std::nullopt;
+                       // std::this_thread::sleep_for(1s);
+                       // L::I("Executing pick and place task..."_greenbg);
+                       // task->execute(*best_solution);
+                     }).detach();
+                   });
+    subs_.vt_remote = main_ros_node_->create_subscription<RemoteControl>(
         "/rm_referee/remote_control", rclcpp::SensorDataQoS(),
-        [this](rm_referee_msgs::msg::RemoteControl::SharedPtr msg) { keyboard_handler.Update(msg->keyboard_value); });
+        [this](RemoteControl::SharedPtr msg) { keyboard_handler.Update(msg->keyboard_value); });
     L::I("User input ok."_green);
   }
 
@@ -100,6 +106,7 @@ class AmorphMasterNode {
   rclcpp::Node::SharedPtr mtc_ros_node_;
   rclcpp::executors::MultiThreadedExecutor node_executor_;
   std::atomic<bool> executor_running_{false};
+  std::atomic<bool> planning_in_progress_{false};
 
   struct {
     rclcpp::TimerBase::SharedPtr rpc_heartbeat{nullptr};
