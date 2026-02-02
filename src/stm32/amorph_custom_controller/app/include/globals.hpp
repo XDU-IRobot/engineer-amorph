@@ -3,7 +3,6 @@
 
 #include <librm.hpp>
 
-#include "spi.h"
 #include "usart.h"
 #include "can.h"
 #include "dynamics.hpp"
@@ -11,7 +10,6 @@
 #include "buzzer.hpp"
 
 struct Globals {
-  rm::device::BMI088 *imu;       ///< 修正基座倾斜用的IMU，暂时用不上
   rm::modules::MahonyAhrs ahrs;  //
 
   rm::hal::Serial *dbus;  //
@@ -39,8 +37,7 @@ struct Globals {
   } motors;
 
   void Init() {
-    dbus = new rm::hal::Serial{huart3, 36, rm::hal::stm32::UartMode::kNormal, rm::hal::stm32::UartMode::kDma};
-    imu = new rm::device::BMI088{hspi1, CS1_ACCEL_GPIO_Port, CS1_ACCEL_Pin, CS1_GYRO_GPIO_Port, CS1_GYRO_Pin};
+    dbus = new rm::hal::Serial{huart1, 36, rm::hal::stm32::UartMode::kNormal, rm::hal::stm32::UartMode::kDma};
     rc = new rm::device::DR16{*dbus};
     motor_can = new rm::hal::Can{hcan1};
     motors.j0 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{*motor_can, 1};
@@ -52,16 +49,14 @@ struct Globals {
                                                                                       .t_max = 10.f,
                                                                                       .kp_range = {0, 500},
                                                                                       .kd_range = {0, 50}}};
-    motors.j2 =
-        new rm::device::DmMotor{*motor_can,
-                                rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0x26,
-                                                                                                  .slave_id = 0x16,
-                                                                                                  .p_max = 3.141593f,
-                                                                                                  .v_max = 30.f,
-                                                                                                  .t_max = 10.f,
-                                                                                                  .kp_range = {0, 500},
-                                                                                                  .kd_range = {0, 50}},
-                                true};
+    motors.j2 = new rm::device::DmMotor{
+        *motor_can, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0x26,
+                                                                                      .slave_id = 0x16,
+                                                                                      .p_max = 3.141593f,
+                                                                                      .v_max = 30.f,
+                                                                                      .t_max = 10.f,
+                                                                                      .kp_range = {0, 500},
+                                                                                      .kd_range = {0, 50}}};
     motors.j3 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{*motor_can, 2};
     motors.j4 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{*motor_can, 3};
     motors.j5 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{*motor_can, 4};

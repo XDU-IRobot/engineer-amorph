@@ -1,14 +1,12 @@
 
 #pragma once
 
-#include "tim.h"
-
 class LED {
  public:
   void Init() {
-    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
-    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3);
+    // HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+    // HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
+    // HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3);
   }
 
   void operator()(uint32_t argb) {
@@ -20,8 +18,16 @@ class LED {
     green = ((argb & 0x0000FF00) >> 8) * alpha;
     blue = ((argb & 0x000000FF) >> 0) * alpha;
 
-    __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_1, blue);
-    __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_2, green);
-    __HAL_TIM_SetCompare(&htim5, TIM_CHANNEL_3, red);
+    if (red > 127) {
+      HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_RESET);
+    } else {
+      HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_SET);
+    }
+
+    if (green > 127) {
+      HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_RESET);
+    } else {
+      HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_SET);
+    }
   }
 };

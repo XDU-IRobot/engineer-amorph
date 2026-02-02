@@ -1,60 +1,55 @@
 
 #include "buzzer.hpp"
 
-Buzzer::Buzzer(TIM_HandleTypeDef& htim, uint32_t channel) : htim_(&htim), channel_(channel) {}
+Buzzer::Buzzer(TIM_HandleTypeDef &htim, uint32_t channel, uint32_t tim_clk_freq)
+    : htim_(&htim), channel_(channel), tim_clk_freq_(tim_clk_freq) {}
 
 void Buzzer::Init() { HAL_TIM_PWM_Start(htim_, channel_); }
 
 void Buzzer::SetFrequency(uint32_t frequency) {
-  frequency *= 2;
-  if (frequency == 0) {
-    __HAL_TIM_SET_COMPARE(htim_, channel_, 0);  // 关闭蜂鸣器
+  if (frequency <= 0) {
+    __HAL_TIM_SET_COMPARE(htim_, channel_, 0);
     return;
   }
-  __HAL_TIM_SET_AUTORELOAD(htim_, 84000000 / frequency - 1);
-  __HAL_TIM_SET_COMPARE(htim_, channel_, (84000000 / frequency) / 2);  // 50%占空比
-}
 
-AsyncBuzzer::AsyncBuzzer(TIM_HandleTypeDef& htim, uint32_t channel, TIM_HandleTypeDef& htim_delay)
-    : htim_(&htim), channel_(channel), htim_delay_(&htim_delay) {}
+  // 搜索合适的PSC和ARR组合
+  // PSC和ARR都是16位值，范围是0-65535
+  // 实际分频系数 = (PSC + 1)
+  // 实际周期 = (ARR + 1)
+  // PWM频率 = tim_clk_freq / ((PSC + 1) * (ARR + 1))
+  // 目标: (PSC + 1) * (ARR + 1) = tim_clk_freq / frequency
 
-void AsyncBuzzer::Init() {
-  HAL_TIM_RegisterCallback(
-      htim_delay_, HAL_TIM_PERIOD_ELAPSED_CB_ID,
-      CallableObjToCallbackFnPtr(std::bind(&AsyncBuzzer::TimerCallback, this, std::placeholders::_1)));
-  HAL_TIM_PWM_Start(htim_, channel_);
-}
+  uint32_t target_period = tim_clk_freq_ / frequency;
+  uint16_t best_psc = 0;
+  uint16_t best_arr = 0;
+  uint32_t min_error = 0xFFFFFFFF;
 
-void AsyncBuzzer::Beep(int beeps, int interval_ms) {
-  if (beeps <= 0) {
-    return;
-  }
-  beep_total_ = beeps * 2;  // 每次响和灭都算一次
-  beep_count_ = 0;
-  beep_on_ = false;
-  __HAL_TIM_SET_AUTORELOAD(htim_delay_, interval_ms * 1000);  // 设置定时器周期
-  HAL_TIM_Base_Start_IT(htim_delay_);                         // 启动定时器中断
-}
+  // 从较小的分频开始搜索，优先使用更高的ARR值以获得更好的分辨率
+  for (uint32_t psc = 0; psc <= 65535; psc++) {
+    uint32_t arr = target_period / (psc + 1) - 1;
 
-pTIM_CallbackTypeDef AsyncBuzzer::CallableObjToCallbackFnPtr(std::function<void(TIM_HandleTypeDef*)> func) {
-  static auto fn = std::move(func);
-  return [](TIM_HandleTypeDef* htim) { fn(htim); };
-}
+    // ARR必须在有效范围内
+    if (arr > 65535) continue;
+    if (arr < 1) break;  // 后续的PSC只会让ARR更小，可以提前退出
 
-void AsyncBuzzer::TimerCallback(TIM_HandleTypeDef* htim) {
-  if (beep_count_ < beep_total_) {
-    if (beep_on_) {
-      __HAL_TIM_SET_COMPARE(htim_, channel_, 0);  // Set duty cycle to 0%
-    } else {
-      __HAL_TIM_SET_COMPARE(htim_, channel_, 20999 / 2);  // Set duty cycle to 50%
+    // 计算实际频率的误差
+    uint32_t actual_period = (psc + 1) * (arr + 1);
+    uint32_t error = (actual_period > target_period) ?
+                     (actual_period - target_period) :
+                     (target_period - actual_period);
+
+    if (error < min_error) {
+      min_error = error;
+      best_psc = psc;
+      best_arr = arr;
+
+      // 如果找到精确匹配，提前退出
+      if (error == 0) break;
     }
-    beep_on_ = !beep_on_;
-    beep_count_++;
-  } else {
-    __HAL_TIM_SET_COMPARE(htim_, channel_, 0);  // Set duty cycle to 0%
-    HAL_TIM_Base_Stop_IT(htim_);
-    beep_count_ = 0;
-    beep_total_ = 0;
-    beep_on_ = false;
   }
+
+  // 设置定时器参数
+  __HAL_TIM_SET_PRESCALER(htim_, best_psc);
+  __HAL_TIM_SET_AUTORELOAD(htim_, best_arr);
+  __HAL_TIM_SET_COMPARE(htim_, channel_, best_arr / 2);  // 50%占空比
 }

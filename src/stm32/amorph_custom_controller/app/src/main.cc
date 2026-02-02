@@ -40,17 +40,12 @@ void MainLoop() {
     const auto tx_pack = pb.Build(reinterpret_cast<const uint8_t *>(&cc_cmd), sizeof(cc_cmd));
 
     // 如果这一轮串口忙就跳过这一轮发送
-    if (HAL_UART_GetState(&huart1) == HAL_UART_STATE_READY) {
-      HAL_UART_Transmit_DMA(&huart1, tx_pack->data(), tx_pack->size());
+    if (HAL_UART_GetState(&huart7) == HAL_UART_STATE_READY) {
+      HAL_UART_Transmit_DMA(&huart7, tx_pack->data(), tx_pack->size());
     }
   }
 
-  button_db.add(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_14) == GPIO_PIN_RESET);
-
-  // globals.imu->Update();
-  // globals.ahrs.Update(rm::modules::ImuData6Dof{globals.imu->gyro_x(), globals.imu->gyro_y(), globals.imu->gyro_z(),
-  //                                              globals.imu->accel_x(), globals.imu->accel_x(),
-  //                                              globals.imu->accel_x()});
+  button_db.add(HAL_GPIO_ReadPin(GPIOI, GPIO_PIN_7) == GPIO_PIN_RESET);
 
   static bool all_motors_online = true;  // 第一次假设所有电机在线，不然进不了后续逻辑
   if (!all_motors_online) {
@@ -60,12 +55,12 @@ void MainLoop() {
   }
 
   if (g_comp_enable) {
-    const DynamicModel::Vec3 q_current = {0.f, globals.motors.j1->pos(), globals.motors.j2->pos()};
+    const DynamicModel::Vec3 q_current = {0.f, globals.motors.j1->pos(), -globals.motors.j2->pos()};
     const DynamicModel::Vec3 g_comp = globals.dynamic_model.ForwardDynamics(q_current);
     if (subloop_counter % 2) {
       globals.motors.j0->SetSpeed(0);
-      globals.motors.j1->SetPosition(0.f, 0.f, g_comp(1), 0.f, 0.f);
-      globals.motors.j2->SetPosition(0.f, 0.f, -g_comp(2), 0.f, 0.f);
+      globals.motors.j1->SetMitCommand(0.f, 0.f, g_comp(1), 0.f, 2.f);
+      globals.motors.j2->SetMitCommand(0.f, 0.f, -g_comp(2), 0.f, 1.f);
     } else {
       globals.motors.j3->SetSpeed(0);
       globals.motors.j4->SetSpeed(0);
@@ -74,8 +69,8 @@ void MainLoop() {
   } else {
     if (subloop_counter % 2) {
       globals.motors.j0->SetPower(0);
-      globals.motors.j1->SetPosition(0.f, 0.f, 0.f, 0.f, 0.f);
-      globals.motors.j2->SetPosition(0.f, 0.f, 0.f, 0.f, 0.f);
+      globals.motors.j1->SetMitCommand(0.f, 0.f, 0.f, 0.f, 0.f);
+      globals.motors.j2->SetMitCommand(0.f, 0.f, 0.f, 0.f, 0.f);
     } else {
       globals.motors.j3->SetPower(0);
       globals.motors.j4->SetPower(0);
@@ -92,12 +87,23 @@ extern "C" {
 [[noreturn]] void AppMain(void) {
   globals.Init();
 
+  // // 设零点
+  // HAL_Delay(1500);  // 达妙电机开机需要时间
+  // globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kEnable);
+  // globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kEnable);
+  // for (int i = 0; i < 10; i++) {
+  //   globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+  //   globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+  //   HAL_Delay(10);
+  // }
+  // globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
+  // globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
+
   // 创建主循环定时任务，定频250hz
   TimerTask mainloop_250hz{
-      &htim13,                                   //
+      &htim14,                                   //
       etl::delegate<void()>::create<MainLoop>()  //
   };
-  mainloop_250hz.SetPrescalerAndPeriod(168 - 1, 2000 - 1);
   mainloop_250hz.Start();
 
   globals.g_comp_enable_watcher.OnValueChange(

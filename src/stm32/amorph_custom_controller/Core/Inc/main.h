@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
- ******************************************************************************
- * @file           : main.h
- * @brief          : Header for main.c file.
- *                   This file contains the common defines of the application.
- ******************************************************************************
- * @attention
- *
- * Copyright (c) 2025 STMicroelectronics.
- * All rights reserved.
- *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
- *
- ******************************************************************************
- */
+  ******************************************************************************
+  * @file           : main.h
+  * @brief          : Header for main.c file.
+  *                   This file contains the common defines of the application.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -57,19 +57,21 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define ONBOARD_KEY_Pin GPIO_PIN_0
-#define ONBOARD_KEY_GPIO_Port GPIOA
-#define ONBOARD_KEY_EXTI_IRQn EXTI0_IRQn
-#define CS1_ACCEL_Pin GPIO_PIN_4
-#define CS1_ACCEL_GPIO_Port GPIOA
-#define INT1_ACCEL_Pin GPIO_PIN_4
-#define INT1_ACCEL_GPIO_Port GPIOC
-#define INT1_ACCEL_EXTI_IRQn EXTI4_IRQn
-#define INT1_GRYO_Pin GPIO_PIN_5
-#define INT1_GRYO_GPIO_Port GPIOC
-#define INT1_GRYO_EXTI_IRQn EXTI9_5_IRQn
-#define CS1_GYRO_Pin GPIO_PIN_0
-#define CS1_GYRO_GPIO_Port GPIOB
+#define POWER_24V_1_Pin GPIO_PIN_2
+#define POWER_24V_1_GPIO_Port GPIOH
+#define POWER_24V_2_Pin GPIO_PIN_3
+#define POWER_24V_2_GPIO_Port GPIOH
+#define POWER_24V_3_Pin GPIO_PIN_4
+#define POWER_24V_3_GPIO_Port GPIOH
+#define POWER_24V_4_Pin GPIO_PIN_5
+#define POWER_24V_4_GPIO_Port GPIOH
+#define ONBOARD_KEY_Pin GPIO_PIN_2
+#define ONBOARD_KEY_GPIO_Port GPIOB
+#define ONBOARD_KEY_EXTI_IRQn EXTI2_IRQn
+#define LED_R_Pin GPIO_PIN_11
+#define LED_R_GPIO_Port GPIOE
+#define LED_G_Pin GPIO_PIN_14
+#define LED_G_GPIO_Port GPIOF
 
 /* USER CODE BEGIN Private defines */
 
