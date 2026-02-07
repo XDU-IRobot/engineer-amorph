@@ -80,7 +80,7 @@ def generate_launch_description():
         DeclareLaunchArgument('export_config_json_file_path', default_value=''),
         DeclareLaunchArgument('uvc_backend', default_value='libuvc'),#libuvc or v4l2
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
-        DeclareLaunchArgument('enable_point_cloud', default_value='false'),
+        DeclareLaunchArgument('enable_point_cloud', default_value='true'),
         DeclareLaunchArgument('enable_colored_point_cloud', default_value='true'),
         DeclareLaunchArgument('cloud_frame_id', default_value=''),
         DeclareLaunchArgument('connection_delay', default_value='10'),
@@ -103,7 +103,7 @@ def generate_launch_description():
         DeclareLaunchArgument('color_gain', default_value='8'),  # 低增益减少噪声（优化：静态精度优先）
         DeclareLaunchArgument('enable_color_auto_white_balance', default_value='true'),
         DeclareLaunchArgument('color_white_balance', default_value='-1'),
-        DeclareLaunchArgument('enable_color_auto_exposure', default_value='false'),  # 禁用自动曝光保证一致性（优化：静态精度优先）
+        DeclareLaunchArgument('enable_color_auto_exposure', default_value='true'),
         DeclareLaunchArgument('color_ae_max_exposure', default_value='-1'),
         DeclareLaunchArgument('color_brightness', default_value='-1'),
         DeclareLaunchArgument('color_sharpness', default_value='-1'),
@@ -125,7 +125,7 @@ def generate_launch_description():
         DeclareLaunchArgument('enable_depth', default_value='true'),
         DeclareLaunchArgument('depth_qos', default_value='default'),
         DeclareLaunchArgument('depth_camera_info_qos', default_value='default'),
-        DeclareLaunchArgument('enable_depth_auto_exposure_priority', default_value='false'),  # 禁用自动曝光优先（优化：静态精度优先）
+        DeclareLaunchArgument('enable_depth_auto_exposure_priority', default_value='true'),
         DeclareLaunchArgument('depth_precision', default_value='1mm'),  # 设置为最高精度模式
         DeclareLaunchArgument('depth_rotation', default_value='-1'),#depth rotation degree : 0, 90, 180, 270
         DeclareLaunchArgument('depth_flip', default_value='false'),
@@ -159,7 +159,7 @@ def generate_launch_description():
         DeclareLaunchArgument('right_ir_mirror', default_value='false'),
         DeclareLaunchArgument('enable_right_ir_sequence_id_filter', default_value='false'),
         DeclareLaunchArgument('right_ir_sequence_id_filter_id', default_value='-1'),
-        DeclareLaunchArgument('enable_ir_auto_exposure', default_value='false'),  # 禁用自动曝光保证深度一致性（优化：静态精度优先）
+        DeclareLaunchArgument('enable_ir_auto_exposure', default_value='true'),
         DeclareLaunchArgument('ir_exposure', default_value='10000'),  # 固定IR曝光时间（优化：静态精度优先，建议根据环境微调）
         DeclareLaunchArgument('ir_gain', default_value='8'),  # 低增益减少深度噪声（优化：静态精度优先）
         DeclareLaunchArgument('ir_ae_max_exposure', default_value='-1'),

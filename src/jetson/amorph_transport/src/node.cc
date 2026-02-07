@@ -71,47 +71,46 @@ void TransportNode::InitComm() {
   // 订阅关节位置，发布JointState
   static sensor_msgs::msg::JointState joint_state_msg;
   joint_state_msg.name = params_manager_.data().joint_names;
-  stm32_.rpc()->subscribe("joint_position", [this](const JointPosition<6> &msg) {
+  stm32_.rpc()->subscribe("joint_position", [this](const JointPosition<7> &msg) {
     joint_state_msg.header.stamp = this->now();
-    joint_state_msg.position.resize(6);
     joint_state_msg.position.assign(msg.positions.begin(), msg.positions.end());
-    // 下位机暂时不反馈j7_l(夹爪)，先填0防止moveit报错
-    joint_state_msg.position.push_back(0.0);
+    joint_state_msg.position[5] = 0.f;
+    joint_state_msg.position[6] = 0.f;
     joint_state_pub_->publish(joint_state_msg);
   });
 
   // rpc心跳定时器
-  rpc_heartbeat_timer_ = create_wall_timer(std::chrono::milliseconds(100), [this]() {
+  rpc_heartbeat_timer_ = create_wall_timer(std::chrono::milliseconds(15), [this]() {
+    stm32_.Poll();
     rpc_connection_watcher.Update(stm32_.Connected());
-    stm32_.KeepConnection();
   });
 
-  // 订阅自定义控制器数据，转发到CAN总线上
-  custom_controller_ = std::make_unique<CustomController>(*comm_can_);
-  custom_ctrl_sub_ = create_subscription<rm_referee_msgs::msg::CustomRobotData>(  //
-      "rm_referee/custom_robot_data",                                             //
-      rclcpp::SensorDataQoS(),                                                    //
-      [this](const rm_referee_msgs::msg::CustomRobotData::SharedPtr msg) {
-        memcpy(&custom_controller_->data, msg->data.data(), sizeof(custom_controller_->data));
-        // // log the message
-        // std::stringstream ss;
-        // ss << "Received custom robot data: \n"
-        //    << "Joint positions: ";
-        // for (int i = 0; i < 6; ++i) {
-        //   ss << std::setprecision(4) << custom_controller_->data.joint_positions[i] << " ";
-        // }
-        // ss << "\nButtons: ";
-        // ss << std::hex << static_cast<int>(custom_controller_->data.buttons.a) << " "
-        //    << static_cast<int>(custom_controller_->data.buttons.b) << " "
-        //    << static_cast<int>(custom_controller_->data.buttons.c) << " "
-        //    << static_cast<int>(custom_controller_->data.buttons.d) << " "
-        //    << static_cast<int>(custom_controller_->data.buttons.e) << " "
-        //    << static_cast<int>(custom_controller_->data.buttons.f) << " "
-        //    << static_cast<int>(custom_controller_->data.buttons.g) << " "
-        //    << static_cast<int>(custom_controller_->data.buttons.h) << "\n";
-        // L::D("%s", ss.str().c_str());
-        custom_controller_->Write();
-      });
+  // // 订阅自定义控制器数据，转发到CAN总线上
+  // custom_controller_ = std::make_unique<CustomController>(*comm_can_);
+  // custom_ctrl_sub_ = create_subscription<rm_referee_msgs::msg::CustomRobotData>(  //
+  //     "rm_referee/custom_robot_data",                                             //
+  //     rclcpp::SensorDataQoS(),                                                    //
+  //     [this](const rm_referee_msgs::msg::CustomRobotData::SharedPtr msg) {
+  //       memcpy(&custom_controller_->data, msg->data.data(), sizeof(custom_controller_->data));
+  //       // // log the message
+  //       // std::stringstream ss;
+  //       // ss << "Received custom robot data: \n"
+  //       //    << "Joint positions: ";
+  //       // for (int i = 0; i < 6; ++i) {
+  //       //   ss << std::setprecision(4) << custom_controller_->data.joint_positions[i] << " ";
+  //       // }
+  //       // ss << "\nButtons: ";
+  //       // ss << std::hex << static_cast<int>(custom_controller_->data.buttons.a) << " "
+  //       //    << static_cast<int>(custom_controller_->data.buttons.b) << " "
+  //       //    << static_cast<int>(custom_controller_->data.buttons.c) << " "
+  //       //    << static_cast<int>(custom_controller_->data.buttons.d) << " "
+  //       //    << static_cast<int>(custom_controller_->data.buttons.e) << " "
+  //       //    << static_cast<int>(custom_controller_->data.buttons.f) << " "
+  //       //    << static_cast<int>(custom_controller_->data.buttons.g) << " "
+  //       //    << static_cast<int>(custom_controller_->data.buttons.h) << "\n";
+  //       // L::D("%s", ss.str().c_str());
+  //       custom_controller_->Write();
+  //     });
 
   L::I("Comm with stm32 ok."_green);
 }
@@ -172,21 +171,25 @@ void TransportNode::Execute(const std::shared_ptr<GoalHandleFollowJointTrajector
     for (const auto &v : point.positions) {
       jt_point.positions.push_back(v);
     }
+    jt_point.positions.push_back(0.f);
     jt_point.velocities.clear();
     jt_point.velocities.reserve(point.velocities.size());
     for (const auto &v : point.velocities) {
       jt_point.velocities.push_back(v);
     }
+    jt_point.velocities.push_back(0.f);
     jt_point.accelerations.clear();
     jt_point.accelerations.reserve(point.accelerations.size());
     for (const auto &v : point.accelerations) {
       jt_point.accelerations.push_back(v);
     }
+    jt_point.accelerations.push_back(0.f);
     jt_point.effort.clear();
     jt_point.effort.reserve(point.effort.size());
     for (const auto &v : point.effort) {
       jt_point.effort.push_back(v);
     }
+    jt_point.effort.push_back(0.f);
     jt_point.time_from_start = rclcpp::Duration(point.time_from_start).to_chrono<decltype(jt_point.time_from_start)>();
     traj.points.push_back(jt_point);
   }
@@ -194,7 +197,7 @@ void TransportNode::Execute(const std::shared_ptr<GoalHandleFollowJointTrajector
   // 发送执行请求
   JointTrajectory exec_req;
   exec_req.points = traj.points;
-  // stm32_.rpc()->cmd("execution_request")->msg(exec_req)->call();
+  stm32_.rpc()->cmd("execution_request")->msg(exec_req)->call();
 
   // TODO: 处理执行反馈
   auto feedback = std::make_shared<FollowJointTrajectory::Feedback>();

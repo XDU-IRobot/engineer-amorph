@@ -11,12 +11,12 @@ def generate_launch_description():
     declared_arguments = list()
     declared_arguments.append(
         DeclareLaunchArgument(
-            "launch_jsp",
+            "jsp_gui",
             default_value="false",
             description="Start jsp gui",
         )
     )
-    launch_jsp = LaunchConfiguration("launch_jsp")
+    jsp_gui = LaunchConfiguration("jsp_gui")
 
     moveit_config = (
         MoveItConfigsBuilder("amorph_arm_v1")
@@ -52,7 +52,7 @@ def generate_launch_description():
     joint_state_publisher_gui_node = Node(
         package="joint_state_publisher_gui",
         executable="joint_state_publisher_gui",
-        condition=IfCondition(launch_jsp),
+        condition=IfCondition(jsp_gui),
     )
     nodes.append(joint_state_publisher_gui_node)
 
