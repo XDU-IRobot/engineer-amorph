@@ -8,11 +8,8 @@
 #include "packet_builder.hpp"
 #include "timer_task.hpp"
 
-Globals globals;
-
 namespace {
 
-etl::debounce<10, 10, 10> button_db;
 bool g_comp_enable = false;
 
 void MainLoop() {
@@ -21,22 +18,22 @@ void MainLoop() {
 
   if ((subloop_counter % 5) == 0) {
     // 50hz subloop
-    globals.buzzer.SetFrequency(globals.buzzer_controller.Update().frequency);
-    const auto &[led_r, led_g, led_b] = globals.led_controller.Update();
-    globals.led(0xff000000 | led_r << 16 | led_g << 8 | led_b);
+    globals->buzzer.SetFrequency(globals->buzzer_controller.Update().frequency);
+    const auto &[led_r, led_g, led_b] = globals->led_controller.Update();
+    globals->led(0xff000000 | led_r << 16 | led_g << 8 | led_b);
   }
   if ((subloop_counter % 10) == 0) {
     // 25hz subloop
     static PacketBuilder pb;
     static CustomControllerCmd cc_cmd;
     cc_cmd.ok = true;
-    cc_cmd.joint_positions[0] = globals.motors.j0->feedback().position_rad;
-    cc_cmd.joint_positions[1] = globals.motors.j1->pos();
-    cc_cmd.joint_positions[2] = globals.motors.j2->pos();
-    cc_cmd.joint_positions[3] = globals.motors.j3->feedback().position_rad;
-    cc_cmd.joint_positions[4] = globals.motors.j4->feedback().position_rad;
-    cc_cmd.joint_positions[5] = globals.motors.j5->feedback().position_rad;
-    cc_cmd.buttons.btn_1 = button_db.is_set();
+    const auto joint_pos = globals->motors.GetPositions();
+    std::memcpy(cc_cmd.joint_positions, joint_pos.data(), sizeof(float) * 6);
+    cc_cmd.buttons.a = globals->buttons.a.is_set();
+    cc_cmd.buttons.b = globals->buttons.b.is_set();
+    cc_cmd.buttons.c = globals->buttons.c.is_set();
+    cc_cmd.buttons.d = globals->buttons.d.is_set();
+    cc_cmd.buttons.e = globals->buttons.e.is_set();
     const auto tx_pack = pb.Build(reinterpret_cast<const uint8_t *>(&cc_cmd), sizeof(cc_cmd));
 
     // 如果这一轮串口忙就跳过这一轮发送
@@ -45,59 +42,63 @@ void MainLoop() {
     }
   }
 
-  button_db.add(HAL_GPIO_ReadPin(GPIOI, GPIO_PIN_7) == GPIO_PIN_RESET);
-
-  static bool all_motors_online = true;  // 第一次假设所有电机在线，不然进不了后续逻辑
-  if (!all_motors_online) {
-    globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
-    globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
-    return;  // 有电机离线则不运行后续逻辑
-  }
+  // 更新按钮状态
+  globals->buttons.a.add(HAL_GPIO_ReadPin(KEY_A_GPIO_Port, KEY_A_Pin) == GPIO_PIN_RESET);
+  globals->buttons.b.add(HAL_GPIO_ReadPin(KEY_B_GPIO_Port, KEY_B_Pin) == GPIO_PIN_RESET);
+  globals->buttons.c.add(HAL_GPIO_ReadPin(KEY_C_GPIO_Port, KEY_C_Pin) == GPIO_PIN_RESET);
+  globals->buttons.d.add(HAL_GPIO_ReadPin(KEY_D_GPIO_Port, KEY_D_Pin) == GPIO_PIN_RESET);
+  globals->buttons.e.add(HAL_GPIO_ReadPin(KEY_E_GPIO_Port, KEY_E_Pin) == GPIO_PIN_RESET);
 
   if (g_comp_enable) {
-    const DynamicModel::Vec3 q_current = {0.f, globals.motors.j1->pos(), -globals.motors.j2->pos()};
-    const DynamicModel::Vec3 g_comp = globals.dynamic_model.ForwardDynamics(q_current);
+    const auto joint_pos = globals->motors.GetPositions();
+    const DynamicModel::Vec3 q_current = {0.f, joint_pos[1], joint_pos[2]};
+    const DynamicModel::Vec3 g_comp = globals->dynamic_model.ForwardDynamics(q_current);
     if (subloop_counter % 2) {
-      globals.motors.j0->SetSpeed(0);
-      globals.motors.j1->SetMitCommand(0.f, 0.f, g_comp(1), 0.f, 2.f);
-      globals.motors.j2->SetMitCommand(0.f, 0.f, -g_comp(2), 0.f, 1.f);
+      globals->motors.j0->SetSpeed(0);
+      globals->motors.j1->SetMitCommand(0.f, 0.f, g_comp(1), 0.f, 2.f);
+      globals->motors.j2->SetMitCommand(0.f, 0.f, -g_comp(2), 0.f, 1.f);
     } else {
-      globals.motors.j3->SetSpeed(0);
-      globals.motors.j4->SetSpeed(0);
-      globals.motors.j5->SetSpeed(0);
+      globals->motors.j3->SetSpeed(0);
+      globals->motors.j4->SetSpeed(0);
+      globals->motors.j5->SetSpeed(0);
     }
   } else {
     if (subloop_counter % 2) {
-      globals.motors.j0->SetPower(0);
-      globals.motors.j1->SetMitCommand(0.f, 0.f, 0.f, 0.f, 0.f);
-      globals.motors.j2->SetMitCommand(0.f, 0.f, 0.f, 0.f, 0.f);
+      globals->motors.j0->SetPower(0);
+      globals->motors.j1->SetMitCommand(0.f, 0.f, 0.f, 0.f, 0.f);
+      globals->motors.j2->SetMitCommand(0.f, 0.f, 0.f, 0.f, 0.f);
     } else {
-      globals.motors.j3->SetPower(0);
-      globals.motors.j4->SetPower(0);
-      globals.motors.j5->SetPower(0);
+      globals->motors.j3->SetPower(0);
+      globals->motors.j4->SetPower(0);
+      globals->motors.j5->SetPower(0);
     }
   }
-
-  // all_motors_online = globals.motors.j1->IsAlive() && globals.motors.j2->IsAlive();  // 更新电机在线状态
 }
 }  // namespace
+
+Globals *globals;
 
 extern "C" {
 
 [[noreturn]] void AppMain(void) {
-  globals.Init();
+  globals = new Globals;
+  globals->Init();
 
   // // 设零点
-  // HAL_Delay(1500);  // 达妙电机开机需要时间
-  // globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kEnable);
-  // globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kEnable);
+  // HAL_Delay(1500);  // 电机开机需要时间
+  // globals->motors.j1->SendInstruction(rm::device::DmMotorInstructions::kEnable);
+  // globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kEnable);
   // for (int i = 0; i < 10; i++) {
-  //   globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-  //   globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+  //   // globals->motors.j1->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+  //   // globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+  //   globals->motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+  //   globals->motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+  //   globals->motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+  //   globals->motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
   //   HAL_Delay(10);
   // }
-  // globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
-  // globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
+  // globals->motors.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
+  // globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
 
   // 创建主循环定时任务，定频250hz
   TimerTask mainloop_250hz{
@@ -106,27 +107,29 @@ extern "C" {
   };
   mainloop_250hz.Start();
 
-  globals.g_comp_enable_watcher.OnValueChange(
+  globals->g_comp_enable_watcher.OnValueChange(
       etl::delegate<void(const bool &, const bool &)>::create([](const bool &old_value, const bool &new_value) {
         // 根据新值使能或失能电机（简单实现）
         if (new_value) {
-          globals.led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
-          globals.motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
-          globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kEnable);
-          globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kEnable);
-          globals.motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
-          globals.motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
-          globals.motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
+          globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
+          globals->motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
+          globals->motors.j1->SendInstruction(rm::device::DmMotorInstructions::kEnable);
+          globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kEnable);
+          globals->motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
+          globals->motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
+          globals->motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
         } else {
-          globals.led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-          globals.motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
-          globals.motors.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
-          globals.motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
-          globals.motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
-          globals.motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
-          globals.motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
+          globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
+          globals->motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
+          globals->motors.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
+          globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
+          globals->motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
+          globals->motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
+          globals->motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
         }
       }));
+
+  globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
 
   for (;;) {
     // __WFI();
@@ -136,8 +139,8 @@ extern "C" {
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if (GPIO_Pin == ONBOARD_KEY_Pin) {
     g_comp_enable = !g_comp_enable;
-    globals.g_comp_enable_watcher.Update(g_comp_enable);
-    globals.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    globals->g_comp_enable_watcher.Update(g_comp_enable);
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
   }
 }
 }

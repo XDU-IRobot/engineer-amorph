@@ -24,14 +24,14 @@
 struct __attribute__((__packed__)) CustomControllerCmd {
   bool ok;
   struct __attribute__((__packed__)) {
-    bool btn_1 : 1;
-    bool btn_2 : 1;
-    bool btn_3 : 1;
-    bool btn_4 : 1;
-    bool btn_5 : 1;
-    bool btn_6 : 1;
-    bool btn_7 : 1;
-    bool btn_8 : 1;
+    bool a : 1;
+    bool b : 1;
+    bool c : 1;
+    bool d : 1;
+    bool e : 1;
+    bool reserved_1 : 1;
+    bool reserved_2 : 1;
+    bool reserved_3 : 1;
   } buttons{};
   float joint_positions[6];
 };

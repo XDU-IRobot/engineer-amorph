@@ -8,6 +8,7 @@
 #include <librm.hpp>
 
 #include "joint_space_interpolator.hpp"
+#include "rpc/host_api.hpp"
 #include "rpc/typedefs.hpp"
 
 using namespace rm::modules::angle_literals;
@@ -66,7 +67,7 @@ class TrajectoryTracker {
   void SwitchReferenceTrajectory(const Trajectory &traj, double playback_speed = 1.0) {
     // corner case 1: 空轨迹
     if (traj.points.empty()) {
-      // logging::warn("trajectory tracker: empty trajectory, rejecting!");
+      host::L::W("trajectory tracker: empty trajectory, rejecting!");
       return;
     }
     // 如果只有一个点，调用另一个重载函数
@@ -77,20 +78,20 @@ class TrajectoryTracker {
     // corner case 2: 时间不单调递增
     for (size_t i = 1; i < traj.points.size(); ++i) {
       if (PointTimeMs(traj.points[i]) <= PointTimeMs(traj.points[i - 1])) {
-        // logging::warn("trajectory tracker: non-monotonic time in trajectory, rejecting!");
+        host::L::W("trajectory tracker: non-monotonic time in trajectory, rejecting!");
         return;
       }
     }
     // corner case 3: 存在点的关节数量和对象创建时的给定数量不一致
     for (const auto &point : traj.points) {
       if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
-        // logging::warn("trajectory tracker: joint number mismatch, rejecting!");
+        host::L::W("trajectory tracker: joint number mismatch, rejecting!");
         return;
       }
       // 检查所有位置值是否有效（非 NaN/Inf）
       for (size_t j = 0; j < NJoints; ++j) {
         if (!std::isfinite(point.positions[j]) || !std::isfinite(point.velocities[j])) {
-          // logging::warn("trajectory tracker: invalid (NaN/Inf) values detected, rejecting!");
+          host::L::W("trajectory tracker: invalid (NaN/Inf) values detected, rejecting!");
           return;
         }
       }
@@ -107,7 +108,7 @@ class TrajectoryTracker {
 
       // 验证插值结果
       if (interpolated_trajectory.points.empty()) {
-        // logging::warn("trajectory tracker: interpolation failed, rejecting!");
+        host::L::W("trajectory tracker: interpolation failed, rejecting!");
         return;
       }
 
@@ -125,7 +126,7 @@ class TrajectoryTracker {
 
       // 验证 TimeScale 结果
       if (current_trajectory_.empty()) {
-        // logging::warn("trajectory tracker: time scaling resulted in empty trajectory, rejecting!");
+        host::L::W("trajectory tracker: time scaling resulted in empty trajectory, rejecting!");
         return;
       }
 
@@ -133,13 +134,13 @@ class TrajectoryTracker {
       for (Point &point : current_trajectory_) {
         // 检查 vector 大小
         if (point.positions.size() != NJoints) {
-          // logging::warn("trajectory tracker: point size mismatch after scaling, rejecting!");
+          host::L::W("trajectory tracker: point size mismatch after scaling, rejecting!");
           return;
         }
         for (size_t i = 0; i < NJoints; ++i) {
           // 检查数值有效性（防止 NaN/Inf 导致的未定义行为）
           if (!std::isfinite(point.positions[i])) {
-            // logging::warn("trajectory tracker: invalid position value after scaling, rejecting!");
+            host::L::W("trajectory tracker: invalid position value after scaling, rejecting!");
             return;
           }
           // 应用关节限位
@@ -165,14 +166,14 @@ class TrajectoryTracker {
   void SwitchReferenceTrajectory(const Point &point) {
     // corner case: 关节数量和对象创建时的给定数量不一致
     if (point.positions.size() != NJoints || point.velocities.size() != NJoints) {
-      // logging::warn("trajectory tracker: joint number mismatch, rejecting!");
+      host::L::W("trajectory tracker: joint number mismatch, rejecting!");
       return;
     }
 
     // 检查所有位置值是否有效（非 NaN/Inf）
     for (size_t j = 0; j < NJoints; ++j) {
       if (!std::isfinite(point.positions[j]) || !std::isfinite(point.velocities[j])) {
-        // logging::warn("trajectory tracker: invalid (NaN/Inf) values detected, rejecting!");
+        host::L::W("trajectory tracker: invalid (NaN/Inf) values detected, rejecting!");
         return;
       }
     }

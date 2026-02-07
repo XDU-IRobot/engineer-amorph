@@ -7,14 +7,10 @@
 
 #include "dynamics.hpp"
 #include "trajectory_tracker.hpp"
-#include "encoder_counter.hpp"
 
-/**
- * @brief 运动规划器，主要用来保证轨迹连续性和计算具体的关节控制量
- */
-class MotionPlanner {
+template <size_t NJoints>
+class ArmController {
  public:
-  template <size_t NJoints>
   struct Output {
     static Output Zero() {
       Output out;
@@ -35,26 +31,21 @@ class MotionPlanner {
     kFault,
   };
 
-  MotionPlanner() {
+  ArmController() {
     // clang-format off
-    position_pid_[0].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    position_pid_[1].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    position_pid_[2].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    position_pid_[3].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    position_pid_[4].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    position_pid_[5].SetKp(20.f).SetKi(0.f).SetKd(0.5f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    speed_pid_[0].SetKp(20.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    speed_pid_[1].SetKp(20.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    speed_pid_[2].SetKp(20.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    speed_pid_[3].SetKp(20.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    speed_pid_[4].SetKp(20.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
-    speed_pid_[5].SetKp(20.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10.f).SetDiffFirst(true).SetFuzzy(true).SetFuzzyErrorScale(M_PI);
+    pid_[0].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
+    pid_[1].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
+    pid_[2].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
+    pid_[3].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
+    pid_[4].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
+    pid_[5].SetKp(2.f).SetKi(0.f).SetKd(0.f).SetMaxOut(1000.f).SetDiffFirst(true);
+    pid_[6].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
     // clang-format on
   }
 
   void Execute(const JointTrajectory &traj) {
     trajectory_tracker_.SwitchReferenceTrajectory(traj);
-    // for (size_t i = 0; i < 6; ++i) {
+    // for (size_t i = 0; i < NJoints; ++i) {
     //   speed_pid_[i].Clear();
     //   position_pid_[i].Clear();
     // }
@@ -63,21 +54,21 @@ class MotionPlanner {
 
   void GoTo(const JointTrajectoryPoint &point) {
     trajectory_tracker_.SwitchReferenceTrajectory(point);
-    // for (size_t i = 0; i < 6; ++i) {
+    // for (size_t i = 0; i < NJoints; ++i) {
     //   speed_pid_[i].Clear();
     //   position_pid_[i].Clear();
     // }
     UpdateStatus();
   }
 
-  void Update(const std::array<float, 6> &current_positions, const std::array<float, 6> &current_velocities,
+  void Update(const std::array<float, NJoints> &current_positions, const std::array<float, NJoints> &current_velocities,
               float dt = 1.f) {
     current_positions_ = current_positions;
     trajectory_tracker_.Update();
     const auto &ref_point = trajectory_tracker_.current_point();
 
-    for (size_t i = 0; i < 6; ++i) {
-      // 轨迹限幅
+    for (size_t i = 0; i < NJoints; ++i) {
+      // 应用轨迹限制器，生成平滑的参考位置和速度
       trajectory_limiter_[i].SetTarget(ref_point.positions[i]);
       trajectory_limiter_[i].Update(dt);
       // // 位置环PID
@@ -99,28 +90,27 @@ class MotionPlanner {
     for (size_t i = 1; i < 3; ++i) {
       output_.efforts[i] += feedforward_efforts(i);
     }
-    output_.efforts[1] = -output_.efforts[1];  // j2反向安装
+    // output_.efforts[1] = -output_.efforts[1];  // j2反向安装
     UpdateStatus();
 
     if (status_ == kFault || status_ == kDisabled) {  // 故障状态和控制器禁用状态下输出全零
       // output_.positions = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};  // 位置不要动，保持输出故障之前的原位置
-      output_.velocities = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
-      output_.efforts = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+      output_.velocities.fill(0.f);
+      output_.efforts.fill(0.f);
     }
   }
 
-  void ResetAt(const std::array<float, 6> &positions) {
+  void ResetAt(const std::array<float, NJoints> &positions) {
     current_positions_ = positions;
     trajectory_tracker_.SwitchReferenceTrajectory([&] {
       JointTrajectoryPoint point;
       point.positions = std::vector(positions.begin(), positions.end());
-      point.velocities = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+      point.velocities.resize(NJoints, 0.f);
       return point;
     }());
-    for (size_t i = 0; i < 6; ++i) {
+    for (size_t i = 0; i < NJoints; ++i) {
       trajectory_limiter_[i].ResetAt(positions[i]);
-      speed_pid_[i].Clear();
-      position_pid_[i].Clear();
+      pid_[i].Clear();
     }
   }
 
@@ -158,6 +148,7 @@ class MotionPlanner {
   const auto &current_positions() const { return current_positions_; }
   const auto &output() const { return output_; }
   Status status() const { return status_; }
+  auto &pid() { return pid_; }
 
  private:
   void UpdateStatus() {
@@ -175,8 +166,8 @@ class MotionPlanner {
 
       const auto position_delta = [&] {
         const auto target_position = trajectory_tracker_.current_point().positions;
-        std::array<float, 6> deltas;
-        for (size_t i = 0; i < 6; ++i) {
+        std::array<float, NJoints> deltas;
+        for (size_t i = 0; i < NJoints; ++i) {
           deltas[i] = std::abs(target_position[i] - current_positions_[i]);
         }
         return deltas;
@@ -199,24 +190,23 @@ class MotionPlanner {
     status_ = kExecuting;
   }
 
- private:
-  std::array<float, 6> current_positions_{};
-  Output<6> output_{};
-  TrajectoryTracker<6> trajectory_tracker_{kJointLimits[0], kJointLimits[1], kJointLimits[2],
-                                           kJointLimits[3], kJointLimits[4], kJointLimits[5]};
+  std::array<float, NJoints> current_positions_{};
+  Output output_{};
+  TrajectoryTracker<NJoints> trajectory_tracker_{kJointLimits[0], kJointLimits[1], kJointLimits[2], kJointLimits[3],
+                                                 kJointLimits[4], kJointLimits[5], kJointLimits[6]};
   DynamicModel dynamic_model_;
-  std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_  //
-      {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                //
-       rm::modules::TrajectoryLimiter{2.175f, 1.875f},               //
-       rm::modules::TrajectoryLimiter{2.175f, 2.5f},                 //
-       rm::modules::TrajectoryLimiter{2.175f, 3.125f},               //
-       rm::modules::TrajectoryLimiter{2.61f, 3.75f},                 //
+  std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiter_  //
+      {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                      //
+       rm::modules::TrajectoryLimiter{2.175f, 1.875f},                     //
+       rm::modules::TrajectoryLimiter{2.175f, 2.5f},                       //
+       rm::modules::TrajectoryLimiter{2.175f, 3.125f},                     //
+       rm::modules::TrajectoryLimiter{2.61f, 3.75f},                       //
+       rm::modules::TrajectoryLimiter{2.61f, 5.f},                         //
        rm::modules::TrajectoryLimiter{2.61f, 5.f}};
-  std::array<rm::modules::PID, 6> speed_pid_;
-  std::array<rm::modules::PID, 6> position_pid_;
+  std::array<rm::modules::PID, NJoints> pid_;
 
-  constexpr static std::array<std::pair<float, float>, 6> kJointLimits{
-      std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI},
+  constexpr static std::array<std::pair<float, float>, NJoints> kJointLimits{
+      std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI},
       std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}};  // placeholder joint limits
 
   Status status_{kIdle};

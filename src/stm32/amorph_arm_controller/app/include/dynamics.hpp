@@ -86,18 +86,18 @@ class DynamicModel {
   Vec3 g_;
 
  private:
-  static constexpr float l2 = 0.385f;  ///< 第二节连杆(pitch1)长度，单位m
-  static constexpr float l3 = 0.37f;
+  static constexpr float l2 = 0.29781f;  ///< 第二节连杆(pitch1)长度，单位m
+  static constexpr float l3 = 0.5f;
 
   static constexpr float i1 = 0.2473f;  ///< 第一节连杆(yaw)的转动惯量，单位kg·m^2
   static constexpr float i2 = 0.1246f;  ///< 第二节连杆(pitch1)的转动惯量，单位kg·m^2
   static constexpr float i3 = 0.0402f;  ///< 第三节连杆(pitch2)的转动惯量，单位kg·m^2
 
-  static constexpr float m2 = 0.9f + 0.8f;  ///< 第二节连杆(pitch1)质量，单位kg
-  static constexpr float m3 = 1.5f + 0.2f;  ///< 第三节连杆(pitch2)质量，单位kg
+  static constexpr float m2 = 1.312f + 0.2f;  ///< 第二节连杆(pitch1)质量，单位kg
+  static constexpr float m3 = 1.7f;  ///< 第三节连杆(pitch2)质量，单位kg
 
   static constexpr float r2 = l2 / 2.f;  ///< 第二节连杆(pitch1)质心到关节轴距离，单位m
-  static constexpr float r3 = 0.2f;      ///< 第三节连杆(pitch2)质心到关节轴距离，单位m
+  static constexpr float r3 = 0.3f;      ///< 第三节连杆(pitch2)质心到关节轴距离，单位m
 
   static constexpr float g0 = 9.8f;  ///< 重力加速度，单位m/s^2
 

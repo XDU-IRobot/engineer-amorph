@@ -10,7 +10,7 @@ static Manual manual;
 static Idle idle;
 static Executing executing;
 static CustomCtrl custom_ctrl;
-static J6Calibrating j6_calibrating;
+static LongJointCalibrating long_joint_calibrating;
 static Fault fault;
 }  // namespace state
 
@@ -21,7 +21,7 @@ void Init() {
       &state::idle,            //
       &state::executing,       //
       &state::custom_ctrl,     //
-      &state::j6_calibrating,  //
+      &state::long_joint_calibrating,  //
       &state::fault,           //
   };
   arm.set_states(state_list, std::size(state_list));

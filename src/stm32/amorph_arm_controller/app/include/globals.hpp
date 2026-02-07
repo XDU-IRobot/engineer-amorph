@@ -5,23 +5,35 @@
 #include "fdcan.h"
 #include "usart.h"
 
-#include "motion_planner.hpp"
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
 #include "rpc/rpc.hpp"
 #include "rpc/custom_controller.hpp"
+#include "actuators.hpp"
+#include "arm_controller.hpp"
 #include "et16s.hpp"
 
 /**
  * @brief   全局数据仓库
  */
 struct Globals {
-  rm::hal::Can left_can{hfdcan1}, right_can{hfdcan2}, rpc_can{hfdcan3};  ///< 用于电机和RPC通信的CAN总线
+#if defined(I_AM_LEFT_ARM)
+  rm::hal::Can lower_motor_can{hfdcan2}, upper_motor_can{hfdcan1};  ///< 用于电机控制的CAN总线
+#elif defined(I_AM_RIGHT_ARM)
+  rm::hal::Can lower_motor_can{hfdcan1}, upper_motor_can{hfdcan2};  ///< 用于电机控制的CAN总线
+#endif
+
+  rm::hal::Can rpc_can{hfdcan3};  ///< 用于RPC通信的CAN总线
+  RPC rpc;                        ///< RPC对象，负责与上位机通信
+  rm::modules::SparseValueWatcher<bool, true> rpc_connection_watcher;
+
   rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
                               rm::hal::stm32::UartMode::kInterrupt};  ///< 用于接收遥控器信号的串口
+  WflyET16s rc{sbus_serial};                                          ///< 遥控器
 
-  RPC rpc;  ///< RPC对象，负责与上位机通信
-  rm::modules::SparseValueWatcher<bool, true> rpc_connection_watcher;
+  rm::hal::Serial vt_serial{huart1, 50, rm::hal::stm32::UartMode::kInterrupt,
+                            rm::hal::stm32::UartMode::kInterrupt};  ///< 用于接收图传链路的串口
+  rm::device::Referee<rm::device::RefereeRevision::kV170> ref;      ///< 裁判系统解码器
 
   Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
   rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
@@ -39,122 +51,45 @@ struct Globals {
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
-  WflyET16s rc{sbus_serial};  ///< 遥控器
-
-  MotionPlanner planner;  ///< 运动规划器
-
-  CustomController custom_controller{rpc_can};  ///< 自定义控制器，上位机通过CANFD总线转发来的数据
-
-  struct Actuator {
-    using DmMit = rm::device::DmMotor<rm::device::DmMotorControlMode::kMit>;
-    using DmMitSettings = rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>;
-    void SetEnable(bool enable, int repeats = 5) const {
-      const auto cmd = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
-      for (int i = 0; i < repeats; ++i) {
-        j1->SendInstruction(cmd);
-        j2->SendInstruction(cmd);
-        j3->SendInstruction(cmd);
-        j4->SendInstruction(cmd);
-        j5->SendInstruction(cmd);
-        gripper->SendInstruction(cmd);
-        if (!enable) {
-          j6->SetCurrent(0);
-        }
-      }
-    }
-    void ApplyOutput(const MotionPlanner::Output<6> &output, bool apply_position = false) const {
-      if (apply_position) {
-        j1->SetPosition(output.positions[0], 0, output.efforts[0], 35.f, 15.f);
-        j2->SetPosition(output.positions[1], 0, output.efforts[1], 75.f, 30.f);
-        j3->SetPosition(output.positions[1] + output.positions[2], 0, output.efforts[2], 50.f, 15.f);
-        j4->SetPosition(output.positions[3], 0, output.efforts[3], 35.f, 15.f);
-        j5->SetPosition(output.positions[4], 0, output.efforts[4], 35.f, 15.f);
-      } else {
-        j1->SetPosition(0, 0, 0, 0, 0);
-        j2->SetPosition(0, 0, output.efforts[1], 0, 0);
-        j3->SetPosition(0, 0, output.efforts[2], 0, 0);
-        j4->SetPosition(0, 0, output.efforts[3], 0, 0);
-        j5->SetPosition(0, 0, output.efforts[4], 0, 0);
-      }
-      j6->SetCurrent(output.efforts[5]);
-      rm::device::DjiMotor<>::SendCommand();
-    }
-    DmMit *j1, *j2, *j3, *j4, *j5, *gripper;
-    rm::device::M2006 *j6;
-    EncoderCounter j6_encoder{36.f * 1.75f,  // 2006减速比1:36，齿轮传动1:1.75
-                              2.f * M_PI};
-  } actuator;
-  rm::device::DeviceManager<10> device_manager;  ///< 设备管理器
+  ArmController<7> arm_controller;  ///< 机械臂控制器
+  // CustomController custom_controller{rpc_can};          ///< 自定义控制器，上位机通过CANFD总线转发来的数据
+  Actuator actuator{lower_motor_can, upper_motor_can};  ///< 所有电机
+  rm::device::DeviceManager<10> device_manager;         ///< 设备管理器
+  etl::string<512> status_str{""};                      ///< 描述当前系统状态的字符串
 
   /**
    * @brief 初始化所有全局对象
    */
   void Init() {
-    actuator.j1 = new rm::device::DmMotor{
-        left_can, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0xb1,
-                                                                                    .slave_id = 0xa1,
-                                                                                    .p_max = 3.141593f,
-                                                                                    .v_max = 45.f,
-                                                                                    .t_max = 54.f,
-                                                                                    .kp_range = {0, 500},
-                                                                                    .kd_range = {0, 50}}};
-    actuator.j3 = new rm::device::DmMotor{
-        left_can, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0xb2,
-                                                                                    .slave_id = 0xa2,
-                                                                                    .p_max = 3.141593f,
-                                                                                    .v_max = 45.f,
-                                                                                    .t_max = 54.f,
-                                                                                    .kp_range = {0, 500},
-                                                                                    .kd_range = {0, 50}}};
-    actuator.j2 =
-        new rm::device::DmMotor{left_can,
-                                rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0xb3,
-                                                                                                  .slave_id = 0xa3,
-                                                                                                  .p_max = 3.141593f,
-                                                                                                  .v_max = 45.f,
-                                                                                                  .t_max = 54.f,
-                                                                                                  .kp_range = {0, 500},
-                                                                                                  .kd_range = {0, 50}},
-                                true};
-    actuator.j4 = new rm::device::DmMotor{
-        right_can, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0xb4,
-                                                                                     .slave_id = 0xa4,
-                                                                                     .p_max = 3.141593f,
-                                                                                     .v_max = 30.f,
-                                                                                     .t_max = 10.f,
-                                                                                     .kp_range = {0, 500},
-                                                                                     .kd_range = {0, 50}}};
-    actuator.j5 = new rm::device::DmMotor{
-        right_can, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0xb5,
-                                                                                     .slave_id = 0xa5,
-                                                                                     .p_max = 3.141593f,
-                                                                                     .v_max = 30.f,
-                                                                                     .t_max = 10.f,
-                                                                                     .kp_range = {0, 500},
-                                                                                     .kd_range = {0, 50}}};
-    actuator.j6 = new rm::device::M2006(left_can, 2);
-    actuator.gripper = new rm::device::DmMotor{
-        right_can, rm::device::DmMotorSettings<rm::device::DmMotorControlMode::kMit>{.master_id = 0xb7,
-                                                                                     .slave_id = 0xa7,
-                                                                                     .p_max = 12.5f,
-                                                                                     .v_max = 30.f,
-                                                                                     .t_max = 10.f,
-                                                                                     .kp_range = {0, 500},
-                                                                                     .kd_range = {0, 50}}};
+    using rm::device::DmMotorMit;
+
+    // 给设备起一下名字方便看哪个离线
+    rc.SetName("rc");
+    actuator.j1.SetName("motor_j1");
+    actuator.j2.SetName("motor_j2");
+    actuator.j3.SetName("motor_j3");
+    actuator.j4.SetName("motor_j4");
+    actuator.j5.SetName("motor_j5");
+    actuator.j6.SetName("motor_j6");
+    actuator.gripper.SetName("motor_gripper");
+
+    // 注册设备状态变化事件回调
+    device_manager.OnDeviceStatusChange(
+        [&](rm::device::Device *device) { status_str = device_manager.GetSummaryString(); });
+
+    // 把设备都注册给设备管理器
+    device_manager << &rc << &actuator.j1 << &actuator.j2 << &actuator.j3 << &actuator.j4 << &actuator.j5
+                   << &actuator.j6 << &actuator.gripper;
 
     auto rpc_transport = std::make_shared<FdCanTransport>(rpc_can, 0x23, 0x33);
     rpc.AttachToConnection(rpc_transport);
     buzzer.Init();
-    left_can.SetFilter(0, 0);
-    right_can.SetFilter(0, 0);
-    left_can.Begin();
-    right_can.Begin();
+    lower_motor_can.SetFilter(0, 0);
+    upper_motor_can.SetFilter(0, 0);
+    lower_motor_can.Begin();
+    upper_motor_can.Begin();
     rpc_can.Begin();
     rc.Begin();
-
-    // 把设备都注册给设备管理器
-    device_manager << &rc << actuator.j1 << actuator.j2 << actuator.j3 << actuator.j4 << actuator.j5 << actuator.j6;
-    // << actuator.gripper;
   }
 };
 

@@ -5,34 +5,26 @@
 #include "fsm.hpp"
 
 void InitUserInput() {
-  static bool force_manual_mode = false;
   // 1. 定义遥控器拨杆功能
-  globals->rc(rc_ch::SD).OnValueChange([](const int &old_value, const int &new_value) {
+#if defined(I_AM_LEFT_ARM)
+  constexpr int kModeSwitch = rc_ch::SB;
+#elif defined(I_AM_RIGHT_ARM)
+  constexpr int kModeSwitch = rc_ch::SC;
+#endif
+  globals->rc(kModeSwitch).OnValueChange([](const int &old_value, const int &new_value) {
     // 353-up, 1024-mid, 1695-down
     if (old_value == 0) {
       return;  // 第一次触发不响应
     }
-    if (new_value > 1300 && new_value < 1700) {  // SD在下
+    if (new_value > 1300 && new_value < 1700) {  // 机械臂模式杆在下 - 无力
       fsm::arm.receive(fsm::event::FaultClear{});
       fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNoForce});
     }
-    if (new_value > 0 && new_value < 500) {  // SD在上
-      fsm::arm.receive(fsm::event::GoToPosReq{{0, 1.9f, -1.57f, 0, 0, 0}});
+    if (new_value > 0 && new_value < 500) {  // 机械臂模式杆在上 - 自动模式，idle
+      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kIdle});
     }
-    if (new_value > 500 && new_value < 1100) {  // SD在中
-      if (force_manual_mode) {                  // 如果SF拨到外面，强制手动模式
-        fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kManual});
-      } else {
-        fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kIdle});
-      }
-    }
-  });
-  globals->rc(rc_ch::SF).OnValueChange([](const int &old_value, const int &new_value) {
-    UNUSED(old_value);
-    if (new_value < 1000) {  // SF拨到外面
-      force_manual_mode = true;
-    } else {
-      force_manual_mode = false;
+    if (new_value > 500 && new_value < 1100) {  // 机械臂模式杆在中 - 手动调试模式
+      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kManual});
     }
   });
   globals->rc(rc_ch::SH).OnValueChange([](const int &old_value, const int &new_value) {

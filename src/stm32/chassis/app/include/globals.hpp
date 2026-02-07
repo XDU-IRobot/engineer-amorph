@@ -36,8 +36,8 @@ struct Globals {
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
-  WflyET16s rc{sbus_serial};                                            ///< 遥控器
-  rm::device::Referee<rm::device::RefereeRevision::kV170> ref_vt_link;  ///< 图传链路
+  WflyET16s rc{sbus_serial};                                               ///< 遥控器
+  rm::device::Referee<rm::device::RefereeRevision::kNewV110> ref_vt_link;  ///< 图传链路
 
   TriSteerChassisController controller;
 

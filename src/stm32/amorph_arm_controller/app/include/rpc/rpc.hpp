@@ -29,18 +29,13 @@ class RPC {
   }
 
   /**
-   * @brief 心跳保持函数，至少每0.5秒调用一次，以维持连接活跃
+   * @brief 至少每20ms调用一次，以维持连接活跃
    */
-  void KeepConnection() const {
-    conn_->SendHeartbeat();
+  void Poll() {
+    timer_.Poll();
+    conn_->Poll();
     rpc_->set_ready(conn_->Connected());
-    // rpc_->set_ready(true);
   }
-
-  /**
-   * @brief 定时轮询函数，至少每10ms调用一次，以处理RPC后台任务
-   */
-  void TickTimer() { timer_.Poll(); }
 
   /**
    * @return RPC连接是否已建立
@@ -48,6 +43,7 @@ class RPC {
   bool Connected() const { return conn_->Connected(); }
 
   auto rpc() { return rpc_; }
+  auto conn() { return conn_; }
 
  private:
   std::shared_ptr<rpc_core::rpc> rpc_{nullptr};
