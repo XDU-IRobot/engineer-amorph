@@ -6,7 +6,7 @@ from moveit_configs_utils.launches import generate_move_group_launch
 
 def generate_launch_description():
     moveit_config = (
-        MoveItConfigsBuilder("amorph_arm_v1")
+        MoveItConfigsBuilder("amorph", package_name="amorph_arm_v2_moveit_config")
         .planning_pipelines(pipelines=["ompl"])
         .robot_description(file_path="config/amorph.urdf.xacro")
         # .trajectory_execution(file_path="config/moveit_controllers.yaml")
@@ -37,7 +37,7 @@ def generate_launch_description():
         executable="static_transform_publisher",
         name="static_tf_base_to_arm",
         output="log",
-        arguments=["--frame-id", "arm_base", "--child-frame-id", "link_1"],
+        arguments=["--frame-id", "arm_base", "--child-frame-id", "l1_l"],
     )
     nodes.append(static_tf_base_to_arm)
 
@@ -49,13 +49,13 @@ def generate_launch_description():
         output="log",
         arguments=["--frame-id", "arm_base", 
                     "--child-frame-id", "camera_link",
-                    "--x", "0.672108",
-                    "--y", "1.215842",
-                    "--z", "0.605491",
-                    "--qx", "0.029197",
-                    "--qy", "-0.004083",
-                    "--qz", "-0.724784",
-                    "--qw", "0.688345"],
+                    "--x", "-0.55",          # 用easy_handeye做好手眼标定之后把结果填到这来
+                    "--y", "0.0",
+                    "--z", "0.45",
+                    "--qx", "0.0",
+                    "--qy", "0.0",
+                    "--qz", "0.0",
+                    "--qw", "1.0"],
     )
     nodes.append(static_tf_base_to_cam)
 

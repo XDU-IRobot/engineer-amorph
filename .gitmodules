@@ -43,3 +43,6 @@
 	path = src/stm32/chassis/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
+[submodule "src/jetson/amorph_transport/libs/libInterpolate"]
+	path = src/jetson/amorph_transport/libs/libInterpolate
+	url = https://github.com/CD3/libInterpolate.git

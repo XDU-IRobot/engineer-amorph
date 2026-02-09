@@ -3,8 +3,8 @@
     rpc:
       can_port: "can0"
       mosi_frame_id: 0x23
-      miso_frame_id: 0x33
-    arm_action_server_name: "/amorph_arm_controller/follow_joint_trajectory"
-    gripper_action_server_name: "/amorph_hand_controller/gripper_cmd"
+      miso_frame_id: 0x20
+    arm_action_server_name: "/arm_l_controller/follow_joint_trajectory"
+    gripper_action_server_name: "/gripper_l_controller/gripper_cmd"
     joint_state_topic: "/joint_states"
-    joint_names: ["j1", "j2", "j3", "j4", "j5", "j6", "j7_l"]
+    joint_names: ["j1_l", "j2_l", "j3_l", "j4_l", "j5_l", "j6_l", "gripper_l"]

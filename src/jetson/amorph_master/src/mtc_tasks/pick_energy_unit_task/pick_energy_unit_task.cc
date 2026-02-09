@@ -7,6 +7,7 @@
 #include "amorph_master/pick_energy_unit_task_params.hpp"
 #include "object_factory.hpp"
 #include "moveit_helper.hpp"
+#include <moveit/task_constructor/trajectory_execution_info.h>
 
 #include "logger.hpp"
 
@@ -16,11 +17,19 @@ namespace mtc = moveit::task_constructor;
 
 PickEnergyUnitTask::PickEnergyUnitTask(const std::string& task_name) : task_name_(task_name) {}
 
-bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
+bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometry_msgs::msg::Pose& object_pose) {
   L::I("Initializing PickEnergyUnitTask pipeline");
 
   const auto param_listener = std::make_shared<pick_energy_unit_task::ParamListener>(node, "pick_energy_unit_task");
   const auto params = param_listener->get_params();
+
+  // Prepare execution info for arm and hand using controller names
+  mtc::TrajectoryExecutionInfo arm_exec_info;
+  arm_exec_info.controller_names = {params.arm_controller_name};
+  mtc::TrajectoryExecutionInfo hand_exec_info;
+  hand_exec_info.controller_names = {params.hand_controller_name};
+  mtc::TrajectoryExecutionInfo both_exec_info;
+  both_exec_info.controller_names = {params.arm_controller_name, params.hand_controller_name};
 
   // Add object to planning scene
   rclcpp::sleep_for(std::chrono::microseconds(100));  // Wait for ApplyPlanningScene service
@@ -29,9 +38,8 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
   // 清空场景，确保没有残留物体
   mvh.ClearPlanningScene();
 
-  // 生成能量单元物体
-  // 注意：这里使用传入的 object_pose
-  mvh.SpawnObject(object_factory::EnergyUnit(params.object_name, params.object_reference_frame, params.object_pose));
+  // 生成能量单元
+  mvh.SpawnObject(object_factory::EnergyUnit(params.object_name, params.object_reference_frame, object_pose));
 
   // Reset ROS introspection before constructing the new object
   task_.reset();
@@ -87,6 +95,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
     auto stage = std::make_unique<mtc::stages::MoveTo>("open hand", sampling_planner);
     stage->setGroup(params.hand_group_name);
     stage->setGoal(params.hand_open_pose);
+    stage->properties().set("trajectory_execution_info", hand_exec_info);
     initial_state_ptr = stage.get();
     t.add(std::move(stage));
   }
@@ -100,6 +109,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
     auto stage = std::make_unique<mtc::stages::Connect>("move to pick", planners);
     stage->setTimeout(5.0);
     stage->properties().configureInitFrom(mtc::Stage::PARENT);
+    stage->properties().set("trajectory_execution_info", both_exec_info);
     t.add(std::move(stage));
   }
 
@@ -130,12 +140,13 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
       stage->properties().set("marker_ns", "approach_object");
       stage->properties().set("link", params.hand_frame);
       stage->properties().configureInitFrom(mtc::Stage::PARENT, {"group"});
+      stage->properties().set("trajectory_execution_info", both_exec_info);
       stage->setMinMaxDistance(params.approach_object_min_dist, params.approach_object_max_dist);
 
       // Set hand forward direction
       geometry_msgs::msg::Vector3Stamped vec;
       vec.header.frame_id = params.hand_frame;
-      vec.vector.x = 1.0;
+      vec.vector.z = 1.0;
       stage->setDirection(vec);
       grasp->insert(std::move(stage));
     }
@@ -184,6 +195,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
       auto stage = std::make_unique<mtc::stages::MoveTo>("close hand", sampling_planner);
       stage->setGroup(params.hand_group_name);
       stage->setGoal(params.hand_close_pose);
+      stage->properties().set("trajectory_execution_info", hand_exec_info);
       grasp->insert(std::move(stage));
     }
 
@@ -205,10 +217,11 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
       stage->setMinMaxDistance(params.lift_object_min_dist, params.lift_object_max_dist);
       stage->setIKFrame(params.hand_frame);
       stage->properties().set("marker_ns", "lift_object");
+      stage->properties().set("trajectory_execution_info", arm_exec_info);
 
       // Set upward direction
       geometry_msgs::msg::Vector3Stamped vec;
-      vec.header.frame_id = "world";
+      vec.header.frame_id = "energy_unit_0_smoothed";
       vec.vector.z = 1.0;
       stage->setDirection(vec);
       grasp->insert(std::move(stage));
@@ -228,6 +241,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node) {
     stage->properties().configureInitFrom(mtc::Stage::PARENT, {"group"});
     stage->setGoal(params.arm_home_pose);
     stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
+    stage->properties().set("trajectory_execution_info", arm_exec_info);
     t.add(std::move(stage));
   }
 

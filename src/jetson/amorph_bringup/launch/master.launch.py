@@ -7,7 +7,7 @@ from moveit_configs_utils import MoveItConfigsBuilder
 
 def generate_launch_description():
     moveit_config = (
-        MoveItConfigsBuilder("amorph_arm_v1")
+        MoveItConfigsBuilder("amorph", package_name="amorph_arm_v2_moveit_config")
         .planning_pipelines(pipelines=["ompl"])
         .robot_description(file_path="config/amorph.urdf.xacro")
         # .trajectory_execution(file_path="config/moveit_controllers.yaml")

@@ -5,15 +5,19 @@
       max_solutions: 10
 
       # Planning group and link names
-      arm_group_name: "arm"
-      eef_name: "hand"
-      hand_group_name: "hand"
-      hand_frame: "link_7"
+      arm_group_name: "arm_l"
+      eef_name: "gripper_l"
+      hand_group_name: "gripper_l"
+      hand_frame: "gripper_base_l"
 
       # Poses
       hand_open_pose: "open"
       hand_close_pose: "close"
-      arm_home_pose: "ready"
+      arm_home_pose: "hold_eu"
+
+      # Controller names
+      arm_controller_name: "arm_l_controller"
+      hand_controller_name: "gripper_l_controller"
 
       # Scene frames
       world_frame: "world"
@@ -36,14 +40,14 @@
       table_pose: [0.5, -0.25, 0.0, 0.0, 0.0, 0.0]
 
       # Gripper grasp frame transform [x,y,z,r,p,y]
-      grasp_frame_transform: [0.063, 0.0, -0.08, 0.0, 0.0, 0.0]
+      grasp_frame_transform: [0.0, 0.075, 0.17, -1.57, 3.1415927, 0.0]
 
       # Place pose [x,y,z,r,p,y]
       place_pose: [0.0, -0.15, 0.0, 0.0, 0.0, 0.0]
       place_surface_offset: 0.0001 # place offset from table
 
       # Valid distance range when approaching an object for picking
-      approach_object_min_dist: 0.06
+      approach_object_min_dist: 0.03
       approach_object_max_dist: 0.11
 
       # Valid height range when lifting an object after pick

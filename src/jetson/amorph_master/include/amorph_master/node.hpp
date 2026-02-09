@@ -5,6 +5,11 @@
 
 #include <librm.hpp>
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 #include "sbus_interface/msg/sbus.hpp"
 #include "rm_referee_msgs/msg/remote_control.hpp"
 
@@ -30,7 +35,9 @@ class AmorphMasterNode {
         mtc_ros_node_{std::make_shared<rclcpp::Node>("amorph_host_mtc_node",                 //
                                                      rclcpp::NodeOptions()                   //
                                                          .allow_undeclared_parameters(true)  //
-                                                         .automatically_declare_parameters_from_overrides(true))} {
+                                                         .automatically_declare_parameters_from_overrides(true))},
+        tf_buffer_{std::make_shared<tf2_ros::Buffer>(main_ros_node_->get_clock())},
+        tf_listener_{std::make_shared<tf2_ros::TransformListener>(*tf_buffer_)} {
     MoveitHelper::GetInstance().Init(mtc_ros_node_);
     InitUserInput();
     L::I("node initialized."_green);
@@ -81,13 +88,33 @@ class AmorphMasterNode {
                          return std::nullopt;
                        }
                        planning_in_progress_.store(true);
-                       mtc_tasks_.pick_energy_unit_task.init(mtc_ros_node_);
+                       
+                       // 获取 world->energy_unit_0_smoothed 变换
+                       geometry_msgs::msg::TransformStamped transform_stamped;
+                       try {
+                         transform_stamped = tf_buffer_->lookupTransform(
+                             "world", "energy_unit_0_smoothed", tf2::TimePointZero);
+                       } catch (const tf2::TransformException& ex) {
+                         L::E("Failed to get transform world->energy_unit_0_smoothed: %s", ex.what());
+                         planning_in_progress_.store(false);
+                         return std::nullopt;
+                       }
+                       
+                       // 将 Transform 转换为 Pose
+                       geometry_msgs::msg::Pose object_pose;
+                       object_pose.position.x = transform_stamped.transform.translation.x;
+                       object_pose.position.y = transform_stamped.transform.translation.y;
+                       object_pose.position.z = transform_stamped.transform.translation.z;
+                       object_pose.orientation = transform_stamped.transform.rotation;
+                       
+                       mtc_tasks_.pick_energy_unit_task.init(mtc_ros_node_, object_pose);
                        mtc_tasks_.pick_energy_unit_task.plan(10);
                        const auto &task = mtc_tasks_.pick_energy_unit_task.task();
                        // task->reset();
                        task->publishAllSolutions(false);
                        planning_in_progress_.store(false);
                        if (task->numSolutions() > 0) {
+                        task->execute(*task->solutions().front());
                          return task->solutions().front();
                        }
                        return std::nullopt;
@@ -107,6 +134,9 @@ class AmorphMasterNode {
   rclcpp::executors::MultiThreadedExecutor node_executor_;
   std::atomic<bool> executor_running_{false};
   std::atomic<bool> planning_in_progress_{false};
+  
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
   struct {
     rclcpp::TimerBase::SharedPtr rpc_heartbeat{nullptr};

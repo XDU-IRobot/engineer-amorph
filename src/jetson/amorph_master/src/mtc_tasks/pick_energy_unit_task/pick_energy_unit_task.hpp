@@ -31,7 +31,7 @@ class PickEnergyUnitTask {
   explicit PickEnergyUnitTask(const std::string& task_name);
   ~PickEnergyUnitTask() = default;
 
-  bool init(const rclcpp::Node::SharedPtr& node);
+  bool init(const rclcpp::Node::SharedPtr& node, const geometry_msgs::msg::Pose& object_pose);
 
   bool plan(std::size_t max_solutions);
 

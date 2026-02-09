@@ -65,6 +65,12 @@ pick_energy_unit_task:
     type: string
     validation:
       not_empty<>: []
+  arm_controller_name:
+    type: string
+    default_value: "arm_controller"
+  hand_controller_name:
+    type: string
+    default_value: "gripper_controller"
   # Scene frames
   world_frame:
     type: string
