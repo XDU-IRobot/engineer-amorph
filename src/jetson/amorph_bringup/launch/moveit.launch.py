@@ -49,13 +49,13 @@ def generate_launch_description():
         output="log",
         arguments=["--frame-id", "arm_base", 
                     "--child-frame-id", "camera_link",
-                    "--x", "-0.55",          # 用easy_handeye做好手眼标定之后把结果填到这来
-                    "--y", "0.0",
-                    "--z", "0.45",
-                    "--qx", "0.0",
-                    "--qy", "0.0",
-                    "--qz", "0.0",
-                    "--qw", "1.0"],
+                    "--x", "-0.5",          # 用easy_handeye做好手眼标定之后把结果填到这来
+                    "--y", "-0.1577",
+                    "--z", "0.43",
+                    "--qx", "-0.004162",
+                    "--qy", "-0.023165",
+                    "--qz", "-0.002643",
+                    "--qw", "0.999720"],
     )
     nodes.append(static_tf_base_to_cam)
 

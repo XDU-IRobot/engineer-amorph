@@ -104,22 +104,60 @@ class LocatorBackend:
         x_meters = (cX - self.intrinsics['cx']) * z_meters / self.intrinsics['fx']
         y_meters = (cY - self.intrinsics['cy']) * z_meters / self.intrinsics['fy']
         
-        # 7. 估计圆柱体主轴方向
-        axis_direction, orientation_quat = self._estimate_cylinder_orientation(binary_mask, depth_image)
+        # 7. 估计圆柱体主轴方向和修正后的3D中心
+        axis_direction, orientation_quat, corrected_center = self._estimate_cylinder_orientation(binary_mask, depth_image)
         if orientation_quat is None:
             orientation_quat = np.array([0.0, 0.0, 0.0, 1.0])
             axis_direction = None
         
-        # 8. 计算TF位置（沿视线方向偏移到圆柱中心）
-        direction = np.array([x_meters, y_meters, z_meters])
-        norm = np.linalg.norm(direction)
-        if norm > 1e-6:
-            offset = self.cylinder_offset * direction / norm
-            x_tf = x_meters + offset[0]
-            y_tf = y_meters + offset[1]
-            z_tf = z_meters + offset[2]
+        # 使用轴向修正后的3D中心替代2D质心反投影的位置
+        # 解决仰视/俯视时2D质心沿轴向偏移的问题
+        if corrected_center is not None:
+            x_meters, y_meters, z_meters = corrected_center
+        
+        # 8. 计算TF位置（垂直表面偏移 + 定位到底面中心）
+        if axis_direction is not None:
+            # 确定垂直于圆柱轴、指向圆柱内部的方向
+            # 将视线方向分解为平行于轴和垂直于轴的分量，取垂直分量
+            view_dir = np.array([x_meters, y_meters, z_meters])
+            view_dir_normalized = view_dir / np.linalg.norm(view_dir)
+            
+            # 计算平行于轴的分量
+            parallel_component = np.dot(view_dir_normalized, axis_direction) * axis_direction
+            # 垂直于轴的分量（远离相机方向）
+            perpendicular_component = view_dir_normalized - parallel_component
+            perp_norm = np.linalg.norm(perpendicular_component)
+            
+            if perp_norm > 1e-6:
+                axis_into = perpendicular_component / perp_norm
+            else:
+                # 如果视线方向与轴平行，回退到视线方向
+                axis_into = view_dir_normalized
+            
+            # 垂直表面偏移 cylinder_offset（3cm），从可见表面推向圆柱内部
+            surface_offset = self.cylinder_offset * axis_into
+            
+            # 从质心（约为圆柱体长度中心）移动到底面中心
+            # axis_direction 被约束为指向上方（y < 0），底面在其反方向
+            bottom_offset = (self.cylinder_height / 2.0) * (-axis_direction)
+            
+            # x_tf = x_meters + surface_offset[0] + bottom_offset[0]
+            # y_tf = y_meters + surface_offset[1] + bottom_offset[1]
+            # z_tf = z_meters + surface_offset[2] + bottom_offset[2]
+            x_tf = x_meters + surface_offset[0] + bottom_offset[0]
+            y_tf = y_meters + surface_offset[1] + bottom_offset[1]
+            z_tf = z_meters + surface_offset[2] + bottom_offset[2]
         else:
-            x_tf, y_tf, z_tf = x_meters, y_meters, z_meters
+            # 无法估计轴方向时，回退到沿视线方向偏移
+            direction = np.array([x_meters, y_meters, z_meters])
+            norm = np.linalg.norm(direction)
+            if norm > 1e-6:
+                offset = self.cylinder_offset * direction / norm
+                x_tf = x_meters + offset[0]
+                y_tf = y_meters + offset[1]
+                z_tf = z_meters + offset[2]
+            else:
+                x_tf, y_tf, z_tf = x_meters, y_meters, z_meters
         
         return {
             'position': [x_tf, y_tf, z_tf],
@@ -198,24 +236,25 @@ class LocatorBackend:
     
     def _estimate_cylinder_orientation(self, 
                                       binary_mask: np.ndarray, 
-                                      depth_image: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+                                      depth_image: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
         """
-        使用PCA估计圆柱体的主轴方向
+        使用PCA估计圆柱体的主轴方向和轴向修正后的几何中心
         
         参数:
             binary_mask: 二值mask
             depth_image: 深度图
             
         返回:
-            (axis_direction, orientation_quat)
+            (axis_direction, orientation_quat, corrected_center)
             axis_direction: 主轴方向向量 (3,) 在相机坐标系中，或None
             orientation_quat: 四元数 (x, y, z, w)，或None
+            corrected_center: 轴向修正后的3D几何中心 (3,)，或None
         """
         # 提取mask区域的所有3D点
         ys, xs = np.where(binary_mask)
         
         if len(xs) < 10:  # 点太少无法计算
-            return None, None
+            return None, None, None
         
         depths = depth_image[ys, xs]
         valid_mask = depths > 0
@@ -224,7 +263,7 @@ class LocatorBackend:
         depths_valid = depths[valid_mask]
         
         if len(depths_valid) < 10:
-            return None, None
+            return None, None, None
         
         z = depths_valid / 1000.0
         px = (xs_valid - self.intrinsics['cx']) * z / self.intrinsics['fx']
@@ -252,12 +291,22 @@ class LocatorBackend:
         if principal_axis[1] > 0:
             principal_axis = -principal_axis
         
+        # 5. 计算轴向修正后的几何中心
+        # 将所有点投影到主轴上，用端点中点修正轴向位置
+        # 这样可以消除透视导致的轴向偏移（仰视/俯视时近端点在图像中占比更大）
+        projections = centered_points @ principal_axis  # 每个点在轴上的投影距离
+        # 使用2%和98%分位数代替min/max，避免离群点影响
+        t_low = np.percentile(projections, 2)
+        t_high = np.percentile(projections, 98)
+        axis_midpoint_offset = (t_low + t_high) / 2.0
+        corrected_center = centroid + axis_midpoint_offset * principal_axis
+        
         # 将主轴方向转换为四元数
         # 我们假设圆柱体的局部z轴是主轴方向
         # 需要计算从标准z轴 [0, 0, 1] 旋转到 principal_axis 的四元数
         quat = self._rotation_from_vectors(np.array([0, 0, 1]), principal_axis)
         
-        return principal_axis, quat
+        return principal_axis, quat, corrected_center
     
     def _rotation_from_vectors(self, vec1: np.ndarray, vec2: np.ndarray) -> np.ndarray:
         """
