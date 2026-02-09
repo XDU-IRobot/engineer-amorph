@@ -4,7 +4,8 @@
 #include <librm.hpp>
 #include <etl/fsm.h>
 
-#include "rpc/custom_controller.hpp"
+#include "host_comm.hpp"
+#include "custom_controller_comm.hpp"
 #include "arm_controller.hpp"
 #include "globals.hpp"
 
@@ -12,16 +13,12 @@ namespace fsm {
 
 struct EventId {
   enum {
-    kControlLoop,             ///< 控制循环时钟事件
-    kForceModeSwitch,         ///< 切换模式命令
-    kExecutionReq,            ///< 轨迹执行请求
-    kGoToPosReq,              ///< 定点去往请求
-    kCancelExecutionReq,      ///< 取消轨迹执行请求
-    kGripperCommand,          ///< 夹爪控制命令
-    kCustomCtrlCommand,       ///< 自定义控制器命令
-    kFaultClear,              ///< 故障清除命令
-    kOpticalSwitchTriggered,  ///< 光电开关触发，j6回零完成
-    kNextJoint,               ///< Manual模式下切换到下一个关节
+    kControlLoop,        ///< 控制循环时钟事件
+    kForceModeSwitch,    ///< 切换模式命令
+    kCustomCtrlCommand,  ///< 自定义控制器命令
+    kHostCommand,        ///< 上位机下发的命令
+    kFaultClear,         ///< 故障清除命令
+    kNextJoint,          ///< Manual模式下切换到下一个关节
   };
 };
 
@@ -30,7 +27,7 @@ struct StateId {
     kNoForce,               ///< 强制无力
     kManual,                ///< 遥控器手动模式，调试/检录的时候用
     kIdle,                  ///< 空闲，可执行轨迹
-    kExecuting,             ///< 正在运动
+    kHostControl,           ///< 正在被上位机控制
     kCustomCtrl,            ///< 自定义控制器操作
     kLongJointCalibrating,  ///< 超过位置编码器1圈的长关节校准位置(j6、夹爪）
     kFault,                 ///< 故障状态
@@ -54,32 +51,6 @@ struct ForceModeSwitch : etl::message<EventId::kForceModeSwitch> {
 };
 
 /*******************************************/
-struct ExecutionReq : etl::message<EventId::kExecutionReq> {
-  explicit ExecutionReq(JointTrajectory traj) : trajectory(std::move(traj)) {}
-  JointTrajectory trajectory;
-};
-
-/*******************************************/
-struct GoToPosReq : etl::message<EventId::kGoToPosReq> {
-  explicit GoToPosReq(std::array<float, 6> positions) {
-    point.positions.assign(positions.begin(), positions.end());
-    point.velocities.assign(6, 0);
-    point.accelerations.assign(6, 0);
-    point.effort.assign(6, 0);
-  }
-  JointTrajectoryPoint point;
-};
-
-/*******************************************/
-struct CancelExecutionReq : etl::message<EventId::kCancelExecutionReq> {};
-
-/*******************************************/
-struct GripperCommand : etl::message<EventId::kGripperCommand> {
-  explicit GripperCommand(bool open) : target_position(open ? 0.453383446f : -1.11562538f) {}
-  float target_position;
-};
-
-/*******************************************/
 struct CustomCtrlCommand : etl::message<EventId::kCustomCtrlCommand>, CustomControllerCommand {
   using CustomControllerCommand::CustomControllerCommand;
   CustomCtrlCommand() = default;
@@ -87,10 +58,14 @@ struct CustomCtrlCommand : etl::message<EventId::kCustomCtrlCommand>, CustomCont
 };
 
 /*******************************************/
-struct FaultClear : etl::message<EventId::kFaultClear> {};
+struct HostCommand : etl::message<EventId::kHostCommand>, ::HostCommand {
+  using ::HostCommand::HostCommand;
+  HostCommand() = default;
+  explicit HostCommand(const ::HostCommand &command) : ::HostCommand(command) {}
+};
 
 /*******************************************/
-struct OpticalSwitchTriggered : etl::message<EventId::kOpticalSwitchTriggered> {};
+struct FaultClear : etl::message<EventId::kFaultClear> {};
 
 /*******************************************/
 struct NextJoint : etl::message<EventId::kNextJoint> {};
@@ -132,7 +107,6 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
     get_fsm_context().planner_need_reset_ = true;
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     globals->actuator.SetEnable(false, 1);
-    globals->arm_controller.Enable(false);
     dji_motor_brake_count_ = 0;
     return No_State_Change;
   }
@@ -161,8 +135,7 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
 struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
                                event::ForceModeSwitch,         //
                                event::ControlLoop,             //
-                               event::NextJoint,               //
-                               event::GripperCommand> {
+                               event::NextJoint> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
@@ -173,7 +146,6 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     // 因为此时 planner_need_reset_ 为 true，arm_controller.output() 不是最新位置
     target_positions_initialized_ = false;
     globals->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
-    globals->arm_controller.Enable(true);
     globals->actuator.SetEnable(true);
     return No_State_Change;
   }
@@ -184,22 +156,14 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     }
     // 确保在 ResetAt 之后再初始化 target_positions_，避免位置跳变
     if (!target_positions_initialized_) {
-      target_positions_ = globals->arm_controller.output().positions;
+      target_positions_ = globals->arm_controller.current_positions();
       target_positions_initialized_ = true;
     }
     const auto &joint_limits = ArmController<7>::joint_limits();
     target_positions_[ctrl_joint_idx_] =
         std::clamp(target_positions_[ctrl_joint_idx_] + (globals->rc.left_x() * 0.001f),  //
                    joint_limits[ctrl_joint_idx_].first, joint_limits[ctrl_joint_idx_].second);
-    const auto target_p = [this] {
-      JointTrajectoryPoint p;
-      p.positions.assign(target_positions_.begin(), target_positions_.end());
-      p.velocities.resize(7);
-      p.accelerations.resize(7);
-      p.effort.resize(7);
-      return p;
-    }();
-    globals->arm_controller.GoTo(target_p);
+    globals->arm_controller.GoTo(target_positions_);
     globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.002f);
 
     // speed_eee.Update(globals->rc.left_x() * 60.f, e.gripper_velocity);
@@ -226,10 +190,6 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     }
     return No_State_Change;
   }
-  REACT(event::GripperCommand) {
-    // globals->actuator.gripper->SetPosition(e.target_position, 0, 0, 10.f, 5.f);
-    return No_State_Change;
-  }
 
  private:
   std::array<float, 7> target_positions_{};
@@ -240,40 +200,15 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
 /*******************************************/
 struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
                              event::ForceModeSwitch,     //
-                             event::ExecutionReq,        //
                              event::ControlLoop,         //
-                             event::GoToPosReq,          //
+                             event::HostCommand,         //
                              event::CustomCtrlCommand> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     get_fsm_context().planner_need_reset_ = true;  // 进入Idle时强制重置规划器，防止位置跳变
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
-    globals->arm_controller.Enable(true);
     globals->actuator.SetEnable(true);
-    return No_State_Change;
-  }
-  REACT(event::ExecutionReq) {
-    if (globals->arm_controller.status() == ArmController<7>::kIdle) {
-      // 如果规划器需要重置，先不执行，等待下一个ControlLoop重置后再处理
-      // 这种情况通常不会发生，因为ExecutionReq是异步事件，ControlLoop频率很高
-      if (get_fsm_context().planner_need_reset_) {
-        return No_State_Change;  // 暂不处理，等ControlLoop重置后再接受轨迹
-      }
-      globals->arm_controller.Execute(e.trajectory);
-      return StateId::kExecuting;
-    }
-    return No_State_Change;
-  }
-  REACT(event::GoToPosReq) {
-    if (globals->arm_controller.status() == ArmController<7>::kIdle) {
-      // 如果规划器需要重置，先不执行，等待下一个ControlLoop重置后再处理
-      if (get_fsm_context().planner_need_reset_) {
-        return No_State_Change;  // 暂不处理，等ControlLoop重置后再接受目标点
-      }
-      globals->arm_controller.GoTo(e.point);
-      return StateId::kExecuting;
-    }
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
@@ -289,6 +224,12 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }
+  REACT(event::HostCommand) {
+    if (e.take_control) {
+      return StateId::kHostControl;
+    }
+    return No_State_Change;
+  }
   REACT(event::CustomCtrlCommand) {
     if (e.buttons.a) {  // 按下按钮a，进入CustomCtrl模式
       return StateId::kCustomCtrl;
@@ -298,41 +239,23 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
 };
 
 /*******************************************/
-struct Executing : etl::fsm_state<Arm, Executing, StateId::kExecuting,  //
-                                  event::ControlLoop,                   //
-                                  event::ForceModeSwitch,               //
-                                  event::CancelExecutionReq> {
+struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
+                                    event::ControlLoop,                       //
+                                    event::ForceModeSwitch,                   //
+                                    event::HostCommand> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Success>();
-    globals->arm_controller.Enable(true);
     globals->actuator.SetEnable(true);
     return No_State_Change;
   }
-  REACT(event::CancelExecutionReq) {
-    UNUSED(e);
-    const auto current_p = [&] {
-      const auto &current_pos = globals->arm_controller.output().positions;
-      JointTrajectoryPoint p;
-      p.positions.assign(current_pos.begin(), current_pos.end());
-      p.velocities.resize(7);
-      p.accelerations.resize(7);
-      p.effort.resize(7);
-      return p;
-    }();
-    globals->arm_controller.GoTo(current_p);
-    return No_State_Change;  // 机械臂停下来需要时间，所以不立刻转换到idle状态，而是等控制器状态变为idle时再转换
-  }
   REACT(event::ControlLoop) {
     switch (globals->arm_controller.status()) {
-      case ArmController<7>::kIdle: {
-        return StateId::kIdle;
-      }
       case ArmController<7>::kFault: {
         return StateId::kFault;
       }
-      case ArmController<7>::kExecuting:
+      case ArmController<7>::kMoving:
       default: {
         // no state change
         break;
@@ -344,6 +267,19 @@ struct Executing : etl::fsm_state<Arm, Executing, StateId::kExecuting,  //
     }
     globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
+    return No_State_Change;
+  }
+  REACT(event::HostCommand) {
+    if (!e.take_control) {
+      return StateId::kIdle;
+    }
+    std::array<float, 7> target_p = globals->arm_controller.current_positions();
+    target_p[1] = e.target_joint_positions[1];
+    target_p[2] = e.target_joint_positions[2];
+    target_p[3] = e.target_joint_positions[3];
+    target_p[4] = e.target_joint_positions[4];
+    target_p[5] = e.target_joint_positions[5];
+    globals->arm_controller.GoTo(target_p);
     return No_State_Change;
   }
 };
@@ -358,7 +294,6 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
   ENTER {
     get_fsm_context().planner_need_reset_ = true;  // 进入CustomCtrl时强制重置规划器，防止位置跳变
     globals->buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
-    globals->arm_controller.Enable(true);
     globals->actuator.SetEnable(true);
     return No_State_Change;
   }
@@ -381,20 +316,12 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     if (!e.ok) {
       return No_State_Change;
     }
-    auto target_p = [&] {
-      const auto &current_pos = globals->arm_controller.output().positions;
-      JointTrajectoryPoint p;
-      p.positions.assign(current_pos.begin(), current_pos.end());
-      p.velocities.resize(7);
-      p.accelerations.resize(7);
-      p.effort.resize(7);
-      return p;
-    }();
-    target_p.positions[0] = e.joint_positions[0];
-    target_p.positions[1] = e.joint_positions[1];
-    target_p.positions[2] = e.joint_positions[2];
-    target_p.positions[3] = e.joint_positions[3];
-    target_p.positions[4] = e.joint_positions[4];
+    std::array<float, 7> target_p = globals->arm_controller.current_positions();
+    target_p[0] = e.joint_positions[0];
+    target_p[1] = e.joint_positions[1];
+    target_p[2] = e.joint_positions[2];
+    target_p[3] = e.joint_positions[3];
+    target_p[4] = e.joint_positions[4];
     globals->arm_controller.GoTo(target_p);
     return No_State_Change;
   }
@@ -403,16 +330,11 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
 /*******************************************/
 struct LongJointCalibrating : etl::fsm_state<Arm, LongJointCalibrating, StateId::kLongJointCalibrating,  //
                                              event::ControlLoop,                                         //
-                                             event::ForceModeSwitch,                                     //
-                                             event::OpticalSwitchTriggered> {
+                                             event::ForceModeSwitch> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER { return No_State_Change; }
   REACT(event::ControlLoop) {
-    UNUSED(e);
-    return No_State_Change;
-  }
-  REACT(event::OpticalSwitchTriggered) {
     UNUSED(e);
     return No_State_Change;
   }
@@ -427,7 +349,6 @@ struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
   ENTER {
     get_fsm_context().planner_need_reset_ = true;
     globals->actuator.SetEnable(false);
-    globals->arm_controller.Enable(false);
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
     return No_State_Change;
   }

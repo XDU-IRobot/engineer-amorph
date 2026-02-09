@@ -6,7 +6,6 @@
 #include <librm.hpp>
 
 #include "dynamics.hpp"
-#include "trajectory_tracker.hpp"
 
 template <size_t NJoints>
 class ArmController {
@@ -25,61 +24,40 @@ class ArmController {
   };
 
   enum Status {
-    kDisabled,
     kIdle,
-    kExecuting,
+    kMoving,
     kFault,
   };
 
   ArmController() {
     // clang-format off
-    pid_[0].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
-    pid_[1].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
-    pid_[2].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
-    pid_[3].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
-    pid_[4].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
+    pid_[0].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
+    pid_[1].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
+    pid_[2].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
+    pid_[3].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
+    pid_[4].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[5].SetKp(2.f).SetKi(0.f).SetKd(0.f).SetMaxOut(1000.f).SetDiffFirst(true);
-    pid_[6].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f);
+    pid_[6].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     // clang-format on
   }
 
-  void Execute(const JointTrajectory &traj) {
-    trajectory_tracker_.SwitchReferenceTrajectory(traj);
-    // for (size_t i = 0; i < NJoints; ++i) {
-    //   speed_pid_[i].Clear();
-    //   position_pid_[i].Clear();
-    // }
-    UpdateStatus();
-  }
-
-  void GoTo(const JointTrajectoryPoint &point) {
-    trajectory_tracker_.SwitchReferenceTrajectory(point);
-    // for (size_t i = 0; i < NJoints; ++i) {
-    //   speed_pid_[i].Clear();
-    //   position_pid_[i].Clear();
-    // }
+  void GoTo(const std::array<float, NJoints> &target_positions) {
+    for (size_t i = 0; i < NJoints; ++i) {
+      trajectory_limiter_[i].SetTarget(std::clamp(target_positions[i], kJointLimits[i].first, kJointLimits[i].second));
+    }
     UpdateStatus();
   }
 
   void Update(const std::array<float, NJoints> &current_positions, const std::array<float, NJoints> &current_velocities,
               float dt = 1.f) {
     current_positions_ = current_positions;
-    trajectory_tracker_.Update();
-    const auto &ref_point = trajectory_tracker_.current_point();
 
     for (size_t i = 0; i < NJoints; ++i) {
       // 应用轨迹限制器，生成平滑的参考位置和速度
-      trajectory_limiter_[i].SetTarget(ref_point.positions[i]);
       trajectory_limiter_[i].Update(dt);
-      // // 位置环PID
-      // position_pid_[i].Update(trajectory_limiter_[i].Update(dt), current_positions[i], dt);
-      // // 速度环PID
-      // speed_pid_[i].Update(trajectory_limiter_[i].current_velocity() + position_pid_[i].out(), current_velocities[i],
-      //                      dt);
-      // // 输出
+
+      // 输出当前 limiter 的位置和速度
       output_.positions[i] = trajectory_limiter_[i].current_position();
-      // output_.velocities[i] = trajectory_limiter_[i].current_velocity();
-      // output_.efforts[i] = speed_pid_[i].out();
       output_.velocities[i] = 0.f;
       output_.efforts[i] = 0.f;
     }
@@ -90,11 +68,10 @@ class ArmController {
     for (size_t i = 1; i < 3; ++i) {
       output_.efforts[i] += feedforward_efforts(i);
     }
-    // output_.efforts[1] = -output_.efforts[1];  // j2反向安装
+
     UpdateStatus();
 
-    if (status_ == kFault || status_ == kDisabled) {  // 故障状态和控制器禁用状态下输出全零
-      // output_.positions = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};  // 位置不要动，保持输出故障之前的原位置
+    if (status_ == kFault) {  // 故障状态下输出全零
       output_.velocities.fill(0.f);
       output_.efforts.fill(0.f);
     }
@@ -102,12 +79,6 @@ class ArmController {
 
   void ResetAt(const std::array<float, NJoints> &positions) {
     current_positions_ = positions;
-    trajectory_tracker_.SwitchReferenceTrajectory([&] {
-      JointTrajectoryPoint point;
-      point.positions = std::vector(positions.begin(), positions.end());
-      point.velocities.resize(NJoints, 0.f);
-      return point;
-    }());
     for (size_t i = 0; i < NJoints; ++i) {
       trajectory_limiter_[i].ResetAt(positions[i]);
       pid_[i].Clear();
@@ -122,24 +93,6 @@ class ArmController {
     if (status_ == kFault) {
       ResetAt(current_positions_);
       fault_counter_ = 0;
-      status_ = kDisabled;  // 安全起见，先fault -> disabled，需要再手动操作一次进入idle状态
-    }
-  }
-
-  /**
-   * @brief 启用或禁用控制器
-   * @param enable 传入 true 启用控制器，传入 false 禁用控制器
-   */
-  void Enable(bool enable) {
-    if (status_ == kFault) {
-      return;  // 故障状态下不允许启用或禁用控制器
-    }
-    if (!enable) {
-      status_ = kDisabled;
-      return;
-    }
-    if (status_ == kDisabled) {
-      ResetAt(current_positions_);
       status_ = kIdle;
     }
   }
@@ -152,48 +105,42 @@ class ArmController {
 
  private:
   void UpdateStatus() {
-    if (status_ == kDisabled) {
-      return;  // 控制器禁用状态下不更新状态
-    }
-
     const bool all_limiters_converged = std::ranges::all_of(
         trajectory_limiter_, [](const rm::modules::TrajectoryLimiter &limiter) { return limiter.IsAtTarget(); });
-    const bool tracker_finished = trajectory_tracker_.IsTrajectoryFinished();
-    if (tracker_finished && all_limiters_converged) {
-      // 方便调试先禁用掉下面检测故障的逻辑
+
+    if (all_limiters_converged) {
+      // 方便调试先禁用下面的判断逻辑
       status_ = kIdle;
       return;
 
+      // 所有 limiter 都已经到达目标，检查机械臂是否真的到位
       const auto position_delta = [&] {
-        const auto target_position = trajectory_tracker_.current_point().positions;
         std::array<float, NJoints> deltas;
         for (size_t i = 0; i < NJoints; ++i) {
-          deltas[i] = std::abs(target_position[i] - current_positions_[i]);
+          deltas[i] = std::abs(trajectory_limiter_[i].target_position() - current_positions_[i]);
         }
         return deltas;
       }();
       const bool arm_is_actually_at_target =
           std::ranges::all_of(position_delta, [](const float delta) { return delta < 0.1f; });  // 0.1 rad 容差
       if (arm_is_actually_at_target) {
-        // tracker和limiter都已经执行到位，机械臂也确实到达了目标位置，认为任务完成，进入空闲状态
+        // limiter 已经执行到位，机械臂也确实到达了目标位置，认为任务完成，进入空闲状态
         fault_counter_ = 0;
         status_ = kIdle;
         return;
       }
-      fault_counter_++;  // tracker和limiter都已经执行到位，但机械臂并没有到达目标位置，递增一次故障计数
+      fault_counter_++;  // limiter 已经执行到位，但机械臂并没有到达目标位置，递增一次故障计数
       status_ =
           fault_counter_ >= 500
               ? kFault  // 500个周期仍然没有到达目标，可能是撞到东西了，也可能是电机离线没有反馈了，总之进入故障状态停止运行
-              : kExecuting;  // 500个周期以内暂时认为机械臂还在执行中
+              : kMoving;  // 500个周期以内暂时认为机械臂还在执行中
       return;
     }
-    status_ = kExecuting;
+    status_ = kMoving;
   }
 
   std::array<float, NJoints> current_positions_{};
   Output output_{};
-  TrajectoryTracker<NJoints> trajectory_tracker_{kJointLimits[0], kJointLimits[1], kJointLimits[2], kJointLimits[3],
-                                                 kJointLimits[4], kJointLimits[5], kJointLimits[6]};
   DynamicModel dynamic_model_;
   std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiter_  //
       {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                      //

@@ -112,13 +112,13 @@ class Actuator {
 
   std::array<float, 7> GetPositions() {
     std::array<float, 7> positions{
-        position_filters[0].apply(j1.pos()),  //
-        position_filters[1].apply(j2.pos()),  //
-        position_filters[2].apply(j3.pos()),  //
-        position_filters[3].apply(j4.pos()),  //
-        position_filters[4].apply(j5.pos()),  //
-        j6_encoder.RealPosition(),            //
-        gripper_encoder.RealPosition()        //
+        j1.pos(),                       //
+        j2.pos(),                       //
+        j3.pos(),                       //
+        j4.pos(),                       //
+        j5.pos(),                       //
+        j6_encoder.RealPosition(),      //
+        gripper_encoder.RealPosition()  //
     };
     // 对每个电机应用反转和零点偏移补偿
     for (int i = 0; i < 7; ++i) {
@@ -163,14 +163,5 @@ class Actuator {
                                               {false, 0.f}};
   rm::device::DmMotorMit j1, j2, j3, j4, j5;
   rm::device::M2006 j6, gripper;
-  std::array<rm::modules::ModeFilter<float, 5>, 7> position_filters{
-      rm::modules::ModeFilter<float, 5>{2},  //
-      rm::modules::ModeFilter<float, 5>{2},  //
-      rm::modules::ModeFilter<float, 5>{2},  //
-      rm::modules::ModeFilter<float, 5>{2},  //
-      rm::modules::ModeFilter<float, 5>{2},  //
-      rm::modules::ModeFilter<float, 5>{2},  //
-      rm::modules::ModeFilter<float, 5>{2}   //
-  };  ///< 达妙的电机编码器会非常经常的返回一个异常值，所以过一个中位数滤波把这个尖峰滤掉
   EncoderCounter j6_encoder{2.f * M_PI}, gripper_encoder{2.f * M_PI};  // 2006减速比1:36
 };

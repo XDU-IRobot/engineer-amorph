@@ -8,7 +8,7 @@ namespace state {
 static NoForce no_force;
 static Manual manual;
 static Idle idle;
-static Executing executing;
+static HostControl host_control;
 static CustomCtrl custom_ctrl;
 static LongJointCalibrating long_joint_calibrating;
 static Fault fault;
@@ -19,7 +19,7 @@ void Init() {
       &state::no_force,        //
       &state::manual,          //
       &state::idle,            //
-      &state::executing,       //
+      &state::host_control,       //
       &state::custom_ctrl,     //
       &state::long_joint_calibrating,  //
       &state::fault,           //

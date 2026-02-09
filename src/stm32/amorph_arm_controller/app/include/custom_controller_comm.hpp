@@ -17,6 +17,33 @@ struct __attribute__((__packed__)) CustomControllerCommand {
   float joint_positions[6];
 };
 
+template <rm::device::RefereeRevision kRefereeRevision>
+class CustomController : public rm::device::Device {
+ public:
+  explicit CustomController(rm::device::Referee<kRefereeRevision> &ref) : ref_{&ref} {
+    ref_->AttachCallback([&](uint16_t cmd_id, uint8_t seq) {
+      UNUSED(seq);
+      switch (cmd_id) {
+        case rm::device::RefereeCmdId<rm::device::RefereeRevision::kV170>::kCustomRobotData: {
+          // 把收到的数据转发给状态机处理
+          std::memcpy(&data_, ref_->data().custom_robot_data.data, sizeof(data_));
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    });  // 注册解包回调，收到自定义控制器数据时转发命令给状态机
+  }
+
+  void OnRecv(std::function<void()> cb) { on_recv_cb_ = std::move(cb); }
+
+ private:
+  CustomControllerCommand data_{};
+  rm::device::Referee<kRefereeRevision> *ref_;
+  std::function<void()> on_recv_cb_{};
+};
+
 /**
  * @brief 上位机通过CANFD总线转发自定义控制器命令
  * @deprecated 想了一下还是把图传链路串口分出来直接接h7上面，jetson和h7也没离多远
@@ -50,31 +77,4 @@ class [[deprecated]] CustomControllerCan : public rm::device::CanDevice {
   CustomControllerCommand data_;
 
   std::function<void()> on_recv_cb_;
-};
-
-template <rm::device::RefereeRevision kRefereeRevision>
-class CustomController : public rm::device::Device {
- public:
-  explicit CustomController(rm::device::Referee<kRefereeRevision> &ref) : ref_{&ref} {
-    ref_->AttachCallback([&](uint16_t cmd_id, uint8_t seq) {
-      UNUSED(seq);
-      switch (cmd_id) {
-        case rm::device::RefereeCmdId<rm::device::RefereeRevision::kV170>::kCustomRobotData: {
-          // 把收到的数据转发给状态机处理
-          std::memcpy(&data_, ref_->data().custom_robot_data.data, sizeof(data_));
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-    });  // 注册解包回调，收到自定义控制器数据时转发命令给状态机
-  }
-
-  void OnRecv(std::function<void()> cb) { on_recv_cb_ = std::move(cb); }
-
- private:
-  CustomControllerCommand data_{};
-  rm::device::Referee<kRefereeRevision> *ref_;
-  std::function<void()> on_recv_cb_{};
 };

@@ -113,6 +113,7 @@ int main(void)
   MX_TIM13_Init();
   MX_CRC_Init();
   MX_RNG_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   AppMain();
   /* USER CODE END 2 */

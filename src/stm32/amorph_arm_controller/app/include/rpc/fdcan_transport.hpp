@@ -4,9 +4,12 @@
 #include <chrono>
 
 #include <librm.hpp>
+#include <etl/circular_buffer.h>
 #include <etl/unordered_map.h>
 #include <etl/vector.h>
 #include <rpc_core.hpp>
+
+// #include "logger.hpp"
 
 /**
  * @brief 基于CAN FD实现的一种rpc_core框架的传输层（带ACK确认和重传机制）
@@ -32,8 +35,8 @@ class FdCanTransport : public rpc_core::connection {
         kFrameStart = 0,
         kFrameEnd,
         kPayload,
-        kAck,             ///< ACK确认帧
-        kNack,            ///< NACK否定确认帧（用于快速重传）
+        kAck,        ///< ACK确认帧
+        kNack,       ///< NACK否定确认帧（用于快速重传）
         kHeartbeat = 40,  // 给一个很低的优先级，防止数据帧被同时发送的心跳仲裁掉
       };
     };
@@ -44,6 +47,8 @@ class FdCanTransport : public rpc_core::connection {
     static constexpr uint32_t kAckTimeoutMs = 50;          ///< ACK等待超时时间
     static constexpr uint32_t kMaxRetries = 5;             ///< 最大重试次数
     static constexpr uint32_t kMaxPendingTx = 4;           ///< 最大待确认发送队列长度
+    static constexpr uint32_t kRxSessionTimeoutMs = 500;   ///< RX会话超时时间（清理僵尸会话）
+    static constexpr uint32_t kMaxRxSessions = 16;         ///< 最大并发RX会话数
 
     using Clock = std::chrono::steady_clock;
 
@@ -65,7 +70,7 @@ class FdCanTransport : public rpc_core::connection {
      */
     bool Send(const uint8_t *data, uint32_t size) {
       if (size > kMaxPayloadBytes) {
-        // L::E(text::Red("Payload size {} exceeds maximum {}"), size, kMaxPayloadBytes);
+        // L::E(text::Red("Payload size %u exceeds maximum %u"), size, kMaxPayloadBytes);
         return false;
       }
 
@@ -124,15 +129,13 @@ class FdCanTransport : public rpc_core::connection {
             if (elapsed_ms >= kAckTimeoutMs) {
               if (tx.retry_count >= kMaxRetries) {
                 // 超过最大重试次数，放弃
-                // L::E(text::Red("Failed to send frame {} after {} retries"), tx.frame_id, kMaxRetries);
+                // L::E(text::Red("Failed to send frame %u after %u retries"), tx.frame_id, kMaxRetries);
                 it = pending_tx_queue_.erase(it);
                 continue;
               }
-              // 重传
+              // 重传（保持相同的frame_id，接收方会重置对应的session）
               tx.retry_count++;
-              // L::W(text::Yellow("Retrying frame {}, attempt {}/{}"), tx.frame_id, tx.retry_count, kMaxRetries);
-              //  生成新的frame_id避免与旧ACK混淆
-              tx.frame_id = GenerateFrameId();
+              // L::W(text::Yellow("Retrying frame %u, attempt %u/%u"), tx.frame_id, tx.retry_count, kMaxRetries);
               tx.ack_received = false;
               DoTransmit(tx);
               tx.last_send_time = now;
@@ -146,6 +149,9 @@ class FdCanTransport : public rpc_core::connection {
             break;
         }
       }
+
+      // 清理超时的RX会话（防止僵尸session占满池）
+      CleanupStaleRxSessions();
 
       // 智能心跳：仅在无数据传输时发送
       SendHeartbeatIfNeeded();
@@ -188,13 +194,13 @@ class FdCanTransport : public rpc_core::connection {
     };
 
     /**
-     * @brief 生成随机帧ID
+     * @brief 生成顺序帧ID（避免随机碰撞，0被保留跳过）
      */
     static uint8_t GenerateFrameId() {
-      // 简单的线性同余生成器，适用于裸机环境
-      static uint32_t seed = 0x12345678;
-      seed = seed * 1103515245 + 12345;
-      return static_cast<uint8_t>((seed >> 16) & 0xFF);
+      static uint8_t counter = 0;
+      counter++;
+      if (counter == 0) counter = 1;  // 跳过0，保留作为无效ID
+      return counter;
     }
 
     /**
@@ -279,9 +285,26 @@ class FdCanTransport : public rpc_core::connection {
           rx_sessions_.erase(frame_start->frame_id);
           return;
         }
-        // 检查会话池是否已满
-        if (rx_sessions_.find(frame_start->frame_id) == rx_sessions_.end() && rx_sessions_.full()) {
-          EvictLeastRecentlyUsedSession();
+        // 检查是否是已存在的会话（重传场景：同一frame_id重新发送）
+        auto existing_it = rx_sessions_.find(frame_start->frame_id);
+        if (existing_it != rx_sessions_.end()) {
+          // 重传 - 重置已有会话
+          auto &session = existing_it->second;
+          session.payload_len = frame_start->payload_len;
+          session.payload_crc8 = frame_start->payload_crc8;
+          session.next_fragment_seq = 0;
+          session.last_active_time = Clock::now();
+          session.buffer.clear();
+          session.buffer.reserve(frame_start->payload_len);
+          return;
+        }
+        // 新会话 - 检查容量
+        if (rx_sessions_.full()) {
+          // 先尝试清理超时的会话
+          CleanupStaleRxSessions();
+          if (rx_sessions_.full()) {
+            EvictLeastRecentlyUsedSession();
+          }
         }
         auto &session = rx_sessions_[frame_start->frame_id];
         session.payload_len = frame_start->payload_len;
@@ -406,7 +429,7 @@ class FdCanTransport : public rpc_core::connection {
       etl::vector<uint8_t, kMaxPayloadBytes> buffer;
     };
 
-    etl::unordered_map<uint8_t, RxSession, 5> rx_sessions_;
+    etl::unordered_map<uint8_t, RxSession, kMaxRxSessions> rx_sessions_;
 
     uint16_t rx_stdid_base_;
     uint16_t tx_stdid_base_;
@@ -414,10 +437,38 @@ class FdCanTransport : public rpc_core::connection {
     std::function<void(std::string &)> frame_recv_callback_;
     uint8_t last_received_frame_id_{0};
 
+    /**
+     * @brief 清理所有超时的RX会话
+     * @return 清理的会话数量
+     */
+    size_t CleanupStaleRxSessions() {
+      if (rx_sessions_.empty()) return 0;
+
+      auto now = Clock::now();
+      size_t cleaned = 0;
+
+      for (auto it = rx_sessions_.begin(); it != rx_sessions_.end();) {
+        auto elapsed_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.last_active_time).count();
+        if (elapsed_ms >= kRxSessionTimeoutMs) {
+          it = rx_sessions_.erase(it);
+          cleaned++;
+        } else {
+          ++it;
+        }
+      }
+
+      if (cleaned > 0) {
+        // L::D("Cleaned up %zu stale RX sessions", cleaned);
+      }
+      return cleaned;
+    }
+
     void EvictLeastRecentlyUsedSession() {
       if (rx_sessions_.empty()) return;
 
-      // L::W(text::Yellow("Evicting least recently used RX session due to capacity limit."));
+      // L::W(text::Yellow("Evicting least recently used RX session (pool: %zu/%u)"),
+      //     rx_sessions_.size(), kMaxRxSessions);
 
       auto oldest_it = rx_sessions_.begin();
       auto oldest_time = oldest_it->second.last_active_time;
@@ -466,3 +517,4 @@ class FdCanTransport : public rpc_core::connection {
    */
   bool IsTxQueueEmpty() const { return impl_.IsTxQueueEmpty(); }
 };
+
