@@ -14,21 +14,21 @@ class YoloTestNode(Node):
         # Parameters
         self.declare_parameter('model_path', '')
         self.declare_parameter('confidence_threshold', 0.5)
-        self.declare_parameter('input_topic', '/camera/camera/color/image_raw')
+        self.declare_parameter('input_topic', '/camera/color/image_raw')
         
         # Get model path
         model_path = self.get_parameter('model_path').get_parameter_value().string_value
         if not model_path:
             try:
                 pkg_share = get_package_share_directory('energy_unit_locator')
-                model_path = os.path.join(pkg_share, 'assets', '251120_epoch335.pt')
+                model_path = os.path.join(pkg_share, 'models', '251120_epoch335.engine')
             except Exception:
                 # Fallback for local testing if package not installed
-                model_path = 'assets/251120_epoch335.pt'
+                model_path = 'resource/251120_epoch335.engine'
             
         self.get_logger().info(f'Loading YOLO model from: {model_path}')
         try:
-            self.model = YOLO(model_path)
+            self.model = YOLO(model_path, task='segment')
         except Exception as e:
             self.get_logger().error(f'Failed to load model: {e}')
             self.model = None
@@ -59,8 +59,7 @@ class YoloTestNode(Node):
             return
 
         # Inference
-        # verbose=False prevents printing to stdout
-        results = self.model(cv_img, verbose=False, conf=self.conf_thresh)
+        results = self.model(cv_img, verbose=True, conf=self.conf_thresh)
         
         # Annotate
         # results[0].plot() returns the annotated image as a numpy array (BGR)
