@@ -276,10 +276,10 @@ Examples:
     else:
         # 使用包中的默认模型
         try:
-            pkg_share = get_package_share_directory('energy_unit_locator')
+            pkg_share = get_package_share_directory('amorph_vision')
             model_path = os.path.join(pkg_share, 'models', '251120_epoch335.pt')
         except:
-            print("Error: Could not find package 'energy_unit_locator'")
+            print("Error: Could not find package 'amorph_vision'")
             print("Please specify model path with --model argument")
             sys.exit(1)
     

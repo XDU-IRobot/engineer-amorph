@@ -2,7 +2,7 @@ import os
 import yaml
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, GroupAction
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import PushRosNamespace, ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
@@ -305,8 +305,8 @@ def generate_launch_description():
         DeclareLaunchArgument("force_ip_subnet_mask", default_value="255.255.255.0"),  # Subnet mask used for static IP
         DeclareLaunchArgument("force_ip_gateway", default_value="192.168.1.1"),  # Gateway address used for static IP
 
-        DeclareLaunchArgument('intra_camera_sync_reference', default_value='Middle'),#Start, Middle or End
-
+        DeclareLaunchArgument('intra_camera_sync_reference', default_value='Middle'),#Start, Middle or End        
+        DeclareLaunchArgument('enable_respawn', default_value='false', description='Enable automatic respawn on failure (for production use)'),
     ]
 
     def get_params(context, args):
@@ -315,6 +315,7 @@ def generate_launch_description():
     def create_node_action(context, args):
         params = get_params(context, args)
         ros_distro = os.environ.get("ROS_DISTRO", "humble")
+        enable_respawn = LaunchConfiguration('enable_respawn').perform(context) == 'true'
         if ros_distro == "foxy":
             return [
                 Node(
@@ -324,6 +325,8 @@ def generate_launch_description():
                     namespace=LaunchConfiguration("camera_name"),
                     parameters=params,
                     output="screen",
+                    respawn=enable_respawn,
+                    respawn_delay=2.0
                 )
             ]
         else:
@@ -335,6 +338,8 @@ def generate_launch_description():
                         namespace="",
                         package="rclcpp_components",
                         executable="component_container",
+                        respawn=enable_respawn,
+                        respawn_delay=2.0,
                         composable_node_descriptions=[
                             ComposableNode(
                                 package="orbbec_camera",

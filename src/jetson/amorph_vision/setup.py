@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'energy_unit_locator'
+package_name = 'amorph_vision'
 
 setup(
     name=package_name,
@@ -27,10 +27,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'locator = energy_unit_locator.locator_node:main',
-            'locator_v2 = energy_unit_locator.locator_node_v2:main',
-            'yolo_test = energy_unit_locator.yolo_test_node:main',
-            'export_engine = energy_unit_locator.engine_exporter:main',
+            'locator = amorph_vision.locator_node:main',
+            'locator_v2 = amorph_vision.locator_node_v2:main',
+            'yolo_test = amorph_vision.yolo_test_node:main',
+            'export_engine = amorph_vision.engine_exporter:main',
         ],
     },
 )

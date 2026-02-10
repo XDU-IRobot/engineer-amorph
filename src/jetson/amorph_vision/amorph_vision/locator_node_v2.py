@@ -19,6 +19,7 @@ from ultralytics import YOLO  # type: ignore
 import rclpy
 from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.qos import QoSProfile, QoSHistoryPolicy, QoSReliabilityPolicy, QoSDurabilityPolicy
 from cv_bridge import CvBridge
 import message_filters
 import tf2_ros
@@ -93,7 +94,7 @@ class EnergyUnitLocator(LifecycleNode):
         model_path = self.get_parameter(
             'model_path').get_parameter_value().string_value
         if not model_path:
-            pkg_share = get_package_share_directory('energy_unit_locator')
+            pkg_share = get_package_share_directory('amorph_vision')
             model_path = os.path.join(
                 pkg_share, 'models', '251120_epoch335.engine')
 
@@ -119,16 +120,9 @@ class EnergyUnitLocator(LifecycleNode):
             self.get_logger().error(f'Failed to load YOLO model: {e}')
             return TransitionCallbackReturn.FAILURE
 
-        # 创建位姿平滑器
         self.pose_smoother = PoseSmoother(alpha=smoothing_alpha)
-
-        # 创建 tf broadcaster
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
-
-        # 创建发布器池
         self.publisher_pool = PublisherPool(self)
-
-        # 创建 CV Bridge
         self.bridge = CvBridge()
 
         # 创建订阅者
@@ -139,15 +133,24 @@ class EnergyUnitLocator(LifecycleNode):
             self.info_callback,
             10)
 
+        # 图像 QoS: 最新优先 + BEST_EFFORT 可靠性（低延迟）
+        image_qos = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE
+        )
+        
         self.sub_rgb = message_filters.Subscriber(
-            self, Image, '/camera/color/image_raw')
+            self, Image, '/camera/color/image_raw', qos_profile=image_qos)
         self.sub_depth = message_filters.Subscriber(
-            self, Image, '/camera/depth/image_raw')
+            self, Image, '/camera/depth/image_raw', qos_profile=image_qos)
 
+        # 同步RGB图和深度图
         self.ts = message_filters.ApproximateTimeSynchronizer(
             [self.sub_rgb, self.sub_depth],
-            queue_size=10,
-            slop=0.1
+            queue_size=2,
+            slop=0.033
         )
         self.ts.registerCallback(self.image_callback)
 
@@ -403,7 +406,7 @@ class EnergyUnitLocator(LifecycleNode):
                             self.processed_frames) * 1000  # ms
         fps = self.frame_count
 
-        self.get_logger().info(
+        self.get_logger().debug(
             f'{self.last_frame_detections_count} detections, '
             f'{fps} FPS, '
             f'Inference={avg_inference_time:.1f}ms, '

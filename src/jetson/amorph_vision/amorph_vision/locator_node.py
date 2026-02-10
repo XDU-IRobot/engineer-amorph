@@ -45,7 +45,7 @@ class EnergyUnitLocator(Node):
         model_path = self.get_parameter('model_path').get_parameter_value().string_value
         if not model_path:
             # 默认为已安装的资源
-            pkg_share = get_package_share_directory('energy_unit_locator')
+            pkg_share = get_package_share_directory('amorph_vision')
             model_path = os.path.join(pkg_share, 'assets', '251120_epoch335.pt')
         
         self.get_logger().info(f'Loading YOLO model from: {model_path}')

@@ -20,7 +20,7 @@ class YoloTestNode(Node):
         model_path = self.get_parameter('model_path').get_parameter_value().string_value
         if not model_path:
             try:
-                pkg_share = get_package_share_directory('energy_unit_locator')
+                pkg_share = get_package_share_directory('amorph_vision')
                 model_path = os.path.join(pkg_share, 'models', '251120_epoch335.engine')
             except Exception:
                 # Fallback for local testing if package not installed

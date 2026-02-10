@@ -1,10 +1,18 @@
 from launch import LaunchDescription
-from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from moveit_configs_utils import MoveItConfigsBuilder
 from moveit_configs_utils.launches import generate_move_group_launch
 
 
 def generate_launch_description():
+    enable_respawn_arg = DeclareLaunchArgument(
+        'enable_respawn',
+        default_value='false',
+        description='Enable automatic respawn on failure (for production use)'
+    )
     moveit_config = (
         MoveItConfigsBuilder("amorph", package_name="amorph_arm_v2_moveit_config")
         .planning_pipelines(pipelines=["ompl"])
@@ -15,60 +23,66 @@ def generate_launch_description():
         .to_moveit_configs()
     )
 
-    # # Load  ExecuteTaskSolutionCapability so we can execute found solutions in simulation
-    # move_group_capabilities = {
-    #     "capabilities": "move_group/ExecuteTaskSolutionCapability"}
-
     nodes = list()
     
-    # Static TF(world -> arm_base)
-    static_tf_world_to_base = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="static_tf_world_to_base",
+    # Composable nodes for static TF publishing and robot state publisher
+    composable_node_container = ComposableNodeContainer(
+        name="static_tf_container",
+        namespace="",
+        package="rclcpp_components",
+        executable="component_container",
+        respawn=LaunchConfiguration('enable_respawn'),
+        respawn_delay=2.0,
+        composable_node_descriptions=[
+            # Static TF(world -> arm_base)
+            ComposableNode(
+                package="tf2_ros",
+                plugin="tf2_ros::StaticTransformBroadcasterNode",
+                name="static_tf_world_to_base",
+                parameters=[{
+                    "child_frame_id": "arm_base",
+                    "frame_id": "world",
+                }],
+            ),
+            # Static TF(arm_base -> link_1)
+            ComposableNode(
+                package="tf2_ros",
+                plugin="tf2_ros::StaticTransformBroadcasterNode",
+                name="static_tf_base_to_arm",
+                parameters=[{
+                    "child_frame_id": "l1_l",
+                    "frame_id": "arm_base",
+                }],
+            ),
+            # Static TF(arm_base -> camera_link)
+            ComposableNode(
+                package="tf2_ros",
+                plugin="tf2_ros::StaticTransformBroadcasterNode",
+                name="static_tf_base_to_cam",
+                parameters=[{
+                    "child_frame_id": "camera_link",
+                    "frame_id": "arm_base",
+                    "translation.x": -0.5,  # 用easy_handeye做好手眼标定之后把结果填到这来
+                    "translation.y": -0.1577,
+                    "translation.z": 0.43,
+                    "rotation.x": -0.004162,
+                    "rotation.y": -0.023165,
+                    "rotation.z": -0.002643,
+                    "rotation.w": 0.999720,
+                }],
+            ),
+            # Robot state publisher
+            ComposableNode(
+                package="robot_state_publisher",
+                plugin="robot_state_publisher::RobotStatePublisher",
+                name="robot_state_publisher",
+                parameters=[moveit_config.robot_description],
+            ),
+        ],
         output="log",
-        arguments=["--frame-id", "world", "--child-frame-id", "arm_base"],
     )
-    nodes.append(static_tf_world_to_base)
+    nodes.append(composable_node_container)
 
-    # Static TF(arm_base -> link_1)
-    static_tf_base_to_arm = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="static_tf_base_to_arm",
-        output="log",
-        arguments=["--frame-id", "arm_base", "--child-frame-id", "l1_l"],
-    )
-    nodes.append(static_tf_base_to_arm)
-
-    # Static TF(arm_base -> camera_link)
-    static_tf_base_to_cam = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="static_tf_base_to_cam",
-        output="log",
-        arguments=["--frame-id", "arm_base", 
-                    "--child-frame-id", "camera_link",
-                    "--x", "-0.5",          # 用easy_handeye做好手眼标定之后把结果填到这来
-                    "--y", "-0.1577",
-                    "--z", "0.43",
-                    "--qx", "-0.004162",
-                    "--qy", "-0.023165",
-                    "--qz", "-0.002643",
-                    "--qw", "0.999720"],
-    )
-    nodes.append(static_tf_base_to_cam)
-
-    # rsp
-    robot_state_publisher = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        # name="robot_state_publisher",
-        output="both",
-        parameters=[moveit_config.robot_description],
-    )
-    nodes.append(robot_state_publisher)
-
-    launch = LaunchDescription(nodes)
+    launch = LaunchDescription([enable_respawn_arg] + nodes)
     launch.add_entity(generate_move_group_launch(moveit_config))
     return launch

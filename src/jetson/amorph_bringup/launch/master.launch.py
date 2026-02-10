@@ -1,11 +1,18 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
 
 
 def generate_launch_description():
+    enable_respawn_arg = DeclareLaunchArgument(
+        'enable_respawn',
+        default_value='false',
+        description='Enable automatic respawn on failure (for production use)'
+    )
     moveit_config = (
         MoveItConfigsBuilder("amorph", package_name="amorph_arm_v2_moveit_config")
         .planning_pipelines(pipelines=["ompl"])
@@ -28,6 +35,8 @@ def generate_launch_description():
             os.path.join(package_shared_path, "config", "pick_energy_unit_task.yaml")
                 ,{"octomap_resolution": 0.02}
         ],
+        respawn=LaunchConfiguration('enable_respawn'),
+        respawn_delay=2.0
     )
 
-    return LaunchDescription([node])
+    return LaunchDescription([enable_respawn_arg, node])
