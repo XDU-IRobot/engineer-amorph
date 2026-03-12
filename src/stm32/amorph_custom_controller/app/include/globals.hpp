@@ -3,6 +3,8 @@
 
 #include <librm.hpp>
 
+#include <etl/debounce.h>
+
 #include "usart.h"
 #include "can.h"
 #include "dynamics.hpp"
@@ -12,8 +14,8 @@
 struct Globals {
   rm::modules::MahonyAhrs ahrs;  //
 
-  rm::hal::Serial dbus{huart1, 36, rm::hal::stm32::UartMode::kNormal, rm::hal::stm32::UartMode::kDma};  //
-  rm::device::DR16 rc{dbus};  ///< 遥控器，调试用的，自定义控制器就别给他整个遥控器了
+  // rm::hal::Serial dbus{huart1, 36, rm::hal::stm32::UartMode::kNormal, rm::hal::stm32::UartMode::kDma};  //
+  // rm::device::DR16 rc{dbus};  ///< 遥控器，调试用的，自定义控制器就别给他整个遥控器了
 
   rm::hal::Can motor_can{hcan1};
   DynamicModel dynamic_model;
@@ -89,7 +91,7 @@ struct Globals {
     motors.j3 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{motor_can, 2};
     motors.j4 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{motor_can, 3};
     motors.j5 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{motor_can, 4};
-    rc.Begin();
+    // rc.Begin();
     motor_can.SetFilter(0, 0);
     motor_can.Begin();
     led.Init();

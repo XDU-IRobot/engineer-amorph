@@ -5,7 +5,6 @@
 #include <etl/fsm.h>
 
 #include "host_comm.hpp"
-#include "custom_controller_comm.hpp"
 #include "arm_controller.hpp"
 #include "globals.hpp"
 
@@ -29,7 +28,7 @@ struct StateId {
     kIdle,                  ///< 空闲，可执行轨迹
     kHostControl,           ///< 正在被上位机控制
     kCustomCtrl,            ///< 自定义控制器操作
-    kLongJointCalibrating,  ///< 超过位置编码器1圈的长关节校准位置(j6、夹爪）
+    kLongJointCalibrating,  ///< 夹爪校准位置
     kFault,                 ///< 故障状态
   };
 };
@@ -107,28 +106,23 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
     get_fsm_context().planner_need_reset_ = true;
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     globals->actuator.SetEnable(false, 1);
-    dji_motor_brake_count_ = 0;
+    subloop_divide_10_ = 0;
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    // if (dji_motor_brake_count_ < 10) {
-    //   auto &j6_speed_pid = globals->arm_controller.pid().at(5);
-    //   j6_speed_pid.Update(0, e.current_velocities[5]);
-    //   globals->actuator.j6->SetCurrent(j6_speed_pid.out());
-    //   rm::device::DjiMotorBase::SendCommand();
-    //   ++dji_motor_brake_count_;
-    // }
+    subloop_divide_10_ = (subloop_divide_10_ + 1) % 10;
     globals->arm_controller.ResetAt(e.current_positions);
-    globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.002f);
-    globals->actuator.SetEnable(false, 1);
-    globals->actuator.j6.SetCurrent(0);
-    globals->actuator.gripper.SetCurrent(0);
-    rm::device::DjiMotorBase::SendCommand();
+    globals->arm_controller.Update(e.current_positions, e.current_velocities,
+                                   globals->actuator.gripper.feedback().power, 0.002f);
+    if (subloop_divide_10_ == 0) {
+      globals->actuator.SetEnable(false, 1);
+    }
+
     return No_State_Change;
   }
 
  private:
-  int dji_motor_brake_count_{0};
+  int subloop_divide_10_{0};
 };
 
 /*******************************************/
@@ -163,17 +157,15 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     target_positions_[ctrl_joint_idx_] =
         std::clamp(target_positions_[ctrl_joint_idx_] + (globals->rc.left_x() * 0.001f),  //
                    joint_limits[ctrl_joint_idx_].first, joint_limits[ctrl_joint_idx_].second);
+    target_positions_[6] = (globals->rc.ch(RcReceiver::kSf) < 1000) ? 1.f : 0.f;  // sf控制夹爪开关
     globals->arm_controller.GoTo(target_positions_);
-    globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.002f);
+    globals->arm_controller.Update(e.current_positions, e.current_velocities,
+                                   globals->actuator.gripper.feedback().power, 0.002f);
 
-    // speed_eee.Update(globals->rc.left_x() * 60.f, e.gripper_velocity);
-    // globals->actuator.gripper->SetCurrent(globals->rc.left_x() * 5000.f);
-    // rm::device::DjiMotorBase::SendCommand();
-
-    globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
+    auto output = globals->arm_controller.output();
+    globals->actuator.ApplyOutput(output, true);
     return No_State_Change;
   }
-  rm::modules::PID speed_eee{10.f, 0.f, 0.f, 6000.f, 0.f};
   REACT(event::NextJoint) {
     UNUSED(e);
     ctrl_joint_idx_ = (ctrl_joint_idx_ + 1) % 6;
@@ -212,15 +204,16 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    if (globals->arm_controller.status() == ArmController<7>::kFault) {
-      return StateId::kFault;
-    }
+    // if (globals->arm_controller.status() == ArmController<7>::kFault) {
+    //   return StateId::kFault;
+    // }
     if (get_fsm_context().planner_need_reset_) {
       globals->arm_controller.ResetAt(e.current_positions);
       get_fsm_context().planner_need_reset_ = false;
     }
 
-    globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.002f);
+    globals->arm_controller.Update(e.current_positions, e.current_velocities,
+                                   globals->actuator.gripper.feedback().power, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }
@@ -252,9 +245,9 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
   }
   REACT(event::ControlLoop) {
     switch (globals->arm_controller.status()) {
-      case ArmController<7>::kFault: {
-        return StateId::kFault;
-      }
+      // case ArmController<7>::kFault: {
+      //   return StateId::kFault;
+      // }
       case ArmController<7>::kMoving:
       default: {
         // no state change
@@ -265,7 +258,8 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
       globals->arm_controller.ResetAt(e.current_positions);
       get_fsm_context().planner_need_reset_ = false;
     }
-    globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.002f);
+    globals->arm_controller.Update(e.current_positions, e.current_velocities,
+                                   globals->actuator.gripper.feedback().power, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }
@@ -274,6 +268,7 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
       return StateId::kIdle;
     }
     std::array<float, 7> target_p = globals->arm_controller.current_positions();
+    target_p[0] = e.target_joint_positions[0];
     target_p[1] = e.target_joint_positions[1];
     target_p[2] = e.target_joint_positions[2];
     target_p[3] = e.target_joint_positions[3];
@@ -298,14 +293,15 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    if (globals->arm_controller.status() == ArmController<7>::kFault) {
-      return StateId::kFault;
-    }
+    // if (globals->arm_controller.status() == ArmController<7>::kFault) {
+    //   return StateId::kFault;
+    // }
     if (get_fsm_context().planner_need_reset_) {
       globals->arm_controller.ResetAt(e.current_positions);
       get_fsm_context().planner_need_reset_ = false;
     }
-    globals->arm_controller.Update(e.current_positions, e.current_velocities, 0.002f);
+    globals->arm_controller.Update(e.current_positions, e.current_velocities,
+                                   globals->actuator.gripper.feedback().power, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }
@@ -322,6 +318,7 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     target_p[2] = e.joint_positions[2];
     target_p[3] = e.joint_positions[3];
     target_p[4] = e.joint_positions[4];
+    target_p[6] = e.buttons.b ? 0.f : 1.f;
     globals->arm_controller.GoTo(target_p);
     return No_State_Change;
   }
@@ -331,17 +328,53 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
 struct LongJointCalibrating : etl::fsm_state<Arm, LongJointCalibrating, StateId::kLongJointCalibrating,  //
                                              event::ControlLoop,                                         //
                                              event::ForceModeSwitch> {
-  ACCEPT_MODE_SWITCH();
+  // ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
-  ENTER { return No_State_Change; }
-  REACT(event::ControlLoop) {
-    UNUSED(e);
+  ENTER {
+    stall_count_ = 0;
+    calib_start_time_ = HAL_GetTick();
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    globals->actuator.SetEnable(true);
     return No_State_Change;
   }
+  REACT(event::ForceModeSwitch) {
+    if (e.target_mode == StateId::kNoForce) {
+      return StateId::kNoForce;
+    }
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) {
+    UNUSED(e);
+    const uint32_t calib_elapsed = HAL_GetTick() - calib_start_time_;
+    if (calib_elapsed > 2000) {
+      // 长时间没有检测到堵转，认为校准失败，进入故障状态
+      return StateId::kFault;
+    }
+    globals->actuator.gripper.SetSpeed(2.f * M_PI * 30.f);
+    if (globals->actuator.gripper.feedback().speed_rad_ps < 50.f &&  // 转速低
+        globals->actuator.gripper.feedback().power > 690 &&          // 力矩大
+        calib_elapsed > 250                                          // 过了初始加速的阶段
+    ) {
+      // 认为电机堵转，增加一次堵转计数
+      ++stall_count_;
+    } else {
+      stall_count_ = 0;
+    }
+    if (stall_count_ > 20) {  // 连续多次堵转，认为校准完成，更新编码器零点，并进入手动模式
+      globals->actuator.gripper_encoder.Reset();
+      globals->actuator.gripper_encoder.Update(globals->actuator.gripper.feedback().position_rad);
+      globals->actuator.calibrators[6].UpdateConfig({false, globals->actuator.gripper_encoder.RealPosition()});
+      return StateId::kManual;
+    }
+    return No_State_Change;
+  }
+  size_t stall_count_{0};
+  uint32_t calib_start_time_{0};
 };
 
 /*******************************************/
 struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
+                              event::ForceModeSwitch,       //
                               event::ControlLoop,           //
                               event::FaultClear> {
   // ACCEPT_MODE_SWITCH();
@@ -352,6 +385,12 @@ struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
     return No_State_Change;
   }
+  REACT(event::ForceModeSwitch) {
+    if (e.target_mode == StateId::kNoForce) {
+      return StateId::kNoForce;
+    }
+    return No_State_Change;
+  }
   REACT(event::ControlLoop) {
     UNUSED(e);
     globals->actuator.SetEnable(false, 1);
@@ -360,7 +399,7 @@ struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
   REACT(event::FaultClear) {
     UNUSED(e);
     globals->arm_controller.FaultClear();
-    return StateId::kIdle;
+    return StateId::kNoForce;
   }
 };
 

@@ -6,9 +6,12 @@
 #include <librm.hpp>
 
 #include "dynamics.hpp"
+#include "gripper_controller.hpp"
 
 template <size_t NJoints>
 class ArmController {
+  constexpr static int kGripperJointIndex = 6;
+
  public:
   struct Output {
     static Output Zero() {
@@ -36,12 +39,13 @@ class ArmController {
     pid_[2].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[3].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[4].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
-    pid_[5].SetKp(2.f).SetKi(0.f).SetKd(0.f).SetMaxOut(1000.f).SetDiffFirst(true);
+    pid_[5].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(1000.f).SetDiffFirst(true);
     pid_[6].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     // clang-format on
   }
 
   void GoTo(const std::array<float, NJoints> &target_positions) {
+    gripper_open_cmd_ = target_positions[6] > 0.5f;  // 夹爪位置大于0.5 rad视为打开命令
     for (size_t i = 0; i < NJoints; ++i) {
       trajectory_limiter_[i].SetTarget(std::clamp(target_positions[i], kJointLimits[i].first, kJointLimits[i].second));
     }
@@ -49,12 +53,15 @@ class ArmController {
   }
 
   void Update(const std::array<float, NJoints> &current_positions, const std::array<float, NJoints> &current_velocities,
-              float dt = 1.f) {
+              float gripper_power, float dt = 1.f) {
     current_positions_ = current_positions;
 
     for (size_t i = 0; i < NJoints; ++i) {
       // 应用轨迹限制器，生成平滑的参考位置和速度
       trajectory_limiter_[i].Update(dt);
+
+      // // 计算位置PID
+      // pid_[i].Update(trajectory_limiter_[i].current_position(), current_positions[i]);
 
       // 输出当前 limiter 的位置和速度
       output_.positions[i] = trajectory_limiter_[i].current_position();
@@ -68,6 +75,10 @@ class ArmController {
     for (size_t i = 1; i < 3; ++i) {
       output_.efforts[i] += feedforward_efforts(i);
     }
+
+    // 控制夹爪
+    gripper_controller_.Open(gripper_open_cmd_);
+    output_.velocities[6] = gripper_controller_.Update(current_positions[6], current_velocities[6], gripper_power);
 
     UpdateStatus();
 
@@ -100,6 +111,7 @@ class ArmController {
   static const auto &joint_limits() { return kJointLimits; }
   const auto &current_positions() const { return current_positions_; }
   const auto &output() const { return output_; }
+  const auto &gripper() const { return gripper_controller_; }
   Status status() const { return status_; }
   auto &pid() { return pid_; }
 
@@ -139,9 +151,11 @@ class ArmController {
     status_ = kMoving;
   }
 
+  bool gripper_open_cmd_{false};
   std::array<float, NJoints> current_positions_{};
   Output output_{};
   DynamicModel dynamic_model_;
+  GripperController<> gripper_controller_;
   std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiter_  //
       {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                      //
        rm::modules::TrajectoryLimiter{2.175f, 1.875f},                     //

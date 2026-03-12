@@ -46,53 +46,61 @@ class Actuator {
                                                        .t_max = 10.f,
                                                        .kp_range = {0, 500},
                                                        .kd_range = {0, 50}}},
-        j6{upper_can, 2},
+        j6{upper_can, rm::device::DmMotorMit::Settings{.master_id = 0xb6,
+                                                       .slave_id = 0xa6,
+                                                       .p_max = 3.141593f,
+                                                       .v_max = 30.f,
+                                                       .t_max = 10.f,
+                                                       .kp_range = {0, 500},
+                                                       .kd_range = {0, 50}}},
         gripper{upper_can, 1} {}
   void SetEnable(bool enable, int repeats = 5) {
-    const auto cmd = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
+    const auto dm_cmd = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
     for (int i = 0; i < repeats; ++i) {
-      j1.SendInstruction(cmd);
-      j2.SendInstruction(cmd);
-      j3.SendInstruction(cmd);
-      j4.SendInstruction(cmd);
-      j5.SendInstruction(cmd);
-      // NOTE: 3508和2006有越转越快的bug，需要在NoForce状态里面处理减速，直接发0电流没有作用
-      // if (!enable) {
-      //   gripper->SetCurrent(0);
-      //   j6->SetCurrent(0);
-      //   rm::device::DjiMotorBase::SendCommand();
-      // }
+      j1.SendInstruction(dm_cmd);
+      j2.SendInstruction(dm_cmd);
+      j3.SendInstruction(dm_cmd);
+      {
+        j4.SendInstruction(dm_cmd);
+        j5.SendInstruction(dm_cmd);
+        rm::Sleep(std::chrono::microseconds(900));
+        j6.SendInstruction(dm_cmd);
+        gripper.SetPower(0);
+      }
     }
   }
   void ApplyOutput(const ArmController<7>::Output &output, bool apply_position = false) {
+    // j4 j5 j6 夹爪四个电机的指令一次全发的话会把can tx buffer塞满，所以用这个标志来回切换做分时
+    static bool upper_can_send_split = true;
+
     if (apply_position) {
       j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]), 0, 0.f, 50.f, 25.f);
       j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]), 0,
                        calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1], 80.f, 30.f);
       j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]), 0,
                        calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2], 50.f, 30.f);
-      j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, 35.f, 15.f);
-      j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, 35.f, 15.f);
+      if (upper_can_send_split) {
+        j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, 35.f, 15.f);
+        j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, 35.f, 15.f);
+      } else {
+        j6.SetMitCommand(calibrators[5].LogicalToReal(output.positions[5]), 0, 0.f, 30.f, 10.f);
+        gripper.SetSpeed(output.velocities[6]);
+      }
     } else {
       j1.SetMitCommand(0, 0, 0, 0, 0);
       j2.SetMitCommand(0, 0, 0, 0, 0);
       j3.SetMitCommand(0, 0, 0, 0, 0);
-      j4.SetMitCommand(0, 0, 0, 0, 0);
-      j5.SetMitCommand(0, 0, 0, 0, 0);
+      if (upper_can_send_split) {
+        j4.SetMitCommand(0, 0, 0, 0, 0);
+        j5.SetMitCommand(0, 0, 0, 0, 0);
+      } else {
+        j6.SetMitCommand(0, 0, 0, 0, 0);
+        gripper.SetPower(0);
+      }
     }
-    // j1.SetMitCommand(0, 0, 0, 0, 0);
-    // j2.SetMitCommand(0, 0, 0, 0, 0);
-    // j3.SetMitCommand(0, 0, 0, 0, 0);
-    // j4.SetMitCommand(0, 0, 0, 0, 0);
-    // j5.SetMitCommand(0, 0, 0, 0, 0);
-    j6.SetCurrent(0);
-    gripper.SetCurrent(0);
-    rm::device::DjiMotorBase::SendCommand();
+    upper_can_send_split = !upper_can_send_split;
   }
-  void UpdateEncoderCounter() {
-    j6_encoder.Update(j6.pos_rad());
-    gripper_encoder.Update(gripper.pos_rad());
-  }
+  void UpdateEncoderCounter() { gripper_encoder.Update(gripper.feedback().position_rad); }
 
   /**
    * @brief 给达妙电机设零点
@@ -101,10 +109,11 @@ class Actuator {
     SetEnable(true);
     for (int i = 0; i < 10; i++) {
       // j1.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      j2.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j2.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j4.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      // j5.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      j5.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j6.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       HAL_Delay(10);
     }
     SetEnable(false);
@@ -117,31 +126,25 @@ class Actuator {
         j3.pos(),                       //
         j4.pos(),                       //
         j5.pos(),                       //
-        j6_encoder.RealPosition(),      //
+        j6.pos(),                       //
         gripper_encoder.RealPosition()  //
     };
     // 对每个电机应用反转和零点偏移补偿
     for (int i = 0; i < 7; ++i) {
       positions[i] = calibrators[i].RealToLogical(positions[i]);
     }
-
-    // 处理2006的输出轴减速比，2006减速比1:36，齿轮传动1:1
-    positions[5] /= 36.f;
-    positions[6] /= 36.f;
-
     return positions;
   }
 
   std::array<float, 7> GetVelocities() const {
-    // 从编码器读取原始速度
     std::array<float, 7> velocities{
-        j1.vel(),
-        j2.vel(),
-        j3.vel(),
-        j4.vel(),
-        j5.vel(),
-        j6.rpm() / 60.f * 2.f * std::numbers::pi_v<float> / 36.f,
-        gripper.rpm() / 60.f * 2.f * std::numbers::pi_v<float> / 36.f  // 2006减速比1:36，齿轮传动1:1
+        j1.vel(),                        //
+        j2.vel(),                        //
+        j3.vel(),                        //
+        j4.vel(),                        //
+        j5.vel(),                        //
+        j6.vel(),                        //
+        gripper.feedback().speed_rad_ps  //
     };
 
     // 对每个电机应用反转
@@ -154,14 +157,35 @@ class Actuator {
     return velocities;
   }
 
+  std::array<float, 7> GetEfforts() const {
+    std::array<float, 7> efforts{
+        j1.tau(),                                     //
+        j2.tau(),                                     //
+        j3.tau(),                                     //
+        j4.tau(),                                     //
+        j5.tau(),                                     //
+        j6.tau(),                                     //
+        static_cast<float>(gripper.feedback().power)  //
+    };
+
+    // 对每个电机应用反转
+    for (int i = 0; i < 7; ++i) {
+      if (calibrators[i].reverse()) {
+        efforts[i] = -efforts[i];
+      }
+    }
+
+    return efforts;
+  }
+
   rm::modules::MotorCalibrator calibrators[7]{{true, 0.f},                                                 //
                                               {false, -rm::modules::Angle::FromDeg(90.f - 11.93f).rad()},  //
                                               {false, rm::modules::Angle::FromDeg(40.f - 11.93f).rad()},   //
                                               {false, 0.f},                                                //
                                               {true, 0.f},                                                 //
-                                              {true, 0.f},                                                 //
+                                              {false, 0.f},                                                //
                                               {false, 0.f}};
-  rm::device::DmMotorMit j1, j2, j3, j4, j5;
-  rm::device::M2006 j6, gripper;
-  EncoderCounter j6_encoder{2.f * M_PI}, gripper_encoder{2.f * M_PI};  // 2006减速比1:36
+  rm::device::DmMotorMit j1, j2, j3, j4, j5, j6;
+  rm::device::LkMotorMS<15> gripper;
+  EncoderCounter gripper_encoder{2.f * M_PI};
 };

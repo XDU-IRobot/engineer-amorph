@@ -57,6 +57,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define KEY_A_Pin GPIO_PIN_5
+#define KEY_A_GPIO_Port GPIOI
 #define POWER_24V_1_Pin GPIO_PIN_2
 #define POWER_24V_1_GPIO_Port GPIOH
 #define POWER_24V_2_Pin GPIO_PIN_3
@@ -65,21 +67,27 @@ void Error_Handler(void);
 #define POWER_24V_3_GPIO_Port GPIOH
 #define POWER_24V_4_Pin GPIO_PIN_5
 #define POWER_24V_4_GPIO_Port GPIOH
-#define KEY_A_Pin GPIO_PIN_10
-#define KEY_A_GPIO_Port GPIOF
-#define KEY_E_Pin GPIO_PIN_3
-#define KEY_E_GPIO_Port GPIOC
+#define TFT_RST_Pin GPIO_PIN_2
+#define TFT_RST_GPIO_Port GPIOC
+#define TFT_DC_Pin GPIO_PIN_3
+#define TFT_DC_GPIO_Port GPIOC
 #define ONBOARD_KEY_Pin GPIO_PIN_2
 #define ONBOARD_KEY_GPIO_Port GPIOB
 #define ONBOARD_KEY_EXTI_IRQn EXTI2_IRQn
-#define KEY_D_Pin GPIO_PIN_4
-#define KEY_D_GPIO_Port GPIOC
-#define KEY_B_Pin GPIO_PIN_5
-#define KEY_B_GPIO_Port GPIOA
-#define KEY_C_Pin GPIO_PIN_5
-#define KEY_C_GPIO_Port GPIOC
+#define KEY_D_Pin GPIO_PIN_1
+#define KEY_D_GPIO_Port GPIOA
+#define KEY_E_Pin GPIO_PIN_0
+#define KEY_E_GPIO_Port GPIOA
+#define TFT_CS_Pin GPIO_PIN_4
+#define TFT_CS_GPIO_Port GPIOC
+#define KEY_C_Pin GPIO_PIN_2
+#define KEY_C_GPIO_Port GPIOA
+#define TFT_BL_Pin GPIO_PIN_5
+#define TFT_BL_GPIO_Port GPIOC
 #define LED_R_Pin GPIO_PIN_11
 #define LED_R_GPIO_Port GPIOE
+#define KEY_B_Pin GPIO_PIN_3
+#define KEY_B_GPIO_Port GPIOA
 #define LED_G_Pin GPIO_PIN_14
 #define LED_G_GPIO_Port GPIOF
 

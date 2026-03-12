@@ -114,22 +114,24 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     const float key_d = (keycode & RC::kD) ? 1.f : 0.f;
     const float key_q = (keycode & RC::kQ) ? 1.f : 0.f;
     const float key_e = (keycode & RC::kE) ? 1.f : 0.f;
-    const float target_vx = (globals->rc.left_x() + key_d - key_a) * 1.f;
-    const float target_vy = (globals->rc.left_y() + key_w - key_s) * 1.f;
-    const float target_w = (globals->rc.right_x() + key_e - key_q) * 1.f;
+    const float target_vx = (globals->rc.left_x() + key_d - key_a) * 400.f;
+    const float target_vy = (globals->rc.left_y() + key_w - key_s) * 400.f;
+    const float target_w = -(globals->rc.right_x() + key_e - key_q) * 1000.f;
     globals->controller.SetTarget(target_vx, target_vy, target_w);
     globals->controller.Update(e.f_steer_pos, e.f_steer_vel,  //
                                e.l_steer_pos, e.l_steer_vel,  //
                                e.r_steer_pos, e.r_steer_vel,  //
                                e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel);
     const auto &control = globals->controller.output();
-    globals->actuator.f_steer->SetCurrent(control.front_steer);
-    globals->actuator.l_steer->SetCurrent(control.lr_steer);
-    globals->actuator.r_steer->SetCurrent(control.rr_steer);
-    globals->actuator.f_wheel->SetCurrent(control.front_wheel);
-    globals->actuator.l_wheel->SetCurrent(control.lr_wheel);
-    globals->actuator.r_wheel->SetCurrent(control.rr_wheel);
-    rm::device::DjiMotor<>::SendCommand();
+    globals->actuator.f_steer->SetCurrent(-control.front_steer);
+    globals->actuator.l_steer->SetCurrent(-control.lr_steer);
+    globals->actuator.r_steer->SetCurrent(-control.rr_steer);
+    globals->actuator.f_wheel->SetCurrent(-control.front_wheel);
+    globals->actuator.l_wheel->SetCurrent(-control.lr_wheel);
+    globals->actuator.r_wheel->SetCurrent(-control.rr_wheel);
+    // globals->actuator.l_wheel->SetCurrent(0);
+    // globals->actuator.r_wheel->SetCurrent(0);
+    rm::device::DjiMotorBase::SendCommand();
     return No_State_Change;
   }
 };

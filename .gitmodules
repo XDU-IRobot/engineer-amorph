@@ -46,3 +46,6 @@
 [submodule "src/jetson/amorph_transport/libs/libInterpolate"]
 	path = src/jetson/amorph_transport/libs/libInterpolate
 	url = https://github.com/CD3/libInterpolate.git
+[submodule "src/stm32/amorph_custom_controller/libs/lvgl"]
+	path = src/stm32/amorph_custom_controller/libs/lvgl
+	url = https://github.com/lvgl/lvgl.git

@@ -3,6 +3,8 @@
 
 #include "tim.h"
 
+#include <librm.hpp>
+
 /**
  * @brief   无源蜂鸣器驱动
  */
@@ -107,4 +109,5 @@ class HiBeeps : public rm::modules::BuzzerMelody {
   size_t note_index_{0};
   TimePoint note_start_time_;
 };
+
 }  // namespace buzzer_melody

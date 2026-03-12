@@ -9,7 +9,8 @@
 #include "bsp/led.hpp"
 #include "actuators.hpp"
 #include "arm_controller.hpp"
-#include "et16s.hpp"
+#include "rc_forward.hpp"
+#include "vt_link_forward.hpp"
 #include "host_comm.hpp"
 
 /**
@@ -32,11 +33,9 @@ struct Globals {
 
   rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
                               rm::hal::stm32::UartMode::kInterrupt};  ///< 用于接收遥控器信号的串口
-  WflyET16s rc{sbus_serial};                                          ///< 遥控器
+  RcReceiver rc{comm_can};                                            ///< 遥控器
 
-  rm::hal::Serial vt_serial{huart1, 50, rm::hal::stm32::UartMode::kInterrupt,
-                            rm::hal::stm32::UartMode::kInterrupt};  ///< 用于接收图传链路的串口
-  rm::device::Referee<rm::device::RefereeRevision::kV170> ref;      ///< 裁判系统解码器
+  VtLinkReceiver vt_link_receiver{comm_can};
 
   Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
   rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
@@ -54,7 +53,7 @@ struct Globals {
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
-  ArmController<7> arm_controller;  ///< 机械臂控制器
+  ArmController<7> arm_controller;                      ///< 机械臂控制器
   Actuator actuator{lower_motor_can, upper_motor_can};  ///< 所有电机
   rm::device::DeviceManager<10> device_manager;         ///< 设备管理器
   etl::string<512> status_str{""};                      ///< 描述当前系统状态的字符串
@@ -95,7 +94,6 @@ struct Globals {
     lower_motor_can.Begin();
     upper_motor_can.Begin();
     comm_can.Begin();
-    rc.Begin();
   }
 };
 

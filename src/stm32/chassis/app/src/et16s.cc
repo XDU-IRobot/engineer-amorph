@@ -18,7 +18,7 @@ void InitUserInput() {
       fsm::chassis.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNormal});
     }
     if (new_value > 500 && new_value < 1100) {  // SD在中
-      fsm::chassis.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNormal});
+      fsm::chassis.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNoForce});
     }
   });
 }

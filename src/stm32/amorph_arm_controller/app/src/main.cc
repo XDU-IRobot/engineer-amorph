@@ -1,24 +1,17 @@
 
 #include "fsm.hpp"
-#include "rpc/host_api.hpp"
 #include "bsp/timer_task.hpp"
 #include "globals.hpp"
 
 Globals *globals{nullptr};
 
-etl::fsm_state_id_t current_state;
-
 namespace {
 void MainLoop() {
   globals->device_manager.Update();
   globals->host_connection_watcher.Update();
-  globals->rc.Update();
+  globals->rc.UpdateSwitchWatchers();
   globals->actuator.UpdateEncoderCounter();
 
-  // 在主循环上下文中处理CAN接收到的上位机命令，避免在中断中直接调用状态机
-  globals->host.ProcessPendingCommand();
-
-  current_state = fsm::arm.get_state_id();
   fsm::arm.receive(fsm::event::ControlLoop{globals->actuator.GetPositions(), globals->actuator.GetVelocities()});
 
   static int loop_divisor;
@@ -31,19 +24,51 @@ void MainLoop() {
     globals->buzzer.SetFrequency(globals->buzzer_controller.Update().frequency);
 
     // 向上位机发送反馈
-    globals->host.tx_data_.mode = static_cast<Stm32Feedback::Mode>(fsm::arm.get_state_id());
+    globals->host.tx_data_.mode = static_cast<Stm32FeedbackCompressed::Mode>(fsm::arm.get_state_id());
     const auto current_pos = globals->actuator.GetPositions();
     const auto current_vel = globals->actuator.GetVelocities();
+    const auto current_effort = globals->actuator.GetEfforts();
     std::memcpy(globals->host.tx_data_.joint_positions, current_pos.data(), sizeof(float) * 6);
     std::memcpy(globals->host.tx_data_.joint_velocities, current_vel.data(), sizeof(float) * 6);
-    globals->host.tx_data_.gripper_open = false;
+    std::memcpy(globals->host.tx_data_.joint_efforts, current_effort.data(), sizeof(float) * 6);
+    globals->host.tx_data_.gripper_open =
+        (globals->arm_controller.gripper().state() == GripperController<>::State::kOpen);
     globals->host.Write();
   }
   if ((loop_divisor % 25) == 1) { /** 20hz subloop 1 **/
   }
-  // if ((loop_divisor % 25) == 2) { /** 20hz subloop 2 **/
-  //   host::ReportJointPosition(JointPosition{globals->actuator.GetPositions()});
-  // }
+}
+
+void InitUserInput() {
+  // 1. 定义遥控器拨杆功能
+#if defined(I_AM_LEFT_ARM)
+  constexpr int kModeSwitch = RcReceiver::kSb;
+#elif defined(I_AM_RIGHT_ARM)
+  constexpr int kModeSwitch = RcReceiver::kSc;
+#endif
+  globals->rc(kModeSwitch).OnValueChange([](const int &old_value, const int &new_value) {
+    // 353-up, 1024-mid, 1695-down
+    if (old_value == 0) {
+      return;  // 第一次触发不响应
+    }
+    if (new_value > 1300 && new_value < 1700) {  // 机械臂模式杆在下 - 无力
+      fsm::arm.receive(fsm::event::FaultClear{});
+      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNoForce});
+    }
+    if (new_value > 0 && new_value < 500) {  // 机械臂模式杆在上 - 自动模式，idle
+      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kIdle});
+    }
+    if (new_value > 500 && new_value < 1100) {  // 机械臂模式杆在中 - 手动调试模式
+      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kLongJointCalibrating});
+    }
+  });
+  globals->rc(RcReceiver::kSh).OnValueChange([](const int &old_value, const int &new_value) {
+    UNUSED(old_value);
+    if (new_value > 1000) {  // SH按下
+      fsm::arm.receive(fsm::event::NextJoint{});
+    }
+  });
+  globals->rc(RcReceiver::kSg).OnValueChange([](const int &old_value, const int &new_value) { UNUSED(old_value); });
 }
 }  // namespace
 
@@ -72,28 +97,13 @@ extern "C" {
   });
 
   // 初始化图传链路串口
-  rm::hal::SerialRxCallbackFunction on_vt_serial_rx = [&](const std::vector<uint8_t> &data, uint16_t len) {
-    for (int i = 0; i < len; ++i) {
-      globals->ref << data[i];
-    }
-  };
-  globals->vt_serial.AttachRxCallback(on_vt_serial_rx);  // 注册接收回调，把收到的数据传给解码器
-  globals->ref.AttachCallback([&](uint16_t cmd_id, uint8_t seq) {
-    UNUSED(seq);
-    switch (cmd_id) {
-      case rm::device::RefereeCmdId<rm::device::RefereeRevision::kV170>::kCustomRobotData: {
-        // 把收到的数据转发给状态机处理
-        CustomControllerCommand cmd;
-        std::memcpy(&cmd, globals->ref.data().custom_robot_data.data, sizeof(cmd));
-        fsm::arm.receive(fsm::event::CustomCtrlCommand{cmd});
-        break;
-      }
-      default: {
-        break;
-      }
-    }
-  });                          // 注册解包回调，收到自定义控制器数据时转发命令给状态机
-  globals->vt_serial.Begin();  // 启动串口接收
+  globals->vt_link_receiver.OnCustomCtrlRecv([&]() {
+    // 把收到的数据转发给状态机处理
+    static CustomControllerCommand cc_cmd;
+    const auto &data = globals->vt_link_receiver.custom_ctrl_data();
+    std::memcpy(&cc_cmd, &data, sizeof(cc_cmd));
+    fsm::arm.receive(fsm::event::CustomCtrlCommand{cc_cmd});
+  });  // 注册解包回调，收到自定义控制器数据时转发命令给状态机
 
   // 创建主循环定时任务，定频500hz
   TimerTask mainloop{
@@ -103,6 +113,7 @@ extern "C" {
   mainloop.Start();
 
   globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
+
   for (;;) {
   }
 }

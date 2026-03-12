@@ -1,18 +1,40 @@
 
 #include <librm.hpp>
 
-#include <etl/debounce.h>
+#include <etl/pseudo_moving_average.h>
 
+#include <lvgl.h>
+
+#include "arm_ui.hpp"
 #include "buzzer.hpp"
 #include "globals.hpp"
 #include "packet_builder.hpp"
 #include "timer_task.hpp"
+#include "st7789_driver.h"
 
 namespace {
 
 bool g_comp_enable = false;
 
+/* ── MainLoop 执行时间统计 ───────────────────────────────────────────── */
+// 使用 DWT->CYCCNT 实现 CPU 周期级计时，再换算成微秒
+// etl::pseudo_moving_average<T, WINDOW> 对采样值做滑动平均平滑
+static etl::pseudo_moving_average<uint32_t, 16> g_mainloop_time_avg{0u};
+
+inline void DwtInit() {
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+inline uint32_t DwtCycleToUs(uint32_t cycles) {
+  // STM32F427 主频 168 MHz
+  return cycles / 168u;
+}
+
 void MainLoop() {
+  const uint32_t t_start = DWT->CYCCNT;
+
   static int subloop_counter = 0;
   subloop_counter = (subloop_counter + 1) % 1000;
 
@@ -55,8 +77,8 @@ void MainLoop() {
     const DynamicModel::Vec3 g_comp = globals->dynamic_model.ForwardDynamics(q_current);
     if (subloop_counter % 2) {
       globals->motors.j0->SetSpeed(0);
-      globals->motors.j1->SetMitCommand(0.f, 0.f, g_comp(1), 0.f, 2.f);
-      globals->motors.j2->SetMitCommand(0.f, 0.f, -g_comp(2), 0.f, 1.f);
+      globals->motors.j1->SetMitCommand(0.f, 0.f, g_comp(1), 0.f, 1.f);
+      globals->motors.j2->SetMitCommand(0.f, 0.f, -g_comp(2), 0.f, 0.5f);
     } else {
       globals->motors.j3->SetSpeed(0);
       globals->motors.j4->SetSpeed(0);
@@ -73,16 +95,46 @@ void MainLoop() {
       globals->motors.j5->SetPower(0);
     }
   }
+
+  /* ── 执行时间统计 ───────────────────────────────── */
+  const uint32_t elapsed_us = DwtCycleToUs(DWT->CYCCNT - t_start);
+  g_mainloop_time_avg.add(elapsed_us);
+  g_mainloop_time_us = g_mainloop_time_avg.value();
 }
 }  // namespace
+
+volatile uint32_t g_mainloop_time_us = 0;  // 供 UI 线程读取（单位 µs）
 
 Globals *globals;
 
 extern "C" {
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == ONBOARD_KEY_Pin) {
+    g_comp_enable = !g_comp_enable;
+    globals->g_comp_enable_watcher.Update(g_comp_enable);
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+  }
+}
+
 [[noreturn]] void AppMain(void) {
+  DwtInit();  // 启动 DWT 周期计数器，用于 MainLoop 执行时间统计
+
   globals = new Globals;
   globals->Init();
+
+  /* ── LVGL initialization ─────────────────────────────── */
+  lv_init();
+
+  /* Use HAL_GetTick as the tick source (returns ms since boot) */
+  lv_tick_set_cb(HAL_GetTick);
+
+  /* Initialize the ST7789 display driver (SPI4 + DMA) */
+  lv_display_t *disp = st7789_driver_init();
+  (void)disp;
+
+  /* Create the arm visualization UI */
+  arm_ui::create();
 
   // // 设零点
   // HAL_Delay(1500);  // 电机开机需要时间
@@ -91,10 +143,10 @@ extern "C" {
   // for (int i = 0; i < 10; i++) {
   //   // globals->motors.j1->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
   //   // globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-  //   globals->motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
-  //   globals->motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+  //   // globals->motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+  //   // globals->motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
   //   globals->motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
-  //   globals->motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+  //   // globals->motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
   //   HAL_Delay(10);
   // }
   // globals->motors.j1->SendInstruction(rm::device::DmMotorInstructions::kDisable);
@@ -132,15 +184,8 @@ extern "C" {
   globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
 
   for (;;) {
-    // __WFI();
-  }
-}
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-  if (GPIO_Pin == ONBOARD_KEY_Pin) {
-    g_comp_enable = !g_comp_enable;
-    globals->g_comp_enable_watcher.Update(g_comp_enable);
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    const uint32_t time_until_next = lv_timer_handler();
+    HAL_Delay(time_until_next);
   }
 }
 }

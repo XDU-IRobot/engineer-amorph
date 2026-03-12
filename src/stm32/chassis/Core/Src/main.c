@@ -56,7 +56,7 @@
 void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void AppMain(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -112,8 +112,10 @@ int main(void)
   MX_TIM13_Init();
   MX_RNG_Init();
   MX_USART1_UART_Init();
+  MX_UART7_Init();
+  MX_USART10_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  AppMain();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -197,7 +199,7 @@ void PeriphCommonClock_Config(void)
   /** Initializes the peripherals clock
   */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_UART5
-                              |RCC_PERIPHCLK_FDCAN;
+                              |RCC_PERIPHCLK_FDCAN|RCC_PERIPHCLK_UART7;
   PeriphClkInitStruct.PLL2.PLL2M = 2;
   PeriphClkInitStruct.PLL2.PLL2N = 16;
   PeriphClkInitStruct.PLL2.PLL2P = 2;

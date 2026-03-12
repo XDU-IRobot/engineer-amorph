@@ -250,4 +250,12 @@ SECTIONS
     libgcc.a:* ( * )
   }
 
+  /* for DMA access */
+  .sram4 (NOLOAD) :
+  {
+    . = ALIGN(32);
+    *(.sram4)
+    . = ALIGN(32);
+  } >RAM_D1
+
 }

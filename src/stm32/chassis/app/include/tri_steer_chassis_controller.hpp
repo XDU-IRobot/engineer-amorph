@@ -8,9 +8,9 @@
 class TriSteerChassisController {
  public:
   explicit TriSteerChassisController(float chassis_radius = 0.2f) : kinematics_(chassis_radius) {
-    pid_.front_steer_position.SetCircular(true).SetCircularCycle(M_PI * 2.0f);
-    pid_.lr_steer_position.SetCircular(true).SetCircularCycle(M_PI * 2.0f);
-    pid_.rr_steer_position.SetCircular(true).SetCircularCycle(M_PI * 2.0f);
+    pid_.f_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
+    pid_.l_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
+    pid_.r_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
   }
 
   /**
@@ -18,7 +18,7 @@ class TriSteerChassisController {
    */
   void Update(float front_steer_position, float front_steer_speed, float lr_steer_position, float lr_steer_speed,
               float rr_steer_position, float rr_steer_speed, float front_wheel_speed, float lr_wheel_speed,
-              float rr_wheel_speed, bool ready_for_spin = false, float dt = 1.f) {
+              float rr_wheel_speed, float dt = 1.f) {
     // 更新当前状态
     state_.front_steer_position = front_steer_position;
     state_.lr_steer_position = lr_steer_position;
@@ -42,45 +42,24 @@ class TriSteerChassisController {
 
     // 运动学解算
     const auto fk_result = kinematics_.Forward(target_.vx, target_.vy, target_.w, state_.front_steer_position,
-                                               state_.lr_steer_position, state_.rr_steer_position, ready_for_spin);
+                                               state_.lr_steer_position, state_.rr_steer_position);
 
-    // 舵控制 - 前舵
-    pid_.front_steer_position.Update((fk_result.front_steer_position), state_.front_steer_position, dt);
-    if (speed_pid_enabled_) {
-      const float front_steer_target_speed = pid_.front_steer_position.out();
-      pid_.front_steer_speed.Update(front_steer_target_speed, state_.front_steer_speed, dt);
-      output_.front_steer = pid_.front_steer_speed.out();
-    } else {
-      output_.front_steer = pid_.front_steer_position.out();
-    }
+    // 舵
+    pid_.f_steer.UpdateExtDiff(fk_result.front_steer_position, state_.front_steer_position, -state_.front_steer_speed,
+                               dt);
+    output_.front_steer = pid_.f_steer.out();
+    pid_.l_steer.UpdateExtDiff(fk_result.lr_steer_position, state_.lr_steer_position, -state_.lr_steer_speed, dt);
+    output_.lr_steer = pid_.l_steer.out();
+    pid_.r_steer.UpdateExtDiff(fk_result.rr_steer_position, state_.rr_steer_position, -state_.rr_steer_speed, dt);
+    output_.rr_steer = pid_.r_steer.out();
 
-    // 舵控制 - 左后舵
-    pid_.lr_steer_position.Update(fk_result.lr_steer_position, state_.lr_steer_position, dt);
-    if (speed_pid_enabled_) {
-      const float lr_steer_target_speed = pid_.lr_steer_position.out();
-      pid_.lr_steer_speed.Update(lr_steer_target_speed, state_.lr_steer_speed, dt);
-      output_.lr_steer = pid_.lr_steer_speed.out();
-    } else {
-      output_.lr_steer = pid_.lr_steer_position.out();
-    }
-
-    // 舵控制 - 右后舵
-    pid_.rr_steer_position.Update(fk_result.rr_steer_position, state_.rr_steer_position, dt);
-    if (speed_pid_enabled_) {
-      const float rr_steer_target_speed = pid_.rr_steer_position.out();
-      pid_.rr_steer_speed.Update(rr_steer_target_speed, state_.rr_steer_speed, dt);
-      output_.rr_steer = pid_.rr_steer_speed.out();
-    } else {
-      output_.rr_steer = pid_.rr_steer_position.out();
-    }
-
-    // 轮速控制
-    pid_.front_wheel.Update(-fk_result.front_wheel_speed, state_.front_wheel_speed, dt);
-    output_.front_wheel = pid_.front_wheel.out();
-    pid_.lr_wheel.Update(-fk_result.lr_wheel_speed, state_.lr_wheel_speed, dt);
-    output_.lr_wheel = pid_.lr_wheel.out();
-    pid_.rr_wheel.Update(-fk_result.rr_wheel_speed, state_.rr_wheel_speed, dt);
-    output_.rr_wheel = pid_.rr_wheel.out();
+    // 轮
+    pid_.f_wheel.Update(fk_result.front_wheel_speed, state_.front_wheel_speed, dt);
+    output_.front_wheel = pid_.f_wheel.out();
+    pid_.l_wheel.Update(fk_result.lr_wheel_speed, state_.lr_wheel_speed, dt);
+    output_.lr_wheel = pid_.l_wheel.out();
+    pid_.r_wheel.Update(fk_result.rr_wheel_speed, state_.rr_wheel_speed, dt);
+    output_.rr_wheel = pid_.r_wheel.out();
   }
 
   /**
@@ -91,11 +70,6 @@ class TriSteerChassisController {
     target_.vy = vy;
     target_.w = w;
   }
-
-  /**
-   * @brief 启用或禁用速度环 PID 控制（切换单位置环或速度位置双环控制）
-   */
-  void EnableSpeedPid(bool enable) { speed_pid_enabled_ = enable; }
 
   /**
    * @brief 启用或禁用控制器（切换有力无力）
@@ -110,15 +84,14 @@ class TriSteerChassisController {
 
  private:
   bool enabled_{false};                         ///< 有力/无力？
-  bool speed_pid_enabled_{true};                ///< 单环/双环？
   rm::modules::TriSteeringChassis kinematics_;  ///< 底盘运动学模型
   struct {
-    rm::modules::PID front_wheel;                              ///< 前轮速度环
-    rm::modules::PID lr_wheel;                                 ///< 左后轮速度环
-    rm::modules::PID rr_wheel;                                 ///< 右后轮速度环
-    rm::modules::PID front_steer_speed, front_steer_position;  ///< 前舵速度环和位置环
-    rm::modules::PID lr_steer_speed, lr_steer_position;        ///< 左后舵速度环和位置环
-    rm::modules::PID rr_steer_speed, rr_steer_position;        ///< 右后舵速度环和位置环
+    rm::modules::PID f_wheel{50.f, 0.f, 0.f, 15000.f, 0.f};       ///< 前轮速度环
+    rm::modules::PID l_wheel{50.f, 0.f, 0.f, 15000.f, 0.f};       ///< 左后轮速度环
+    rm::modules::PID r_wheel{50.f, 0.f, 0.f, 15000.f, 0.f};       ///< 右后轮速度环
+    rm::modules::PID f_steer{20000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
+    rm::modules::PID l_steer{20000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
+    rm::modules::PID r_steer{20000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
   } pid_;
 
   struct {

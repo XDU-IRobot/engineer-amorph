@@ -16,3 +16,7 @@ target_include_directories(app_main PRIVATE
 target_link_libraries(app_main PRIVATE
         $<TARGET_PROPERTY:${CMAKE_PROJECT_NAME},LINK_LIBRARIES>
 )
+
+target_link_options(app_main PRIVATE
+        -u _printf_float
+)
