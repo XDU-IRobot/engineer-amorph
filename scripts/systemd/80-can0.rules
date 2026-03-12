@@ -1,0 +1,7 @@
+# Deploy to: /etc/udev/rules.d/80-can0.rules
+
+SUBSYSTEM=="net", ACTION=="add", KERNEL=="can0", \
+    RUN+="/sbin/ip link set can0 down", \
+    RUN+="/sbin/ip link set can0 type can bitrate 1000000 dbitrate 3200000 fd on", \
+    RUN+="/sbin/ip link set can0 txqueuelen 1000", \
+    RUN+="/sbin/ip link set can0 up"
