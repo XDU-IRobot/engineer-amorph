@@ -5,6 +5,7 @@
 
 #include <lvgl.h>
 
+#include "adc.h"
 #include "arm_ui.hpp"
 #include "buzzer.hpp"
 #include "globals.hpp"
@@ -15,6 +16,8 @@
 namespace {
 
 bool g_comp_enable = false;
+
+volatile uint32_t g_adc1_val = 0;
 
 /* ── MainLoop 执行时间统计 ───────────────────────────────────────────── */
 // 使用 DWT->CYCCNT 实现 CPU 周期级计时，再换算成微秒
@@ -34,6 +37,7 @@ inline uint32_t DwtCycleToUs(uint32_t cycles) {
 
 void MainLoop() {
   const uint32_t t_start = DWT->CYCCNT;
+  globals->motors.j5_encoder.Update((2.0f * M_PI) - (static_cast<float>(g_adc1_val) / 4095.0f * 2.0f * M_PI));
 
   static int subloop_counter = 0;
   subloop_counter = (subloop_counter + 1) % 1000;
@@ -82,7 +86,6 @@ void MainLoop() {
     } else {
       globals->motors.j3->SetSpeed(0);
       globals->motors.j4->SetSpeed(0);
-      globals->motors.j5->SetSpeed(0);
     }
   } else {
     if (subloop_counter % 2) {
@@ -92,7 +95,6 @@ void MainLoop() {
     } else {
       globals->motors.j3->SetPower(0);
       globals->motors.j4->SetPower(0);
-      globals->motors.j5->SetPower(0);
     }
   }
 
@@ -122,6 +124,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
   globals = new Globals;
   globals->Init();
+
+  // 启动旋钮ADC
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&g_adc1_val, 1);
+  __HAL_DMA_DISABLE_IT(hadc1.DMA_Handle, DMA_IT_TC | DMA_IT_HT | DMA_IT_TE);  // 关闭 DMA 中断，防止高频中断卡死 CPU
 
   /* ── LVGL initialization ─────────────────────────────── */
   lv_init();
@@ -169,7 +175,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
           globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kEnable);
           globals->motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
           globals->motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
-          globals->motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kEnable);
         } else {
           globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
           globals->motors.j0->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
@@ -177,7 +182,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
           globals->motors.j2->SendInstruction(rm::device::DmMotorInstructions::kDisable);
           globals->motors.j3->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
           globals->motors.j4->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
-          globals->motors.j5->SendInstruction(rm::device::LkMotorMS<15>::Instruction::kDisable);
         }
       }));
 

@@ -290,6 +290,7 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     get_fsm_context().planner_need_reset_ = true;  // 进入CustomCtrl时强制重置规划器，防止位置跳变
     globals->buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
     globals->actuator.SetEnable(true);
+    just_entered_ = true;
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
@@ -312,16 +313,25 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     if (!e.ok) {
       return No_State_Change;
     }
+    if (just_entered_) {
+      j6_delta_ = e.joint_positions[5] - globals->arm_controller.current_positions()[5];
+      just_entered_ = false;
+    }
     std::array<float, 7> target_p = globals->arm_controller.current_positions();
     target_p[0] = e.joint_positions[0];
     target_p[1] = e.joint_positions[1];
     target_p[2] = e.joint_positions[2];
     target_p[3] = e.joint_positions[3];
     target_p[4] = e.joint_positions[4];
+    target_p[5] = e.joint_positions[5] - j6_delta_;
     target_p[6] = e.buttons.b ? 0.f : 1.f;
     globals->arm_controller.GoTo(target_p);
     return No_State_Change;
   }
+
+ private:
+  bool just_entered_{true};
+  float j6_delta_{0.f};
 };
 
 /*******************************************/

@@ -10,6 +10,7 @@
 #include "dynamics.hpp"
 #include "rgb_led.hpp"
 #include "buzzer.hpp"
+#include "encoder_counter.hpp"
 
 struct Globals {
   rm::modules::MahonyAhrs ahrs;  //
@@ -34,7 +35,7 @@ struct Globals {
   rm::modules::SparseValueWatcher<bool> g_comp_enable_watcher;
 
   struct {
-    rm::device::LkMotor<rm::device::LkMotorType::kMS, 15> *j0, *j3, *j4, *j5;
+    rm::device::LkMotor<rm::device::LkMotorType::kMS, 15> *j0, *j3, *j4;
     rm::device::DmMotor<rm::device::DmMotorControlMode::kMit> *j1, *j2;
     std::array<rm::modules::MotorCalibrator, 6> calibrators{
         rm::modules::MotorCalibrator{false, 1.84754455f},  //
@@ -44,15 +45,17 @@ struct Globals {
         rm::modules::MotorCalibrator{true, 0.221666992f},  //
         rm::modules::MotorCalibrator{true, 0.f},           //
     };
+    EncoderCounter j5_encoder{M_PI * 2.f};
+    rm::modules::ModeFilter<float, 5> j5_encoder_filter{1};
 
     std::array<float, 6> GetPositions() {
       std::array<float, 6> positions{
-          j0->feedback().position_rad,  //
-          j1->pos(),                    //
-          j2->pos(),                    //
-          j3->feedback().position_rad,  //
-          j4->feedback().position_rad,  //
-          j5->feedback().position_rad,  //
+          j0->feedback().position_rad,                         //
+          j1->pos(),                                           //
+          j2->pos(),                                           //
+          j3->feedback().position_rad,                         //
+          j4->feedback().position_rad,                         //
+          j5_encoder_filter.apply(j5_encoder.RealPosition()),  //
       };
       // 对每个电机应用反转和零点偏移补偿
       for (size_t i = 0; i < 6; ++i) {
@@ -90,7 +93,6 @@ struct Globals {
                                                                                      .kd_range = {0, 50}}};
     motors.j3 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{motor_can, 2};
     motors.j4 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{motor_can, 3};
-    motors.j5 = new rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>{motor_can, 4};
     // rc.Begin();
     motor_can.SetFilter(0, 0);
     motor_can.Begin();

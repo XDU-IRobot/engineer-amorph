@@ -6,6 +6,10 @@
 Globals *globals{nullptr};
 
 namespace {
+
+DynamicModelImproved dmi;
+DynamicModelImproved::Vec3 compensate;
+
 void MainLoop() {
   globals->device_manager.Update();
   globals->host_connection_watcher.Update();
@@ -13,6 +17,8 @@ void MainLoop() {
   globals->actuator.UpdateEncoderCounter();
 
   fsm::arm.receive(fsm::event::ControlLoop{globals->actuator.GetPositions(), globals->actuator.GetVelocities()});
+  compensate = dmi.Inverse(
+      {globals->actuator.GetPositions()[0], globals->actuator.GetPositions()[1], globals->actuator.GetPositions()[2]});
 
   static int loop_divisor;
   loop_divisor = (loop_divisor + 1) % 100;

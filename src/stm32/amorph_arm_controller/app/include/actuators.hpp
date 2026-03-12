@@ -74,11 +74,11 @@ class Actuator {
     static bool upper_can_send_split = true;
 
     if (apply_position) {
-      j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]), 0, 0.f, 50.f, 25.f);
+      j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]), 0, 0.f, 60.f, 25.f);
       j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]), 0,
                        calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1], 80.f, 30.f);
       j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]), 0,
-                       calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2], 50.f, 30.f);
+                       calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2], 80.f, 30.f);
       if (upper_can_send_split) {
         j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, 35.f, 15.f);
         j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, 35.f, 15.f);
@@ -86,6 +86,18 @@ class Actuator {
         j6.SetMitCommand(calibrators[5].LogicalToReal(output.positions[5]), 0, 0.f, 30.f, 10.f);
         gripper.SetSpeed(output.velocities[6]);
       }
+      // j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]), 0, 0.f, 0.f, 0.f);
+      // j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]), 0,
+      //                  calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1], 0.f, 0.f);
+      // j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]), 0,
+      //                  calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2], 0.f, 0.f);
+      // if (upper_can_send_split) {
+      //   j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, 0.f, 0.f);
+      //   j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, 0.f, 0.f);
+      // } else {
+      //   j6.SetMitCommand(calibrators[5].LogicalToReal(output.positions[5]), 0, 0.f, 0.f, 0.f);
+      //   gripper.SetSpeed(output.velocities[6]);
+      // }
     } else {
       j1.SetMitCommand(0, 0, 0, 0, 0);
       j2.SetMitCommand(0, 0, 0, 0, 0);

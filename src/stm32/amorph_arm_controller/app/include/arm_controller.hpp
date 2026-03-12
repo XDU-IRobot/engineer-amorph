@@ -158,11 +158,11 @@ class ArmController {
   GripperController<> gripper_controller_;
   std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiter_  //
       {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                      //
-       rm::modules::TrajectoryLimiter{2.175f, 1.875f},                     //
+       rm::modules::TrajectoryLimiter{2.175f, 2.5f},                     //
        rm::modules::TrajectoryLimiter{2.175f, 2.5f},                       //
-       rm::modules::TrajectoryLimiter{2.175f, 3.125f},                     //
+       rm::modules::TrajectoryLimiter{2.175f, 10.f},                       //
        rm::modules::TrajectoryLimiter{2.61f, 3.75f},                       //
-       rm::modules::TrajectoryLimiter{2.61f, 5.f},                         //
+       rm::modules::TrajectoryLimiter{2.61f, 15.f},                        //
        rm::modules::TrajectoryLimiter{2.61f, 5.f}};
   std::array<rm::modules::PID, NJoints> pid_;
 

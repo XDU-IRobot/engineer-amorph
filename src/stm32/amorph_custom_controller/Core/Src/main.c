@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "can.h"
 #include "dma.h"
 #include "dma2d.h"
@@ -102,6 +103,7 @@ int main(void)
   MX_UART7_Init();
   MX_SPI4_Init();
   MX_DMA2D_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   AppMain();
   /* USER CODE END 2 */

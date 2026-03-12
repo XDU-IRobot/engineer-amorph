@@ -86,12 +86,12 @@ class TriSteerChassisController {
   bool enabled_{false};                         ///< 有力/无力？
   rm::modules::TriSteeringChassis kinematics_;  ///< 底盘运动学模型
   struct {
-    rm::modules::PID f_wheel{50.f, 0.f, 0.f, 15000.f, 0.f};       ///< 前轮速度环
-    rm::modules::PID l_wheel{50.f, 0.f, 0.f, 15000.f, 0.f};       ///< 左后轮速度环
-    rm::modules::PID r_wheel{50.f, 0.f, 0.f, 15000.f, 0.f};       ///< 右后轮速度环
-    rm::modules::PID f_steer{20000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
-    rm::modules::PID l_steer{20000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
-    rm::modules::PID r_steer{20000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
+    rm::modules::PID f_wheel{70.f, 0.f, 0.f, 15000.f, 0.f};       ///< 前轮速度环
+    rm::modules::PID l_wheel{70.f, 0.f, 0.f, 15000.f, 0.f};       ///< 左后轮速度环
+    rm::modules::PID r_wheel{70.f, 0.f, 0.f, 15000.f, 0.f};       ///< 右后轮速度环
+    rm::modules::PID f_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
+    rm::modules::PID l_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
+    rm::modules::PID r_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
   } pid_;
 
   struct {
