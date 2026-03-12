@@ -7,7 +7,7 @@
   name="amorph_arm_v2_description">
   <link
     name="l1_l">
-    <inertial>
+    <!-- <inertial>
       <origin
         xyz="-0.0185539392933769 -0.0146386784899507 0.0184991751432863"
         rpy="0 0 0" />
@@ -20,7 +20,7 @@
         iyy="0.00160612957360141"
         iyz="3.47673596438255E-05"
         izz="0.00284678523726882" />
-    </inertial>
+    </inertial> -->
     <visual>
       <origin
         xyz="0 0 0"

@@ -91,7 +91,7 @@ def generate_launch_description():
         DeclareLaunchArgument('enable_color', default_value='true'),
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
-        DeclareLaunchArgument('enable_color_auto_exposure_priority', default_value='false'),
+        DeclareLaunchArgument('enable_color_auto_exposure_priority', default_value='true'),
         DeclareLaunchArgument('color_rotation', default_value='-1'),#color rotation degree : 0, 90, 180, 270
         DeclareLaunchArgument('color_flip', default_value='false'),
         DeclareLaunchArgument('color_mirror', default_value='false'),
@@ -99,7 +99,7 @@ def generate_launch_description():
         DeclareLaunchArgument('color_ae_roi_right', default_value='-1'),
         DeclareLaunchArgument('color_ae_roi_top', default_value='-1'),
         DeclareLaunchArgument('color_ae_roi_bottom', default_value='-1'),
-        DeclareLaunchArgument('color_exposure', default_value='10000'),  # 固定曝光值保证一致性（可根据环境微调）
+        DeclareLaunchArgument('color_exposure', default_value='1000'),
         DeclareLaunchArgument('color_gain', default_value='8'),  # 低增益减少噪声（优化：静态精度优先）
         DeclareLaunchArgument('enable_color_auto_white_balance', default_value='true'),
         DeclareLaunchArgument('color_white_balance', default_value='-1'),
@@ -161,7 +161,7 @@ def generate_launch_description():
         DeclareLaunchArgument('right_ir_sequence_id_filter_id', default_value='-1'),
         DeclareLaunchArgument('enable_ir_auto_exposure', default_value='true'),
         DeclareLaunchArgument('ir_exposure', default_value='10000'),  # 固定IR曝光时间（优化：静态精度优先，建议根据环境微调）
-        DeclareLaunchArgument('ir_gain', default_value='8'),  # 低增益减少深度噪声（优化：静态精度优先）
+        DeclareLaunchArgument('ir_gain', default_value='16'),  # 低增益减少深度噪声（优化：静态精度优先）
         DeclareLaunchArgument('ir_ae_max_exposure', default_value='-1'),
         DeclareLaunchArgument('ir_brightness', default_value='-1'),
         DeclareLaunchArgument('enable_sync_output_accel_gyro', default_value='false'),
@@ -192,7 +192,7 @@ def generate_launch_description():
         DeclareLaunchArgument('enable_d2c_viewer', default_value='false'),
         DeclareLaunchArgument('disparity_to_depth_mode', default_value='HW'),
         DeclareLaunchArgument('enable_ldp', default_value='true'),  # 启用LDP（优化：静态精度优先）
-        DeclareLaunchArgument('ldp_power_level', default_value='9'),  # 最大LDP功率（优化：静态精度优先）
+        DeclareLaunchArgument('ldp_power_level', default_value='6'),  # 最大LDP功率（优化：静态精度优先）
         DeclareLaunchArgument('sync_mode', default_value='standalone'),
         DeclareLaunchArgument('depth_delay_us', default_value='0'),
         DeclareLaunchArgument('color_delay_us', default_value='0'),
@@ -244,9 +244,9 @@ def generate_launch_description():
         DeclareLaunchArgument('align_target_stream', default_value='COLOR'),# COLOR or DEPTH（优化：静态精度优先）
         DeclareLaunchArgument('diagnostic_period', default_value='1.0'), # seconds
         DeclareLaunchArgument('enable_laser', default_value='true'),  # 启用激光（优化：静态精度优先）
-        DeclareLaunchArgument('device_preset', default_value='Default'),
+        DeclareLaunchArgument('device_preset', default_value='High Accuracy'),
         DeclareLaunchArgument('retry_on_usb3_detection_failure', default_value='false'),
-        DeclareLaunchArgument('laser_energy_level', default_value='9'),  # 最大激光功率提高深度信号强度（优化：静态精度优先）
+        DeclareLaunchArgument('laser_energy_level', default_value='6'),  # 最大激光功率提高深度信号强度（优化：静态精度优先）
         DeclareLaunchArgument('enable_sync_host_time', default_value='true'),
         DeclareLaunchArgument('time_sync_period', default_value='6.0'), # seconds
         DeclareLaunchArgument('time_domain', default_value='global'),# global, device, system

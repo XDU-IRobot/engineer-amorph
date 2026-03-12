@@ -19,9 +19,7 @@ AmorphMasterNode::AmorphMasterNode(const rclcpp::NodeOptions &options)
   L::I("node initialized."_green);
 }
 
-AmorphMasterNode::~AmorphMasterNode() {
-  L::I("node is being destroyed."_green);
-}
+AmorphMasterNode::~AmorphMasterNode() { L::I("node is being destroyed."_green); }
 
 void AmorphMasterNode::InitUserInput() {
   subs_.sbus_remote = this->create_subscription<sbus_interface::msg::Sbus>(
@@ -47,33 +45,33 @@ void AmorphMasterNode::InitUserInput() {
                    }
                    std::jthread([&]() -> std::optional<const std::shared_ptr<const SolutionBase>> {
                      planning_in_progress_.store(true);
-                     
+
                      // 获取 world->energy_unit_0_smoothed 变换
                      geometry_msgs::msg::TransformStamped transform_stamped;
                      try {
-                       transform_stamped = tf_buffer_->lookupTransform(
-                           "world", "energy_unit_0_smoothed", tf2::TimePointZero);
-                     } catch (const tf2::TransformException& ex) {
+                       transform_stamped =
+                           tf_buffer_->lookupTransform("world", "energy_unit_0_smoothed", tf2::TimePointZero);
+                     } catch (const tf2::TransformException &ex) {
                        L::E("Failed to get transform world->energy_unit_0_smoothed: %s", ex.what());
                        planning_in_progress_.store(false);
                        return std::nullopt;
                      }
-                     
+
                      // 将 Transform 转换为 Pose
                      geometry_msgs::msg::Pose object_pose;
                      object_pose.position.x = transform_stamped.transform.translation.x;
                      object_pose.position.y = transform_stamped.transform.translation.y;
                      object_pose.position.z = transform_stamped.transform.translation.z;
                      object_pose.orientation = transform_stamped.transform.rotation;
-                     
+
                      mtc_tasks_.pick_energy_unit_task.init(this->shared_from_this(), object_pose);
-                     mtc_tasks_.pick_energy_unit_task.plan(10);
+                     const bool success = mtc_tasks_.pick_energy_unit_task.plan(10);
                      const auto &task = mtc_tasks_.pick_energy_unit_task.task();
                      // task->reset();
                      task->publishAllSolutions(false);
                      planning_in_progress_.store(false);
-                     if (task->numSolutions() > 0) {
-                      task->execute(*task->solutions().front());
+                     if (success) {
+                       task->execute(*task->solutions().front());
                        return task->solutions().front();
                      }
                      return std::nullopt;

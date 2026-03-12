@@ -27,7 +27,7 @@ def generate_launch_description():
             "erosion_kernel_size": 5,
             "erosion_iterations": 1,
             "publish_masked_pointcloud": False,
-            "publish_annotated_image": False,
+            "publish_annotated_image": True,
             "smoothing_alpha": 0.3,
         }],
         output="screen",
