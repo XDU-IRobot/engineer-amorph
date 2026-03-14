@@ -124,10 +124,72 @@ void ExecuteTaskSolutionServer::Execute(std::shared_ptr<GoalHandle> goal_handle)
 
       stm32_.tx_data_.take_control = false;
 
+      // 添加延时，确保机械臂停止稳定后再进行下一个动作
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
     } else if (controller_name.find("gripper") != std::string::npos) {
       // 这是夹爪轨迹
-      L::I("Gripper trajectory execution - TODO");
-      // TODO: 实现夹爪控制
+      L::I("Gripper trajectory execution");
+      if (joint_traj.points.empty() || joint_traj.points.back().positions.empty()) {
+        L::W("Gripper trajectory is empty, skipping");
+        continue;
+      }
+
+      double target_position = joint_traj.points.back().positions[0];
+      L::I("Target gripper position: %f", target_position);
+
+      Stm32FeedbackCompressed::Mode stm32_mode = stm32_.rx_data().mode;
+      if (stm32_mode != Stm32FeedbackCompressed::kIdle && stm32_mode != Stm32FeedbackCompressed::kHostControl) {
+        L::W("STM32 not in idle/host-control mode (current: %d), aborting task!", static_cast<int>(stm32_mode));
+        result->error_code.val = moveit_msgs::msg::MoveItErrorCodes::CONTROL_FAILED;
+        goal_handle->abort(result);
+        return;
+      }
+
+      stm32_.tx_data_.take_control = true;
+      bool target_open = target_position > -0.01;
+      stm32_.tx_data_.gripper_open = target_open;
+
+      // 短暂延时，确保 STM32 收到命令并更新一次反馈状态
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+      rclcpp::Rate rate(50);
+      while (rclcpp::ok()) {
+        if (goal_handle->is_canceling()) {
+          stm32_.tx_data_.take_control = false;
+          result->error_code.val = moveit_msgs::msg::MoveItErrorCodes::PREEMPTED;
+          goal_handle->canceled(result);
+          L::I("Task solution execution canceled."_yellow);
+          return;
+        }
+
+        Stm32FeedbackCompressed::Mode current_mode = stm32_.rx_data().mode;
+        if (current_mode == Stm32FeedbackCompressed::kFault) {
+          stm32_.tx_data_.take_control = false;
+          result->error_code.val = moveit_msgs::msg::MoveItErrorCodes::CONTROL_FAILED;
+          goal_handle->abort(result);
+          L::E("STM32 fault during task execution!");
+          return;
+        }
+
+        bool reached_goal = false;
+        if (target_open) {
+          reached_goal = (stm32_.rx_data().gripper_state == Stm32FeedbackCompressed::kOpen);
+        } else {
+          reached_goal = (stm32_.rx_data().gripper_state == Stm32FeedbackCompressed::kClose);
+        }
+
+        if (reached_goal) {
+          break;
+        }
+
+        rate.sleep();
+      }
+
+      stm32_.tx_data_.take_control = false;
+
+      // 添加延时，确保夹爪动作完成稳定后再进行下一个动作
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
       // 更新反馈
       feedback->sub_id = static_cast<uint32_t>(i);

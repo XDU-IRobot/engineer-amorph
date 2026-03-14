@@ -7,4 +7,4 @@
     arm_action_server_name: "/arm_l_controller/follow_joint_trajectory"
     gripper_action_server_name: "/gripper_l_controller/gripper_cmd"
     joint_state_topic: "/joint_states"
-    joint_names: ["j1_l", "j2_l", "j3_l", "j4_l", "j5_l", "j6_l", "gripper_l"]
+    joint_names: ["j1_l", "j2_l", "j3_l", "j4_l", "j5_l", "j6_l", "gripper_joint_l_l"]

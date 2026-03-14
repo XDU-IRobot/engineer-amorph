@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--This does not replace URDF, and is not an extension of URDF.
+    This is a format for representing semantic information about the robot structure.
+    A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
+-->
+<robot name="amorph">
+    <!--GROUPS: Representation of a set of joints and links. This can be useful for specifying DOF to plan for, defining arms, end effectors, etc-->
+    <!--LINKS: When a link is specified, the parent joint of that link (if it exists) is automatically included-->
+    <!--JOINTS: When a joint is specified, the child link of that joint (which will always exist) is automatically included-->
+    <!--CHAINS: When a chain is specified, all the links along the chain (including endpoints) are included in the group. Additionally, all the joints that are parents to included links are also included. This means that joints along the chain and the parent joint of the base link are included in the group-->
+    <!--SUBGROUPS: Groups can also be formed by referencing to already defined group names-->
+    <group name="arm_l">
+        <joint name="j1_l"/>
+        <joint name="j2_l"/>
+        <joint name="j3_l"/>
+        <joint name="j4_l"/>
+        <joint name="j5_l"/>
+        <joint name="j6_l"/>
+    </group>
+    <group name="gripper_l">
+        <joint name="gripper_joint_l_l"/>
+        <joint name="gripper_joint_l_r"/>
+    </group>
+    <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
+    <group_state name="open" group="gripper_l">
+        <joint name="gripper_joint_l_l" value="0"/>
+    </group_state>
+    <group_state name="close" group="gripper_l">
+        <joint name="gripper_joint_l_l" value="-0.02"/>
+    </group_state>
+    <group_state name="hold_eu" group="arm_l">
+        <joint name="j1_l" value="0"/>
+        <joint name="j2_l" value="2.7771"/>
+        <joint name="j3_l" value="-2.6578"/>
+        <joint name="j4_l" value="0"/>
+        <joint name="j5_l" value="-0.2064"/>
+        <joint name="j6_l" value="0"/>
+    </group_state>
+    <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
+    <end_effector name="gripper_l" parent_link="l6_l" group="gripper_l"/>
+    <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
+    <virtual_joint name="base_vj_l" type="fixed" parent_frame="base_vj_l" child_link="base_link"/>
+    <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
+    <disable_collisions link1="base_link" link2="l1_l" reason="Adjacent"/>
+    <disable_collisions link1="base_link" link2="l2_l" reason="Never"/>
+    <disable_collisions link1="base_link" link2="l3_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_l" link2="l2_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_l" link2="l3_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_l" link2="l4_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_l" link2="l5_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_l" link2="l6_l" reason="Adjacent"/>
+    <disable_collisions link1="gripper_l_r" link2="l2_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_r" link2="l3_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_r" link2="l4_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_r" link2="l5_l" reason="Never"/>
+    <disable_collisions link1="gripper_l_r" link2="l6_l" reason="Adjacent"/>
+    <disable_collisions link1="l1_l" link2="l2_l" reason="Adjacent"/>
+    <disable_collisions link1="l1_l" link2="l3_l" reason="Never"/>
+    <disable_collisions link1="l2_l" link2="l3_l" reason="Adjacent"/>
+    <disable_collisions link1="l2_l" link2="l5_l" reason="Never"/>
+    <disable_collisions link1="l2_l" link2="l6_l" reason="Never"/>
+    <disable_collisions link1="l3_l" link2="l4_l" reason="Adjacent"/>
+    <disable_collisions link1="l3_l" link2="l5_l" reason="Never"/>
+    <disable_collisions link1="l3_l" link2="l6_l" reason="Never"/>
+    <disable_collisions link1="l4_l" link2="l5_l" reason="Adjacent"/>
+    <disable_collisions link1="l4_l" link2="l6_l" reason="Never"/>
+    <disable_collisions link1="l5_l" link2="l6_l" reason="Adjacent"/>
+</robot>

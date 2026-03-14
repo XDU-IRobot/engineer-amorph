@@ -49,7 +49,7 @@ void TransportNode::InitComm() {
     for (size_t i = 0; i < 6; ++i) {
       joint_state_msg.position.push_back(data.joint_positions[i]);
     }
-    joint_state_msg.position.push_back(data.gripper_open ? 0.0 : -0.02);  // 夹爪开=0，夹爪闭=-0.02
+    joint_state_msg.position.push_back((data.gripper_state == Stm32FeedbackCompressed::kOpen) ? 0.0 : -0.02);  // 夹爪开=0，夹爪闭=-0.02
     joint_state_msg.velocity.clear();
     joint_state_msg.velocity.reserve(6);
     for (size_t i = 0; i < 6; ++i) {
@@ -97,7 +97,7 @@ void TransportNode::InitActionServers() {
       std::make_unique<ArmActionServer>(this, params_manager_.data().arm_action_server_name,
                                         params_manager_.data().joint_names, *stm32_, trajectory_tracker_);
   gripper_action_server_ =
-      std::make_unique<GripperActionServer>(this, params_manager_.data().gripper_action_server_name);
+      std::make_unique<GripperActionServer>(this, params_manager_.data().gripper_action_server_name, *stm32_);
   execute_task_solution_server_ = std::make_unique<ExecuteTaskSolutionServer>(this, *stm32_, trajectory_tracker_);
   L::I("Action servers ok."_green);
 }
@@ -106,3 +106,4 @@ void TransportNode::InitActionServers() {
 
 #include <rclcpp_components/register_node_macro.hpp>
 RCLCPP_COMPONENTS_REGISTER_NODE(amorph::TransportNode)
+ 

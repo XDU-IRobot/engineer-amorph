@@ -85,7 +85,7 @@ def generate_launch_description():
         DeclareLaunchArgument('cloud_frame_id', default_value=''),
         DeclareLaunchArgument('connection_delay', default_value='10'),
         DeclareLaunchArgument('color_width', default_value='1280'),
-        DeclareLaunchArgument('color_height', default_value='720'),
+        DeclareLaunchArgument('color_height', default_value='800'),
         DeclareLaunchArgument('color_fps', default_value='10'),  # 降低帧率提高静态精度（优化：静态精度优先）
         DeclareLaunchArgument('color_format', default_value='RGB'),
         DeclareLaunchArgument('enable_color', default_value='true'),
@@ -119,7 +119,7 @@ def generate_launch_description():
         #Note: The color_denoising_level configuration is supported only when AE is enabled, and requires new firmware support.
 
         DeclareLaunchArgument('depth_width', default_value='1280'),
-        DeclareLaunchArgument('depth_height', default_value='720'),
+        DeclareLaunchArgument('depth_height', default_value='800'),
         DeclareLaunchArgument('depth_fps', default_value='10'),  # 降低帧率提高深度精度（优化：静态精度优先）
         DeclareLaunchArgument('depth_format', default_value='ANY'),
         DeclareLaunchArgument('enable_depth', default_value='true'),
@@ -187,7 +187,7 @@ def generate_launch_description():
         DeclareLaunchArgument('net_device_ip', default_value=''),
         DeclareLaunchArgument('net_device_port', default_value='0'),
         DeclareLaunchArgument('exposure_range_mode', default_value='default'),#default, ultimate or regular
-        DeclareLaunchArgument('log_level', default_value='none'),
+        DeclareLaunchArgument('log_level', default_value='info'),
         DeclareLaunchArgument('enable_publish_extrinsic', default_value='false'),
         DeclareLaunchArgument('enable_d2c_viewer', default_value='false'),
         DeclareLaunchArgument('disparity_to_depth_mode', default_value='HW'),
@@ -314,44 +314,19 @@ def generate_launch_description():
 
     def create_node_action(context, args):
         params = get_params(context, args)
-        ros_distro = os.environ.get("ROS_DISTRO", "humble")
         enable_respawn = LaunchConfiguration('enable_respawn').perform(context) == 'true'
-        if ros_distro == "foxy":
-            return [
-                Node(
-                    package="orbbec_camera",
-                    executable="orbbec_camera_node",
-                    name="ob_camera_node",
-                    namespace=LaunchConfiguration("camera_name"),
-                    parameters=params,
-                    output="screen",
-                    respawn=enable_respawn,
-                    respawn_delay=2.0
-                )
-            ]
-        else:
-            return [
-                GroupAction([
-                    PushRosNamespace(LaunchConfiguration("camera_name")),
-                    ComposableNodeContainer(
-                        name="camera_container",
-                        namespace="",
-                        package="rclcpp_components",
-                        executable="component_container",
-                        respawn=enable_respawn,
-                        respawn_delay=2.0,
-                        composable_node_descriptions=[
-                            ComposableNode(
-                                package="orbbec_camera",
-                                plugin="orbbec_camera::OBCameraNodeDriver",
-                                name=LaunchConfiguration("camera_name"),
-                                parameters=params,
-                            ),
-                        ],
-                        output="screen",
-                    )
-                ])
-            ]
+        return [
+            Node(
+                package="orbbec_camera",
+                executable="orbbec_camera_node",
+                name="ob_camera_node",
+                namespace=LaunchConfiguration("camera_name"),
+                parameters=params,
+                output="screen",
+                respawn=enable_respawn,
+                respawn_delay=2.0
+            )
+        ]
 
     return LaunchDescription(
         args + [

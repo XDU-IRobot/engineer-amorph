@@ -8,7 +8,7 @@
       arm_group_name: "arm_l"
       eef_name: "gripper_l"
       hand_group_name: "gripper_l"
-      hand_frame: "gripper_base_l"
+      hand_frame: "l6_l"
 
       # Poses
       hand_open_pose: "open"
@@ -40,7 +40,7 @@
       table_pose: [0.5, -0.25, 0.0, 0.0, 0.0, 0.0]
 
       # Gripper grasp frame transform [x,y,z,r,p,y]
-      grasp_frame_transform: [0.0, 0.075, 0.11, -1.57, 3.1415927, 0.0]
+      grasp_frame_transform: [0.0, -0.03, 0.085, 0.0, 3.1415927, 0.0]
 
       # Place pose [x,y,z,r,p,y]
       place_pose: [0.0, -0.15, 0.0, 0.0, 0.0, 0.0]

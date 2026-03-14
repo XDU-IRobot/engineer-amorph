@@ -14,7 +14,7 @@ def generate_launch_description():
         description='Enable automatic respawn on failure (for production use)'
     )
     moveit_config = (
-        MoveItConfigsBuilder("amorph", package_name="amorph_arm_v2_moveit_config")
+        MoveItConfigsBuilder("amorph", package_name="amorph_arm_v3_moveit_config")
         .planning_pipelines(pipelines=["ompl"])
         .robot_description(file_path="config/amorph.urdf.xacro")
         # .trajectory_execution(file_path="config/moveit_controllers.yaml")

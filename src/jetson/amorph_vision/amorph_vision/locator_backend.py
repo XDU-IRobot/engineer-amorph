@@ -141,9 +141,6 @@ class LocatorBackend:
             # axis_direction 被约束为指向上方（y < 0），底面在其反方向
             bottom_offset = (self.cylinder_height / 2.0) * (-axis_direction)
             
-            # x_tf = x_meters + surface_offset[0] + bottom_offset[0]
-            # y_tf = y_meters + surface_offset[1] + bottom_offset[1]
-            # z_tf = z_meters + surface_offset[2] + bottom_offset[2]
             x_tf = x_meters + surface_offset[0] + bottom_offset[0]
             y_tf = y_meters + surface_offset[1] + bottom_offset[1]
             z_tf = z_meters + surface_offset[2] + bottom_offset[2]

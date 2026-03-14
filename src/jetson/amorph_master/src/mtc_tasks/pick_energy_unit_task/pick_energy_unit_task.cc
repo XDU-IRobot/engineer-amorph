@@ -104,12 +104,11 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
    *               Move to Pick                       *
    ***************************************************/
   {
-    mtc::stages::Connect::GroupPlannerVector planners = {{params.arm_group_name, sampling_planner},
-                                                         {params.hand_group_name, sampling_planner}};
+    mtc::stages::Connect::GroupPlannerVector planners = {{params.arm_group_name, sampling_planner}};
     auto stage = std::make_unique<mtc::stages::Connect>("move to pick", planners);
     stage->setTimeout(5.0);
     stage->properties().configureInitFrom(mtc::Stage::PARENT);
-    stage->properties().set("trajectory_execution_info", both_exec_info);
+    stage->properties().set("trajectory_execution_info", arm_exec_info);
     t.add(std::move(stage));
   }
 
@@ -146,7 +145,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
       // Set hand forward direction
       geometry_msgs::msg::Vector3Stamped vec;
       vec.header.frame_id = params.hand_frame;
-      vec.vector.z = 1.0;
+      vec.vector.y = -1.0;
       stage->setDirection(vec);
       grasp->insert(std::move(stage));
     }

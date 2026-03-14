@@ -14,7 +14,7 @@ def generate_launch_description():
         description='Enable automatic respawn on failure (for production use)'
     )
     moveit_config = (
-        MoveItConfigsBuilder("amorph", package_name="amorph_arm_v2_moveit_config")
+        MoveItConfigsBuilder("amorph", package_name="amorph_arm_v3_moveit_config")
         .planning_pipelines(pipelines=["ompl"])
         .robot_description(file_path="config/amorph.urdf.xacro")
         # .trajectory_execution(file_path="config/moveit_controllers.yaml")
@@ -51,7 +51,7 @@ def generate_launch_description():
                 plugin="tf2_ros::StaticTransformBroadcasterNode",
                 name="static_tf_base_to_arm",
                 parameters=[{
-                    "child_frame_id": "l1_l",
+                    "child_frame_id": "base_link",
                     "frame_id": "arm_base",
                 }],
             ),
@@ -63,13 +63,30 @@ def generate_launch_description():
                 parameters=[{
                     "child_frame_id": "camera_link",
                     "frame_id": "arm_base",
-                    "translation.x": -0.5,  # 用easy_handeye做好手眼标定之后把结果填到这来
-                    "translation.y": -0.1577,
-                    "translation.z": 0.43,
-                    "rotation.x": -0.004162,
-                    "rotation.y": -0.023165,
-                    "rotation.z": -0.002643,
-                    "rotation.w": 0.999720,
+                    "translation.x": -0.44,  # 用easy_handeye做好手眼标定之后把结果填到这来
+                    "translation.y": -0.043277,
+                    "translation.z": 0.406021,
+                    "rotation.x": -0.018837,
+                    "rotation.y": -0.016836,
+                    "rotation.z": -0.017407,
+                    "rotation.w": 0.999529,
+                }],
+            ),
+            # Static TF(j4 -> apriltag)
+            ComposableNode(
+                package="tf2_ros",
+                plugin="tf2_ros::StaticTransformBroadcasterNode",
+                name="static_tf_base_to_cam",
+                parameters=[{
+                    "child_frame_id": "apriltag_link",
+                    "frame_id": "l4_l",
+                    "translation.x": 0.0,
+                    "translation.y": 0.015,
+                    "translation.z": 0.189,
+                    "rotation.x": -0.7071068,
+                    "rotation.y": 0.0,
+                    "rotation.z": 0.0,
+                    "rotation.w": 0.7071068,
                 }],
             ),
             # Robot state publisher

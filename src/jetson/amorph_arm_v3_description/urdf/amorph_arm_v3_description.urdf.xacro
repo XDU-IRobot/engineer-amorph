@@ -1,0 +1,516 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  xmlns:xacro="http://www.ros.org/wiki/xacro"
+  name="amorph_arm_v3_description">
+  <link
+    name="base_link">
+    <!-- <inertial>
+      <origin
+        xyz="0.0689460607066349 0.06286132151005 0.00895517518524798"
+        rpy="0 0 0" />
+      <mass
+        value="0.726499399394561" />
+      <inertia
+        ixx="0.00130900113885216"
+        ixy="0.000436732238370565"
+        ixz="3.71282851889001E-05"
+        iyy="0.00160612957360141"
+        iyz="3.47673596438255E-05"
+        izz="0.00284678523726882" />
+    </inertial> -->
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="l1_l">
+    <inertial>
+      <origin
+        xyz="0.000399028728453377 -0.00145822628751979 0.071680046920875"
+        rpy="0 0 0" />
+      <mass
+        value="0.626786768686478" />
+      <inertia
+        ixx="0.0004649590967125"
+        ixy="1.21087399115019E-06"
+        ixz="1.02252638129336E-05"
+        iyy="0.00076725798108167"
+        iyz="9.77138064720792E-07"
+        izz="0.000546846086980731" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l1_l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l1_l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="j1_l"
+    type="revolute">
+    <origin
+      xyz="0.0875 0.0775 -0.009544"
+      rpy="0 0 3.1416" />
+    <parent
+      link="base_link" />
+    <child
+      link="l1_l" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.698132"
+      upper="0.349066"
+      effort="1"
+      velocity="1" />
+  </joint>
+  <link
+    name="l2_l">
+    <inertial>
+      <origin
+        xyz="-0.181336547071912 0.0371430297201411 -0.018364277220888"
+        rpy="0 0 0" />
+      <mass
+        value="1.21059546920402" />
+      <inertia
+        ixx="0.00124394510053564"
+        ixy="0.00283572324595504"
+        ixz="-1.23186361641442E-05"
+        iyy="0.0108589251630927"
+        iyz="2.42550664490996E-06"
+        izz="0.0120250433656986" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l2_l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.650980392156863 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l2_l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="j2_l"
+    type="revolute">
+    <origin
+      xyz="0 0.0455 0.087294"
+      rpy="1.5708 2.933375 -3.1416" />
+    <parent
+      link="l1_l" />
+    <child
+      link="l2_l" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="1.362579"
+      upper="2.93337535"
+      effort="1"
+      velocity="1" />
+  </joint>
+  <link
+    name="l3_l">
+    <inertial>
+      <origin
+        xyz="0.0629197410859799 0.00151764797488289 -0.0970952919270327"
+        rpy="0 0 0" />
+      <mass
+        value="0.434881037294724" />
+      <inertia
+        ixx="0.000174716305493577"
+        ixy="3.48645578124657E-07"
+        ixz="3.74504673106663E-07"
+        iyy="0.000386641526502491"
+        iyz="-3.5044761466706E-08"
+        izz="0.000417254468236996" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l3_l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l3_l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="j3_l"
+    type="revolute">
+    <origin
+      xyz="-0.4 0.0845 0.015"
+      rpy="0 0 -3.5" />
+    <parent
+      link="l2_l" />
+    <child
+      link="l3_l" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.933375"
+      upper="0.0"
+      effort="1"
+      velocity="1" />
+  </joint>
+  <link
+    name="l4_l">
+    <inertial>
+      <origin
+        xyz="0.00149049987342798 0.000519328848565911 0.205443491424593"
+        rpy="0 0 0" />
+      <mass
+        value="0.377931109559662" />
+      <inertia
+        ixx="0.000357135825013535"
+        ixy="-6.85550705251364E-11"
+        ixz="-2.18408025592872E-09"
+        iyy="0.000329332103776799"
+        iyz="2.85469495488621E-07"
+        izz="4.85182559214663E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l4_l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l4_l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="j4_l"
+    type="revolute">
+    <origin
+      xyz="0.134 0 -0.08625"
+      rpy="0 1.5708 0" />
+    <parent
+      link="l3_l" />
+    <child
+      link="l4_l" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="1"
+      velocity="1" />
+  </joint>
+  <link
+    name="l5_l">
+    <inertial>
+      <origin
+        xyz="-0.00678185559843369 -3.80664368286598E-06 -0.104616055381425"
+        rpy="0 0 0" />
+      <mass
+        value="0.214754417508709" />
+      <inertia
+        ixx="0.000114197960983809"
+        ixy="1.9829257985392E-09"
+        ixz="-1.80923234788329E-06"
+        iyy="8.80327439885963E-05"
+        iyz="-2.67106126570546E-08"
+        izz="6.51174381999788E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l5_l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l5_l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="j5_l"
+    type="revolute">
+    <origin
+      xyz="0.049 0 0.3585"
+      rpy="0 1.5708 0" />
+    <parent
+      link="l4_l" />
+    <child
+      link="l5_l" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-1.745329"
+      upper="1.570796"
+      effort="1"
+      velocity="1" />
+  </joint>
+  <link
+    name="l6_l">
+    <inertial>
+      <origin
+        xyz="-1.09217813705209E-05 0.0606463224543543 9.32631378874893E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.132265679239691" />
+      <inertia
+        ixx="1.81504161251103E-05"
+        ixy="1.04350480941818E-09"
+        ixz="-3.64056721817881E-08"
+        iyy="7.30474107675619E-05"
+        iyz="-3.06768607949037E-09"
+        izz="6.61423298958208E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l6_l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/l6_l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="j6_l"
+    type="revolute">
+    <origin
+      xyz="-0.083 0 -0.061"
+      rpy="1.5708 1.5708 0" />
+    <parent
+      link="l5_l" />
+    <child
+      link="l6_l" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="1"
+      velocity="1" />
+  </joint>
+  <link
+    name="gripper_l_l">
+    <inertial>
+      <origin
+        xyz="0.047271370586313 0.00110000000000032 0.031421285394392"
+        rpy="0 0 0" />
+      <mass
+        value="0.0126986391611213" />
+      <inertia
+        ixx="6.3869844242041E-06"
+        ixy="-9.09600379854156E-21"
+        ixz="1.10029532822984E-06"
+        iyy="6.59678472130803E-06"
+        iyz="-7.45758765806685E-21"
+        izz="1.61858732563873E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/gripper_l_l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/gripper_l_l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="gripper_joint_l_l"
+    type="prismatic">
+    <origin
+      xyz="0 0 0"
+      rpy="-1.5708 0 3.1416" />
+    <parent
+      link="l6_l" />
+    <child
+      link="gripper_l_l" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.1"
+      upper="0.05"
+      effort="1"
+      velocity="1" />
+  </joint>
+  <link
+    name="gripper_l_r">
+    <inertial>
+      <origin
+        xyz="-0.0472713705863133 -0.00109999999999925 0.0314212853943918"
+        rpy="0 0 0" />
+      <mass
+        value="0.0126986391611212" />
+      <inertia
+        ixx="6.38698442420408E-06"
+        ixy="-1.06634071904312E-21"
+        ixz="-1.10029532822983E-06"
+        iyy="6.59678472130799E-06"
+        iyz="-2.95152460968256E-21"
+        izz="1.6185873256387E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/gripper_l_r.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://amorph_arm_v3_description/meshes/gripper_l_r.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="gripper_joint_l_r"
+    type="prismatic">
+    <origin
+      xyz="0 0 0"
+      rpy="-1.5708 0 3.1416" />
+    <parent
+      link="l6_l" />
+    <child
+      link="gripper_l_r" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-1"
+      upper="1"
+      effort="1"
+      velocity="1" />
+    <mimic
+      joint="gripper_joint_l_l"
+      multiplier="-1"
+      offset="0" />
+  </joint>
+</robot>
