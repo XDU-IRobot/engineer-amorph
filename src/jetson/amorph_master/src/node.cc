@@ -12,6 +12,7 @@ using VM = VarMemory;
 
 AmorphMasterNode::AmorphMasterNode(const rclcpp::NodeOptions &options)
     : Node("amorph_master_node", options),
+      execute_task_client_{rclcpp_action::create_client<ExecuteTaskSolution>(this, "/execute_task_solution")},
       tf_buffer_{std::make_shared<tf2_ros::Buffer>(this->get_clock())},
       tf_listener_{std::make_shared<tf2_ros::TransformListener>(*tf_buffer_)} {
   MoveitHelper::GetInstance().Init(std::shared_ptr<rclcpp::Node>{this});
@@ -71,7 +72,13 @@ void AmorphMasterNode::InitUserInput() {
                      task->publishAllSolutions(false);
                      planning_in_progress_.store(false);
                      if (success) {
-                       task->execute(*task->solutions().front());
+                       const auto &front_solution = *task->solutions().front();
+                       moveit_task_constructor_msgs::msg::Solution msg;
+                       front_solution.toMsg(msg);
+                       pending_solution_ = msg;
+                       current_step_ = 0;
+                       L::I("Plan stored successfully. Total steps: %zu. Press Ctrl+S to execute step-by-step."_green,
+                            pending_solution_.sub_trajectory.size());
                        return task->solutions().front();
                      }
                      return std::nullopt;
@@ -79,7 +86,67 @@ void AmorphMasterNode::InitUserInput() {
                      // L::I("Executing pick and place task..."_greenbg);
                      // task->execute(*best_solution);
                    }).detach();
-                 });
+                 })
+      .OnKeyDown(RemoteControl::KEY_S, RemoteControl::KEY_LCTRL, [&](const rm::modules::KeyEvent &) {
+        L::I("Key Ctrl+S down"_green);
+        if (pending_solution_.sub_trajectory.empty()) {
+          L::W("No plan available. Press Ctrl+A first."_yellow);
+          return;
+        }
+        if (current_step_ >= pending_solution_.sub_trajectory.size()) {
+          L::I("All steps completed for current plan."_green);
+          return;
+        }
+        if (executing_in_progress_.load()) {
+          L::W("Execution in progress, ignored."_yellow);
+          return;
+        }
+
+        std::jthread([&]() {
+          executing_in_progress_.store(true);
+
+          auto goal = ExecuteTaskSolution::Goal();
+          goal.solution.sub_trajectory.push_back(pending_solution_.sub_trajectory[current_step_]);
+          // Preserve start_scene from the entire solution
+          goal.solution.start_scene = pending_solution_.start_scene;
+
+          L::I("Executing step %zu / %zu"_green, current_step_ + 1, pending_solution_.sub_trajectory.size());
+
+          auto send_goal_options = rclcpp_action::Client<ExecuteTaskSolution>::SendGoalOptions();
+
+          auto goal_handle_future = execute_task_client_->async_send_goal(goal, send_goal_options);
+          if (goal_handle_future.wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
+            L::E("Action server not available or rejected goal."_red);
+            executing_in_progress_.store(false);
+            return;
+          }
+
+          auto goal_handle = goal_handle_future.get();
+          if (!goal_handle) {
+            L::E("Goal was rejected by server"_red);
+            executing_in_progress_.store(false);
+            return;
+          }
+
+          auto result_future = execute_task_client_->async_get_result(goal_handle);
+          auto result = result_future.get();
+
+          if (result.code == rclcpp_action::ResultCode::SUCCEEDED &&
+              result.result->error_code.val == moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
+            L::I("Step %zu executed successfully."_green, current_step_ + 1);
+            current_step_++;
+            if (current_step_ >= pending_solution_.sub_trajectory.size()) {
+              L::I("All steps of the current plan completed. Plan consumed."_green);
+              pending_solution_ = moveit_task_constructor_msgs::msg::Solution();
+              current_step_ = 0;
+            }
+          } else {
+            L::E("Execution failed for step %zu."_red, current_step_ + 1);
+          }
+
+          executing_in_progress_.store(false);
+        }).detach();
+      });
   subs_.vt_remote = this->create_subscription<RemoteControl>(
       "/rm_referee/remote_control", rclcpp::SensorDataQoS(),
       [this](RemoteControl::SharedPtr msg) { keyboard_handler.Update(msg->keyboard_value); });

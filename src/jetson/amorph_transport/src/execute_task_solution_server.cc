@@ -61,6 +61,16 @@ void ExecuteTaskSolutionServer::Execute(std::shared_ptr<GoalHandle> goal_handle)
 
     L::I("Executing sub-trajectory %zu/%zu for controller: %s", i + 1, solution.sub_trajectory.size(),
          controller_name.c_str());
+         
+    // 如果当前执行的是第一个子轨迹，则先把下发的命令设置成机械臂的当前状态
+    // 有些子轨迹只包含夹爪命令/机械臂命令，相应的也只会设置stm32的tx data中的夹爪/机械臂部分，另一部分不会改变，所以一旦之前存在的状态与轨迹的起始状态不匹配，就会导致机械臂直接起飞
+    if (i == 0) {
+      const auto rx_data = stm32_.rx_data();
+      for (int j = 0; j < 6; ++j) {
+        stm32_.tx_data_.target_joint_positions[j] = rx_data.joint_positions[j];
+      }
+      stm32_.tx_data_.gripper_open = (rx_data.gripper_state == Stm32FeedbackCompressed::kOpen);
+    }
 
     // 跳过空轨迹（如 ModifyPlanningScene 等不产生运动的 stage）
     if (joint_traj.points.empty()) {
@@ -124,8 +134,8 @@ void ExecuteTaskSolutionServer::Execute(std::shared_ptr<GoalHandle> goal_handle)
 
       stm32_.tx_data_.take_control = false;
 
-      // 添加延时，确保机械臂停止稳定后再进行下一个动作
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      // // 添加延时，确保机械臂停止稳定后再进行下一个动作
+      // std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     } else if (controller_name.find("gripper") != std::string::npos) {
       // 这是夹爪轨迹

@@ -86,7 +86,7 @@ def generate_launch_description():
         DeclareLaunchArgument('connection_delay', default_value='10'),
         DeclareLaunchArgument('color_width', default_value='1280'),
         DeclareLaunchArgument('color_height', default_value='800'),
-        DeclareLaunchArgument('color_fps', default_value='10'),  # 降低帧率提高静态精度（优化：静态精度优先）
+        DeclareLaunchArgument('color_fps', default_value='15'),  # 降低帧率提高静态精度（优化：静态精度优先）
         DeclareLaunchArgument('color_format', default_value='RGB'),
         DeclareLaunchArgument('enable_color', default_value='true'),
         DeclareLaunchArgument('color_qos', default_value='default'),
@@ -120,7 +120,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument('depth_width', default_value='1280'),
         DeclareLaunchArgument('depth_height', default_value='800'),
-        DeclareLaunchArgument('depth_fps', default_value='10'),  # 降低帧率提高深度精度（优化：静态精度优先）
+        DeclareLaunchArgument('depth_fps', default_value='15'),  # 降低帧率提高深度精度（优化：静态精度优先）
         DeclareLaunchArgument('depth_format', default_value='ANY'),
         DeclareLaunchArgument('enable_depth', default_value='true'),
         DeclareLaunchArgument('depth_qos', default_value='default'),

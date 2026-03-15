@@ -2,7 +2,7 @@
   ros__parameters:
     pick_energy_unit_task:
       # Total planning attempts
-      max_solutions: 10
+      max_solutions: 30
 
       # Planning group and link names
       arm_group_name: "arm_l"
@@ -40,7 +40,7 @@
       table_pose: [0.5, -0.25, 0.0, 0.0, 0.0, 0.0]
 
       # Gripper grasp frame transform [x,y,z,r,p,y]
-      grasp_frame_transform: [0.0, -0.03, 0.085, 0.0, 3.1415927, 0.0]
+      grasp_frame_transform: [0.0, -0.035, 0.085, 0.0, 3.1415927, 0.0]
 
       # Place pose [x,y,z,r,p,y]
       place_pose: [0.0, -0.15, 0.0, 0.0, 0.0, 0.0]
@@ -51,5 +51,5 @@
       approach_object_max_dist: 0.11
 
       # Valid height range when lifting an object after pick
-      lift_object_min_dist: 0.01
-      lift_object_max_dist: 0.1
+      lift_object_min_dist: 0.13
+      lift_object_max_dist: 0.25

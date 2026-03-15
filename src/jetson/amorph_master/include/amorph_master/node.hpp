@@ -13,6 +13,9 @@
 #include "sbus_interface/msg/sbus.hpp"
 #include "rm_referee_msgs/msg/remote_control.hpp"
 
+#include <moveit_task_constructor_msgs/action/execute_task_solution.hpp>
+#include <moveit_task_constructor_msgs/msg/solution.hpp>
+
 #include "pick_place_task/pick_place_task.hpp"
 #include "pick_energy_unit_task/pick_energy_unit_task.hpp"
 
@@ -32,7 +35,13 @@ class AmorphMasterNode : public rclcpp::Node {
   void InitUserInput();
 
   std::atomic<bool> planning_in_progress_{false};
-  
+  std::atomic<bool> executing_in_progress_{false};
+  moveit_task_constructor_msgs::msg::Solution pending_solution_{};
+  size_t current_step_{0};
+
+  using ExecuteTaskSolution = moveit_task_constructor_msgs::action::ExecuteTaskSolution;
+  rclcpp_action::Client<ExecuteTaskSolution>::SharedPtr execute_task_client_;
+
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
