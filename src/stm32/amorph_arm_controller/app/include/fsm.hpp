@@ -274,6 +274,7 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
     target_p[3] = e.target_joint_positions[3];
     target_p[4] = e.target_joint_positions[4];
     target_p[5] = e.target_joint_positions[5];
+    target_p[6] = e.gripper_open ? 1.f : 0.f;
     globals->arm_controller.GoTo(target_p);
     return No_State_Change;
   }

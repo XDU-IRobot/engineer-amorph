@@ -2,7 +2,6 @@
 
 #include <librm.hpp>
 
-#include <atomic>
 #include <functional>
 
 /**
@@ -21,12 +20,17 @@ struct __attribute__((packed)) Stm32FeedbackCompressed {
   rm::modules::f16 joint_positions[6];   ///< 当前关节位置，单位：rad
   rm::modules::f16 joint_velocities[6];  ///< 当前关节速度，单位：rad/s
   rm::modules::f16 joint_efforts[6];     ///< 当前关节力矩，单位：Nm，注意夹爪的effort没有实际意义，可以忽略
-  bool gripper_open;                     ///< 夹爪开合状态，true表示开，false表示闭
+  enum GripperState : uint8_t {
+    kClose = 0,
+    kOpen,
+    kClosing,
+    kOpening,
+  } gripper_state;  ///< 夹爪状态，定义见gripper_controller.hpp
 };
 struct Stm32Feedback {
   Stm32Feedback() = default;
   explicit Stm32Feedback(const Stm32FeedbackCompressed &compressed)
-      : mode(compressed.mode), gripper_open(compressed.gripper_open) {
+      : mode(compressed.mode), gripper_state(compressed.gripper_state) {
     for (size_t i = 0; i < 6; ++i) {
       joint_positions[i] = rm::modules::F16ToF32(compressed.joint_positions[i]);
       joint_velocities[i] = rm::modules::F16ToF32(compressed.joint_velocities[i]);
@@ -36,7 +40,7 @@ struct Stm32Feedback {
   Stm32FeedbackCompressed ToCompressed() const {
     Stm32FeedbackCompressed compressed;
     compressed.mode = mode;
-    compressed.gripper_open = gripper_open;
+    compressed.gripper_state = gripper_state;
     for (size_t i = 0; i < 6; ++i) {
       compressed.joint_positions[i] = rm::modules::F32ToF16(joint_positions[i]);
       compressed.joint_velocities[i] = rm::modules::F32ToF16(joint_velocities[i]);
@@ -48,7 +52,7 @@ struct Stm32Feedback {
   float joint_positions[6];            ///< 当前关节位置，单位：rad
   float joint_velocities[6];           ///< 当前关节速度，单位：rad/s
   float joint_efforts[6];              ///< 当前关节力矩，单位：Nm，注意夹爪的effort没有实际意义，可以忽略
-  bool gripper_open;                   ///< 夹爪开合状态，true表示开，false表示闭
+  Stm32FeedbackCompressed::GripperState gripper_state;  ///< 夹爪状态，定义见gripper_controller.hpp
 };
 
 /**

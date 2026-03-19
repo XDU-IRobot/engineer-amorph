@@ -6,10 +6,6 @@
 Globals *globals{nullptr};
 
 namespace {
-
-DynamicModelImproved dmi;
-DynamicModelImproved::Vec3 compensate;
-
 void MainLoop() {
   globals->device_manager.Update();
   globals->host_connection_watcher.Update();
@@ -17,10 +13,8 @@ void MainLoop() {
   globals->actuator.UpdateEncoderCounter();
 
   fsm::arm.receive(fsm::event::ControlLoop{globals->actuator.GetPositions(), globals->actuator.GetVelocities()});
-  compensate = dmi.Inverse(
-      {globals->actuator.GetPositions()[0], globals->actuator.GetPositions()[1], globals->actuator.GetPositions()[2]});
 
-  static int loop_divisor;
+  static volatile int loop_divisor;
   loop_divisor = (loop_divisor + 1) % 100;
 
   if ((loop_divisor % 10) == 0) { /** 50hz subloop **/
@@ -37,8 +31,8 @@ void MainLoop() {
     std::memcpy(globals->host.tx_data_.joint_positions, current_pos.data(), sizeof(float) * 6);
     std::memcpy(globals->host.tx_data_.joint_velocities, current_vel.data(), sizeof(float) * 6);
     std::memcpy(globals->host.tx_data_.joint_efforts, current_effort.data(), sizeof(float) * 6);
-    globals->host.tx_data_.gripper_open =
-        (globals->arm_controller.gripper().state() == GripperController<>::State::kOpen);
+    globals->host.tx_data_.gripper_state =
+        static_cast<Stm32FeedbackCompressed::GripperState>(globals->arm_controller.gripper().state());
     globals->host.Write();
   }
   if ((loop_divisor % 25) == 1) { /** 20hz subloop 1 **/

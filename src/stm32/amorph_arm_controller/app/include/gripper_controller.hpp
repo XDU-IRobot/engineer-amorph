@@ -16,8 +16,8 @@ class GripperController {
  public:
   using CallbackType = std::conditional_t<UseStdFunction, std::function<void()>, etl::delegate<void()>>;
 
-  enum State {
-    kClose,
+  enum State : uint8_t {
+    kClose = 0,
     kOpen,
     kClosing,
     kOpening,
