@@ -60,22 +60,55 @@ class T265:
             dtype=np.float64,
         )
 
+    def _quat_to_euler(self, q):
+        """四元数转欧拉角，返回(yaw, pitch, roll)，单位为弧度"""
+        q = self._quat_normalize(q)
+        w, x, y, z = q
+        # Yaw (Z), Pitch (Y), Roll (X)
+        t0 = +2.0 * (w * z + x * y)
+        t1 = +1.0 - 2.0 * (y * y + z * z)
+        yaw = np.arctan2(t0, t1)
+
+        t2 = +2.0 * (w * y - z * x)
+        t2 = np.clip(t2, -1.0, 1.0)
+        pitch = np.arcsin(t2)
+
+        t3 = +2.0 * (w * x + y * z)
+        t4 = +1.0 - 2.0 * (x * x + y * y)
+        roll = np.arctan2(t3, t4)
+        return yaw, pitch, roll
+
+    def _euler_to_quat(self, yaw, pitch, roll):
+        """欧拉角(yaw, pitch, roll)转四元数，输入为弧度，返回(w, x, y, z)"""
+        cy = np.cos(yaw * 0.5)
+        sy = np.sin(yaw * 0.5)
+        cp = np.cos(pitch * 0.5)
+        sp = np.sin(pitch * 0.5)
+        cr = np.cos(roll * 0.5)
+        sr = np.sin(roll * 0.5)
+
+        w = cr * cp * cy + sr * sp * sy
+        x = sr * cp * cy - cr * sp * sy
+        y = cr * sp * cy + sr * cp * sy
+        z = cr * cp * sy - sr * sp * cy
+        return np.array([w, x, y, z], dtype=np.float64)
+
     def _apply_origin_transform(self, raw_pose):
         if self._origin_pose is None:
             return raw_pose
 
         origin_t = np.asarray(self._origin_pose['translation'], dtype=np.float64)
-        origin_q = self._quat_normalize(self._origin_pose['rotation'])
-
         raw_t = np.asarray(raw_pose['translation'], dtype=np.float64)
+        rel_t = raw_t - origin_t
+
+        # 只消除yaw的相对变化，pitch和roll保持当前
+        origin_q = self._quat_normalize(self._origin_pose['rotation'])
         raw_q = self._quat_normalize(raw_pose['rotation'])
-
-        delta_t = raw_t - origin_t
-        q_origin_inv = self._quat_conjugate(origin_q)
-        rot_origin_inv = self._quat_to_rotation_matrix(q_origin_inv)
-        rel_t = rot_origin_inv @ delta_t
-
-        rel_q = self._quat_normalize(self._quat_multiply(q_origin_inv, raw_q))
+        origin_yaw, _, _ = self._quat_to_euler(origin_q)
+        raw_yaw, raw_pitch, raw_roll = self._quat_to_euler(raw_q)
+        rel_yaw = raw_yaw - origin_yaw
+        # 新四元数：rel_yaw + 当前pitch/roll
+        rel_q = self._euler_to_quat(rel_yaw, raw_pitch, raw_roll)
 
         return {
             'translation': tuple(float(v) for v in rel_t),
@@ -152,7 +185,7 @@ class T265:
         raise RuntimeError(f"T265 initialization failed after {retries} retries: {last_error}")
     
     def get_pose_data(self):
-        """获取姿态数据"""
+        """获取姿态数据（已转换至ROS坐标系：前X+ 左Y+ 上Z+）"""
         if self.pipeline is None:
             raise RuntimeError("T265 pipeline is not initialized")
 
@@ -160,17 +193,21 @@ class T265:
         pose_frame = frames.first_or_default(rs.stream.pose)
         if pose_frame:
             pose_data = pose_frame.as_pose_frame().get_pose_data()
+            
+            # --- 坐标系转换：T265 -> ROS ---
+            # T265 原生: X右(+), Y上(+), Z后(+)
+            # ROS 标准: X前(-Z_raw), Y左(-X_raw), Z上(+Y_raw)
             raw_pose = {
                 'translation': (
-                    pose_data.translation.x,
-                    pose_data.translation.y,
-                    pose_data.translation.z,
+                    -pose_data.translation.z,
+                    -pose_data.translation.x,
+                    pose_data.translation.y, 
                 ),
                 'rotation': (
-                    pose_data.rotation.w,
-                    pose_data.rotation.x,
-                    pose_data.rotation.y,
-                    pose_data.rotation.z,
+                    pose_data.rotation.w, 
+                    -pose_data.rotation.z,
+                    -pose_data.rotation.x,
+                    pose_data.rotation.y, 
                 ),
                 'tracker_confidence': int(pose_data.tracker_confidence),
                 'mapper_confidence': int(pose_data.mapper_confidence),
@@ -199,37 +236,45 @@ class T265:
         return None
 
     def soft_reset(self):
-        """软件归零：将当前位姿设为新原点。"""
+        """软件归零：将当前平移和yaw设为新原点，pitch和roll保持原样。"""
         if self._last_raw_pose is not None:
-            self._origin_pose = self._last_raw_pose
+            # 只保存平移和yaw
+            pose = self._last_raw_pose.copy()
+            q = self._quat_normalize(pose['rotation'])
+            yaw, _, _ = self._quat_to_euler(q)
+            # 保存yaw到_origin_pose，pitch/roll不参与重置
+            pose['rotation'] = tuple(q)
+            pose['yaw'] = yaw
+            self._origin_pose = pose
             self._reset_on_next_frame = False
-            logger.info("T265 soft reset: current pose set as origin")
+            logger.info("T265 soft reset: current translation and yaw set as origin")
         else:
             # 尚未拿到有效pose时，延迟到下一帧完成归零
             self._reset_on_next_frame = True
             logger.info("T265 soft reset requested: waiting for next valid pose frame")
 
     def hard_reset(self, reconnect=True):
-        """硬复位：调用设备hardware_reset，并可选自动重连pipeline。"""
-        device = self._find_device()
-        if device is None:
-            raise RuntimeError("T265 device not found for hardware reset")
+        """硬复位：通过pipeline stop再start实现，不调用hardware_reset。"""
+        if self.pipeline is None:
+            logger.warning("T265 hard reset: pipeline not initialized")
+            return
+        try:
+            self.pipeline.stop()
+            logger.info("T265 pipeline stopped for hard reset")
+        except Exception as e:
+            logger.warning(f"T265 pipeline stop failed during hard reset: {e}")
 
-        self.stop()
-        logger.warning("T265 hard reset triggered")
-        device.hardware_reset()
-
-        # 硬复位后清空软件原点状态
-        self.pipeline = None
-        self.config = None
+        # 清空软件原点状态
         self._origin_pose = None
         self._last_raw_pose = None
         self._reset_on_next_frame = False
 
         if reconnect:
-            time.sleep(1.0)
-            self._start_pipeline(self.start_retries, self.retry_interval)
-            logger.info("T265 hard reset complete and reconnected")
+            try:
+                self.pipeline.start(self.config)
+                logger.info("T265 pipeline restarted for hard reset")
+            except Exception as e:
+                logger.error(f"T265 pipeline restart failed during hard reset: {e}")
         else:
             logger.info("T265 hard reset complete (reconnect disabled)")
     

@@ -5,6 +5,7 @@ import time
 import logging
 import colorlog
 import traceback
+from scipy.spatial.transform import Rotation
 
 from packet_builder import PacketBuilder
 from t265 import T265
@@ -112,12 +113,16 @@ def main():
 
                 if button_reset.is_pressed():
                     logger.info("Reset button pressed: Soft resetting T265")
-                    device.soft_reset()
+                    device.hard_reset()
+
+                r = Rotation.from_quat([pose['rx'], pose['ry'], pose['rz'], pose['w']])
+                euler_deg = r.as_euler('xyz', degrees=True)
 
                 debug_str = "\n".join([
                     "Pose data:",
                     f"  Translation: x={pose['x']:.3f} m, y={pose['y']:.3f} m, z={pose['z']:.3f} m",
                     f"  Rotation (quaternion): w={pose['w']:.3f}, x={pose['rx']:.3f}, y={pose['ry']:.3f}, z={pose['rz']:.3f}",
+                    f"  Rotation (Euler angles): roll={euler_deg[0]:.1f}°, pitch={euler_deg[1]:.1f}°, yaw={euler_deg[2]:.1f}°",
                     f"  Tracker confidence: {pose['tracker_confidence']}, Mapper confidence: {pose['mapper_confidence']}",
                 ])
                 logger.debug(debug_str)
