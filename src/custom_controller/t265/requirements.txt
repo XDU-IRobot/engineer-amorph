@@ -5,4 +5,7 @@ colorlog
 numpy
 ctypesgen
 scipy
+pillow
+smbus
+luma.oled
 # pyrealsense2 需要自行编译安装，安装方法见README.md

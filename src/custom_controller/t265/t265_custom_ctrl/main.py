@@ -5,12 +5,15 @@ import time
 import logging
 import colorlog
 import traceback
+import threading
+import queue
 from scipy.spatial.transform import Rotation
 
 from packet_builder import PacketBuilder
 from t265 import T265
 from comm_struct import CartesianCustomControllerCommand
 from button import Button
+from oled_ui import AttitudeIndicator
 
 
 def setup_logger():
@@ -38,6 +41,85 @@ def setup_logger():
 
 setup_logger()
 logger = logging.getLogger(__name__)
+
+
+class OLEDDisplayThread:
+    """OLED显示的异步线程类"""
+    
+    def __init__(self, device, indicator, update_interval=0.05):
+        """
+        初始化OLED显示线程
+        
+        Args:
+            device: OLED设备对象
+            indicator: AttitudeIndicator实例
+            update_interval: 更新间隔时间（秒）
+        """
+        self.device = device
+        self.indicator = indicator
+        self.update_interval = update_interval
+        self.quaternion_queue = queue.Queue(maxsize=2)  # 只保留最新的数据
+        self.running = False
+        self.thread = None
+    
+    def update(self, quaternion):
+        """
+        更新姿态数据（非阻塞）
+        
+        Args:
+            quaternion: 四元数 [w, x, y, z]
+        """
+        try:
+            # 清空队列，只保留最新的数据
+            while not self.quaternion_queue.empty():
+                try:
+                    self.quaternion_queue.get_nowait()
+                except queue.Empty:
+                    break
+            self.quaternion_queue.put_nowait(quaternion)
+        except queue.Full:
+            pass  # 队列满了，忽略这次更新
+    
+    def _display_loop(self):
+        """显示线程的主循环"""
+        last_update_time = 0
+        
+        while self.running:
+            try:
+                # 控制更新频率
+                current_time = time.time()
+                if current_time - last_update_time < self.update_interval:
+                    time.sleep(0.001)
+                    continue
+                
+                # 从队列获取最新的姿态数据
+                try:
+                    quaternion = self.quaternion_queue.get_nowait()
+                    self.indicator.draw(quaternion)
+                    last_update_time = current_time
+                except queue.Empty:
+                    time.sleep(0.001)
+                    continue
+                    
+            except Exception as e:
+                logger.warning(f"OLED display error: {e}")
+                time.sleep(0.1)
+    
+    def start(self):
+        """启动显示线程"""
+        if self.thread is None or not self.thread.is_alive():
+            self.running = True
+            self.thread = threading.Thread(target=self._display_loop, daemon=True)
+            self.thread.start()
+            logger.info("OLED display thread started")
+    
+    def stop(self):
+        """停止显示线程"""
+        self.running = False
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=1.0)
+            logger.info("OLED display thread stopped")
+
 
 class Serial:
     """串口通信类"""
@@ -86,6 +168,16 @@ def main():
         button_b = Button(8)
         button_reset = Button(7)
 
+        # 初始化OLED显示
+        from luma.core.interface.serial import i2c
+        from luma.oled.device import ssd1306
+        serial_i2c = i2c(port=1, address=0x3C)
+        oled_device = ssd1306(serial_i2c)
+        attitude_indicator = AttitudeIndicator(oled_device)
+        oled_thread = OLEDDisplayThread(oled_device, attitude_indicator, update_interval=0.05)
+        oled_thread.start()
+        logger.info("OLED display initialized")
+
         while True:
             try:
                 if device is None:
@@ -97,6 +189,10 @@ def main():
                 pose = device.get_pose_data()
                 if pose is None:
                     continue
+
+                # 异步更新OLED显示姿态（非阻塞）
+                quaternion = [pose['w'], pose['rx'], pose['ry'], pose['rz']]
+                oled_thread.update(quaternion)
 
                 command = CartesianCustomControllerCommand()
                 command.is_cartesian = True
@@ -183,6 +279,9 @@ def main():
         logger.error(f"Exception: {e}")
         traceback.print_exc()
     finally:
+        # 停止OLED显示线程
+        if 'oled_thread' in locals():
+            oled_thread.stop()
         if device:
             device.stop()
         if serial_port:
