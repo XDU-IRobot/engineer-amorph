@@ -1,0 +1,7 @@
+RPi.GPIO
+pyserial
+crc
+colorlog
+numpy
+ctypesgen
+# pyrealsense2 需要自行编译安装，安装方法见README.md

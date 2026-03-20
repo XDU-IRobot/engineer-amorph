@@ -1,0 +1,3 @@
+# Deploy to: /etc/udev/rules.d/99-ttyAMA1.rules
+
+KERNEL=="ttyAMA1", SUBSYSTEM=="tty", MODE:="0666"
