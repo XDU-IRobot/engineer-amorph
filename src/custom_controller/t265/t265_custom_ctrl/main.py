@@ -82,7 +82,8 @@ def main():
 
         # 初始化按钮
         button_a = Button(25)
-        button_reset = Button(8)
+        button_b = Button(8)
+        button_reset = Button(7)
 
         while True:
             try:
@@ -100,7 +101,7 @@ def main():
                 command.is_cartesian = True
                 command.ok = pose['tracker_confidence'] == 3
                 command.btn_a = button_a.is_pressed()
-                command.btn_b = False
+                command.btn_b = button_b.is_pressed()
                 command.translation_xyz[0] = pose['x']
                 command.translation_xyz[1] = pose['y']
                 command.translation_xyz[2] = pose['z']
@@ -110,7 +111,7 @@ def main():
                 command.rotation_wxyz[3] = pose['rz']
 
                 if button_reset.is_pressed():
-                    logger.info("Button 24 pressed: Soft resetting T265")
+                    logger.info("Reset button pressed: Soft resetting T265")
                     device.soft_reset()
 
                 debug_str = "\n".join([
@@ -120,7 +121,7 @@ def main():
                     f"  Tracker confidence: {pose['tracker_confidence']}, Mapper confidence: {pose['mapper_confidence']}",
                 ])
                 logger.debug(debug_str)
-                logger.debug(f"Button : reset={button_reset.is_pressed()}, A={button_a.is_pressed()}, B={command.btn_b}")
+                logger.debug(f"Button : reset={button_reset.is_pressed()}, A={button_a.is_pressed()}, B={button_b.is_pressed()}")
 
                 tx_packet = packet_builder.build(bytearray(command))
                 logger.debug(f"Payload ({len(bytearray(command))} B): %s", " ".join(f"{b:02x}" for b in bytearray(command)))
