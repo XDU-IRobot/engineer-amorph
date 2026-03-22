@@ -146,6 +146,56 @@ void AmorphMasterNode::InitUserInput() {
 
           executing_in_progress_.store(false);
         }).detach();
+      })
+      .OnKeyDown(RemoteControl::KEY_D, RemoteControl::KEY_LCTRL, [&](const rm::modules::KeyEvent &) {
+        L::I("Key Ctrl+D down"_green);
+        if (pending_solution_.sub_trajectory.empty()) {
+          L::W("No plan available. Press Ctrl+A first."_yellow);
+          return;
+        }
+        if (executing_in_progress_.load()) {
+          L::W("Execution in progress, ignored."_yellow);
+          return;
+        }
+
+        std::jthread([&]() {
+          executing_in_progress_.store(true);
+
+          auto goal = ExecuteTaskSolution::Goal();
+          goal.solution = pending_solution_;
+
+          L::I("Executing entire plan..."_green);
+
+          auto send_goal_options = rclcpp_action::Client<ExecuteTaskSolution>::SendGoalOptions();
+
+          auto goal_handle_future = execute_task_client_->async_send_goal(goal, send_goal_options);
+          if (goal_handle_future.wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
+            L::E("Action server not available or rejected goal."_red);
+            executing_in_progress_.store(false);
+            return;
+          }
+
+          auto goal_handle = goal_handle_future.get();
+          if (!goal_handle) {
+            L::E("Goal was rejected by server"_red);
+            executing_in_progress_.store(false);
+            return;
+          }
+
+          auto result_future = execute_task_client_->async_get_result(goal_handle);
+          auto result = result_future.get();
+
+          if (result.code == rclcpp_action::ResultCode::SUCCEEDED &&
+              result.result->error_code.val == moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
+            L::I("Entire plan executed successfully."_green);
+            pending_solution_ = moveit_task_constructor_msgs::msg::Solution();
+            current_step_ = 0;
+          } else {
+            L::E("Execution failed."_red);
+          }
+
+          executing_in_progress_.store(false);
+        }).detach();
       });
   subs_.vt_remote = this->create_subscription<RemoteControl>(
       "/rm_referee/remote_control", rclcpp::SensorDataQoS(),
