@@ -114,8 +114,8 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     const float key_d = (keycode & RC::kD) ? 1.f : 0.f;
     const float key_q = (keycode & RC::kQ) ? 1.f : 0.f;
     const float key_e = (keycode & RC::kE) ? 1.f : 0.f;
-    const float target_vx = (globals->rc.left_x() + key_d - key_a) * 400.f;
-    const float target_vy = (globals->rc.left_y() + key_w - key_s) * 400.f;
+    const float target_vx = (globals->rc.left_x() + key_d - key_a) * 800.f;
+    const float target_vy = (globals->rc.left_y() + key_w - key_s) * 800.f;
     const float target_w = -(globals->rc.right_x() + key_e - key_q) * 1000.f;
     globals->controller.SetTarget(target_vx, target_vy, target_w);
     globals->controller.Update(e.f_steer_pos, e.f_steer_vel,  //

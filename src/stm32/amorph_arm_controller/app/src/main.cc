@@ -1,4 +1,3 @@
-
 #include "fsm.hpp"
 #include "bsp/timer_task.hpp"
 #include "globals.hpp"
@@ -6,7 +5,12 @@
 Globals *globals{nullptr};
 
 namespace {
+volatile uint32_t mainloop_time_us = 0;
 void MainLoop() {
+  // tim12计时开始
+  const uint32_t start_tick = __HAL_TIM_GET_COUNTER(&htim12);
+  const uint32_t timer_max = __HAL_TIM_GET_AUTORELOAD(&htim12) + 1;
+
   globals->device_manager.Update();
   globals->host_connection_watcher.Update();
   globals->rc.UpdateSwitchWatchers();
@@ -37,6 +41,11 @@ void MainLoop() {
   }
   if ((loop_divisor % 25) == 1) { /** 20hz subloop 1 **/
   }
+
+  // tim12计时结束
+  const uint32_t end_tick = __HAL_TIM_GET_COUNTER(&htim12);
+  const uint32_t diff = (end_tick >= start_tick) ? (end_tick - start_tick) : (timer_max + end_tick - start_tick);
+  mainloop_time_us = diff;
 }
 
 void InitUserInput() {
@@ -96,14 +105,19 @@ extern "C" {
     }
   });
 
-  // 初始化图传链路串口
+  // 初始化图传链路串口，注册解包回调，收到自定义控制器数据时转发命令给状态机
   globals->vt_link_receiver.OnCustomCtrlRecv([&]() {
-    // 把收到的数据转发给状态机处理
     static CustomControllerCommand cc_cmd;
     const auto &data = globals->vt_link_receiver.custom_ctrl_data();
     std::memcpy(&cc_cmd, &data, sizeof(cc_cmd));
     fsm::arm.receive(fsm::event::CustomCtrlCommand{cc_cmd});
-  });  // 注册解包回调，收到自定义控制器数据时转发命令给状态机
+  });
+  globals->vt_link_receiver.OnCartesianCustomCtrlRecv([&]() {
+    static CartesianCustomControllerCommand ccc_cmd;
+    const auto &data = globals->vt_link_receiver.cartesian_custom_ctrl_data();
+    std::memcpy(&ccc_cmd, &data, sizeof(ccc_cmd));
+    fsm::arm.receive(fsm::event::CartesianCustomCtrlCommand{ccc_cmd});
+  });
 
   // 创建主循环定时任务，定频500hz
   TimerTask mainloop{

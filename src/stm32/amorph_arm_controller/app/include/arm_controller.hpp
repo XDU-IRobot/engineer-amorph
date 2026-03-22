@@ -167,8 +167,8 @@ class ArmController {
   std::array<rm::modules::PID, NJoints> pid_;
 
   constexpr static std::array<std::pair<float, float>, NJoints> kJointLimits{
-      std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI},
-      std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}};  // placeholder joint limits
+      std::pair{-0.698132f, 0.349066}, std::pair{1.362579, 2.93337535}, std::pair{-2.933375, 0.0}, std::pair{-M_PI, M_PI},
+      std::pair{-M_PI / 2.f, M_PI / 2.f}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}};  // placeholder joint limits
 
   Status status_{kIdle};
   int fault_counter_{0};

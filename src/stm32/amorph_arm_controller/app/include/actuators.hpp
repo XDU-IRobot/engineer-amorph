@@ -76,9 +76,9 @@ class Actuator {
     if (apply_position) {
       j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]), 0, 0.f, 60.f, 25.f);
       j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]), 0,
-                       calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1], 80.f, 30.f);
+                       calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1], 120.f, 35.f);
       j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]), 0,
-                       calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2], 80.f, 30.f);
+                       calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2], 100.f, 35.f);
       if (upper_can_send_split) {
         j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, 35.f, 15.f);
         j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, 35.f, 15.f);
@@ -123,8 +123,8 @@ class Actuator {
       // j1.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j2.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      // j4.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      j5.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      j4.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j5.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j6.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       HAL_Delay(10);
     }

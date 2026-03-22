@@ -83,9 +83,8 @@ extern "C" {
       case rm::device::RefereeCmdId<rm::device::RefereeRevision::kNewV110>::kCustomRobotData: {
         // 从图传链路解包出自定义控制器数据，转发到CAN总线上
         globals->custom_ctrl_device.ReportStatus(rm::device::Device::kOk);
-        CustomControllerCommand cmd;
-        std::memcpy(&cmd, globals->ref_vt_link.data().custom_robot_data.data, sizeof(cmd));
-        globals->vt_link_forwarder.Write(cmd);
+        const auto &data = globals->ref_vt_link.data().custom_robot_data.data;
+        globals->vt_link_forwarder.WriteCustomCtrl(data, sizeof(data));
         break;
       }
       case rm::device::RefereeCmdId<rm::device::RefereeRevision::kNewV110>::kRemoteControl: {

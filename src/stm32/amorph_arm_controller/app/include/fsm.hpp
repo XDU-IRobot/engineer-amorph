@@ -7,17 +7,19 @@
 #include "host_comm.hpp"
 #include "arm_controller.hpp"
 #include "globals.hpp"
+#include "kinematics.hpp"
 
 namespace fsm {
 
 struct EventId {
   enum {
-    kControlLoop,        ///< 控制循环时钟事件
-    kForceModeSwitch,    ///< 切换模式命令
-    kCustomCtrlCommand,  ///< 自定义控制器命令
-    kHostCommand,        ///< 上位机下发的命令
-    kFaultClear,         ///< 故障清除命令
-    kNextJoint,          ///< Manual模式下切换到下一个关节
+    kControlLoop,                 ///< 控制循环时钟事件
+    kForceModeSwitch,             ///< 切换模式命令
+    kCustomCtrlCommand,           ///< 自定义控制器命令
+    kCartesianCustomCtrlCommand,  ///< 笛卡尔空间自定义控制器命令（T265）
+    kHostCommand,                 ///< 上位机下发的命令
+    kFaultClear,                  ///< 故障清除命令
+    kNextJoint,                   ///< Manual模式下切换到下一个关节
   };
 };
 
@@ -28,6 +30,7 @@ struct StateId {
     kIdle,                  ///< 空闲，可执行轨迹
     kHostControl,           ///< 正在被上位机控制
     kCustomCtrl,            ///< 自定义控制器操作
+    kCartesianCustomCtrl,   ///< 笛卡尔空间自定义控制器操作（T265）
     kLongJointCalibrating,  ///< 夹爪校准位置
     kFault,                 ///< 故障状态
   };
@@ -50,10 +53,19 @@ struct ForceModeSwitch : etl::message<EventId::kForceModeSwitch> {
 };
 
 /*******************************************/
-struct CustomCtrlCommand : etl::message<EventId::kCustomCtrlCommand>, CustomControllerCommand {
+struct CustomCtrlCommand : etl::message<EventId::kCustomCtrlCommand>, ::CustomControllerCommand {
   using CustomControllerCommand::CustomControllerCommand;
   CustomCtrlCommand() = default;
   explicit CustomCtrlCommand(const CustomControllerCommand &command) : CustomControllerCommand(command) {}
+};
+
+/*******************************************/
+struct CartesianCustomCtrlCommand : etl::message<EventId::kCartesianCustomCtrlCommand>,
+                                    ::CartesianCustomControllerCommand {
+  using CartesianCustomControllerCommand::CartesianCustomControllerCommand;
+  CartesianCustomCtrlCommand() = default;
+  explicit CartesianCustomCtrlCommand(const CartesianCustomControllerCommand &command)
+      : CartesianCustomControllerCommand(command) {}
 };
 
 /*******************************************/
@@ -194,7 +206,8 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
                              event::ForceModeSwitch,     //
                              event::ControlLoop,         //
                              event::HostCommand,         //
-                             event::CustomCtrlCommand> {
+                             event::CustomCtrlCommand,   //
+                             event::CartesianCustomCtrlCommand> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
@@ -224,8 +237,14 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     return No_State_Change;
   }
   REACT(event::CustomCtrlCommand) {
-    if (e.buttons.a) {  // 按下按钮a，进入CustomCtrl模式
+    if (e.buttons.a) {  // 按下按钮a，自定义控制器接管
       return StateId::kCustomCtrl;
+    }
+    return No_State_Change;
+  }
+  REACT(event::CartesianCustomCtrlCommand) {
+    if (e.btn_a) {  // 按下按钮a，自定义控制器接管
+      return StateId::kCartesianCustomCtrl;
     }
     return No_State_Change;
   }
@@ -288,7 +307,7 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    get_fsm_context().planner_need_reset_ = true;  // 进入CustomCtrl时强制重置规划器，防止位置跳变
+    get_fsm_context().planner_need_reset_ = true;  // 强制重置规划器，防止位置跳变
     globals->buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
     globals->actuator.SetEnable(true);
     just_entered_ = true;
@@ -333,6 +352,82 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
  private:
   bool just_entered_{true};
   float j6_delta_{0.f};
+};
+
+/*******************************************/
+struct CartesianCustomCtrl : etl::fsm_state<Arm, CartesianCustomCtrl, StateId::kCartesianCustomCtrl,  //
+                                            event::ControlLoop,                                       //
+                                            event::ForceModeSwitch,                                   //
+                                            event::CartesianCustomCtrlCommand> {
+  ACCEPT_MODE_SWITCH();
+  IGNORE_UNINTEREST_EVENT();
+  ENTER {
+    get_fsm_context().planner_need_reset_ = true;  // 强制重置规划器，防止位置跳变
+    globals->buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
+    globals->actuator.SetEnable(true);
+    // 进入笛卡尔空间自定义控制模式时，记录当前末端位置作为初始位置，后续的控制命令都是相对于这个初始位置的增量
+    Eigen::Matrix3f dummy;
+    const auto &current_p = globals->actuator.GetPositions();
+    k_.SolveFk({current_p[0], current_p[1], current_p[2], current_p[3], current_p[4], current_p[5]},
+               end_eff_initial_pos_, dummy);
+    just_entered_ = true;
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) {
+    // if (globals->arm_controller.status() == ArmController<7>::kFault) {
+    //   return StateId::kFault;
+    // }
+    if (get_fsm_context().planner_need_reset_) {
+      globals->arm_controller.ResetAt(e.current_positions);
+      get_fsm_context().planner_need_reset_ = false;
+    }
+    globals->arm_controller.Update(e.current_positions, e.current_velocities,
+                                   globals->actuator.gripper.feedback().power, 0.002f);
+    globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
+    return No_State_Change;
+  }
+  REACT(event::CartesianCustomCtrlCommand) {
+    if (!e.btn_a) {  // 松开按钮a，退出CustomCtrl模式
+      return StateId::kIdle;
+    }
+    // if (!e.ok) {
+    //   return No_State_Change;
+    // }
+    if (just_entered_) {
+      cc_initial_pos_ = {e.translation_xyz[0], e.translation_xyz[1], e.translation_xyz[2]};
+      just_entered_ = false;
+    }
+    const Eigen::Quaternionf target_end_eff_rotation{e.rotation_wxyz[0], e.rotation_wxyz[1], e.rotation_wxyz[2],
+                                                     e.rotation_wxyz[3]};
+    const auto cc_pos_delta =
+        Eigen::Vector3f{e.translation_xyz[0], e.translation_xyz[1], e.translation_xyz[2]} - cc_initial_pos_;
+    const std::array current_p_6 = {
+        globals->arm_controller.current_positions()[0], globals->arm_controller.current_positions()[1],
+        globals->arm_controller.current_positions()[2], globals->arm_controller.current_positions()[3],
+        globals->arm_controller.current_positions()[4], globals->arm_controller.current_positions()[5]};
+    const auto target_p_6 =
+        k_.SolveIk(end_eff_initial_pos_ + cc_pos_delta, target_end_eff_rotation.toRotationMatrix(), current_p_6);
+    if (!target_p_6.has_value()) {
+      // IK求解失败，可能是因为目标位置不可达，直接忽略这条命令
+      return No_State_Change;
+    }
+    target_p_[0] = target_p_6.value()[0];
+    target_p_[1] = target_p_6.value()[1];
+    target_p_[2] = target_p_6.value()[2];
+    target_p_[3] = target_p_6.value()[3];
+    target_p_[4] = target_p_6.value()[4];
+    target_p_[5] = target_p_6.value()[5];
+    target_p_[6] = e.btn_b ? 0.f : 1.f;
+    globals->arm_controller.GoTo(target_p_);
+    return No_State_Change;
+  }
+
+ private:
+  bool just_entered_{true};
+  Eigen::Vector3f end_eff_initial_pos_;
+  Eigen::Vector3f cc_initial_pos_;
+  std::array<float, 7> target_p_{};
+  Kinematics k_;
 };
 
 /*******************************************/
