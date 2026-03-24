@@ -48,7 +48,7 @@ moveit_msgs::msg::CollisionObject EnergyUnit(   //
   object.header.frame_id = object_reference_frame;
 
   // 加载 STL 文件
-  const std::string mesh_resource = "package://amorph_master/assets/energy_unit.STL";
+  const std::string mesh_resource = "package://amorph_assets/assets/energy_unit.STL";
 
   shapes::Mesh* mesh = shapes::createMeshFromResource(mesh_resource);
   if (mesh) {

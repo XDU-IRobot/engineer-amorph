@@ -90,49 +90,95 @@
 
 两档开关 B 控制夹爪开合。
 
-## 环境配置（Jetson 系统内）
+## 环境配置
 
-下面是在 Jetpack 5.0.2 (Ubuntu 20.04) 的 Xavier NX 上进行的环境配置步骤
-
-### ROS2
-
-安装 rolling 版本
-
-```bash
-wget http://fishros.com/install -O fishros && . fishros
-```
+计算平台为一款AMD的minipc：[铭凡EM680](https://minisforum.hk/pages/em680-%E8%A6%8F%E6%A0%BC%E5%8F%83%E6%95%B8)，系统使用Ubuntu 24.04，最好通过Ubuntu Pro替换上RT内核
 
 ### ultralytics
 
-建一个虚拟环境，然后安装 pytorch 和 ultralytics
+建一个虚拟环境，然后安装ultralytics
 
 ```bash
+sudo apt update && sudo apt install -y python3-pip python3-venv
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
-# ...安装jetson对应的pytorch版本
+pip install --upgrade pip
 pip install ultralytics
+pip install "numpy<2"
 ```
 
-## 环境配置（Docker 容器内）
+重新安装rocm版本的torch和torchvision
 
-Moveit Jazzy 的开发完成度比较高，moveit 这个项目能用新的就不要用旧的，但是 xavier nx 的系统是 20，升级到 24 基本是不可能的事情，即使有可能也非常麻烦，所以只能跑一个 ROS2 Jazzy 的容器来运行 moveit
+https://pytorch.org/get-started/locally/
+
+在 `.bashrc` 里加一行：
+
+```bash
+export HSA_OVERRIDE_GFX_VERSION=10.3.0
+```
+
+```bash
+sudo usermod -a -G render,video $USER
+```
+
+然后重启，如果配置成功，执行下面的python代码应该能看到GPU信息：
+
+```python
+import torch
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
+```
 
 ### ROS2 + moveit
 
-moveit/moveit2 这个镜像没有 jazzy tag，所以拉一个 ROS 的镜像，然后在里面配置环境
-
-拉镜像，然后运行容器：
-
-```bash
-sudo docker pull ros:jazzy
-sudo docker run --privileged --net=host --name moveit_test -it ros:jazzy
-```
-
-给容器里的系统换源，换完之后
+ROS2使用jazzy版本
 
 ```bash
 sudo apt update
-# ros-${ROS_DISTRO}-librealsense2 ros-${ROS_DISTRO}-realsense2*
-sudo apt install -y ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-xacro ros-${ROS_DISTRO}-backward-ros ros-${ROS_DISTRO}-trac-ik ros-${ROS_DISTRO}-generate-parameter-library ros-${ROS_DISTRO}-py-binding-tools ros-${ROS_DISTRO}-ros2-control ros-${ROS_DISTRO}-moveit-ros-perception ros-${ROS_DISTRO}-apriltag-ros python3-transforms3d libgflags-dev nlohmann-json3-dev ros-${ROS_DISTRO}-image-transport ros-${ROS_DISTRO}-image-transport-plugins ros-${ROS_DISTRO}-compressed-image-transport ros-${ROS_DISTRO}-image-publisher ros-${ROS_DISTRO}-camera-info-manager ros-${ROS_DISTRO}-diagnostic-updater ros-${ROS_DISTRO}-diagnostic-msgs ros-${ROS_DISTRO}-statistics-msgs libdw-dev
-unminimize
+# ros-${ROS_DISTRO}-librealsense2 \
+# ros-${ROS_DISTRO}-realsense2* \
+sudo apt install -y \
+  ros-${ROS_DISTRO}-moveit \
+  ros-${ROS_DISTRO}-xacro \
+  ros-${ROS_DISTRO}-backward-ros \
+  ros-${ROS_DISTRO}-trac-ik \
+  ros-${ROS_DISTRO}-generate-parameter-library \
+  ros-${ROS_DISTRO}-py-binding-tools \
+  ros-${ROS_DISTRO}-ros2-control \
+  ros-${ROS_DISTRO}-moveit-ros-perception \
+  ros-${ROS_DISTRO}-apriltag-ros \
+  python3-transforms3d \
+  libgflags-dev \
+  nlohmann-json3-dev \
+  ros-${ROS_DISTRO}-image-transport \
+  ros-${ROS_DISTRO}-image-transport-plugins \
+  ros-${ROS_DISTRO}-compressed-image-transport \
+  ros-${ROS_DISTRO}-image-publisher \
+  ros-${ROS_DISTRO}-camera-info-manager \
+  ros-${ROS_DISTRO}-diagnostic-updater \
+  ros-${ROS_DISTRO}-diagnostic-msgs \
+  ros-${ROS_DISTRO}-statistics-msgs \
+  libdw-dev \
+  ros-${ROS_DISTRO}-foxglove-bridge
+```
+
+## 相机udev规则
+
+```bash
+sudo src/jetson/OrbbecSDK_ROS2/orbbec_camera/scripts/install_udev_rules.sh
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+# 编译运行
+
+```bash
+git clone ...
+cd engineer-amorph
+git submodule update --init --recursive --depth=1
+
+# unshallow libInterpolate，否则cmake读不到版本号会报错
+cd src/jetson/amorph_transport/libs/libInterpolate
+git fetch --unshallow
+
+git lfs pull
 ```

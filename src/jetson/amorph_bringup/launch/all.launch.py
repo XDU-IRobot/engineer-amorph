@@ -44,11 +44,11 @@ def generate_launch_description():
             launch_arguments={'enable_respawn': 'true'}.items(),
         ),
         
-        # 启动传输节点
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(launch_dir, 'transport.launch.py')
-            ),
-            launch_arguments={'enable_respawn': 'true'}.items(),
-        ),
+        # # 启动传输节点
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         os.path.join(launch_dir, 'transport.launch.py')
+        #     ),
+        #     launch_arguments={'enable_respawn': 'true'}.items(),
+        # ),
     ])

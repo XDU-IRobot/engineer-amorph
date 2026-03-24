@@ -30,6 +30,7 @@ def generate_launch_description():
             "publish_annotated_image": True,
             "smoothing_alpha": 0.3,
         }],
+        # arguments=['--ros-args', '--log-level', 'DEBUG'],
         output="screen",
         respawn=LaunchConfiguration('enable_respawn'),
         respawn_delay=2.0

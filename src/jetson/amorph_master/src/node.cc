@@ -51,9 +51,9 @@ void AmorphMasterNode::InitUserInput() {
                      geometry_msgs::msg::TransformStamped transform_stamped;
                      try {
                        transform_stamped =
-                           tf_buffer_->lookupTransform("world", "energy_unit_0_smoothed", tf2::TimePointZero);
+                           tf_buffer_->lookupTransform("world", "energy_unit_1_smoothed", tf2::TimePointZero);
                      } catch (const tf2::TransformException &ex) {
-                       L::E("Failed to get transform world->energy_unit_0_smoothed: %s", ex.what());
+                       L::E("Failed to get transform world->energy_unit_1_smoothed: %s", ex.what());
                        planning_in_progress_.store(false);
                        return std::nullopt;
                      }
