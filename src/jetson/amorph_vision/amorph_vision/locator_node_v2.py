@@ -6,6 +6,30 @@ except OSError:
     # 非 ARM64 平台或库不存在时忽略
     pass
 
+"""
+Energy Unit Locator Node v2
+
+使用 ultralytics YOLO + BoT-SORT 跟踪器进行多目标检测和跟踪。
+
+关键特性:
+- YOLO 模型进行目标检测和分割
+- ultralytics.track() 方法集成 BoT-SORT 跟踪器
+- 深度图 + 分割掩码进行3D位姿估计
+- PoseSmoother 对位姿进行平滑处理
+- 通过 TF 发布原始和平滑后的位姿
+
+配置参数:
+- model_path: YOLO模型路径
+- confidence_threshold: 检测置信度阈值
+- erosion_kernel_size: 腐蚀核大小
+- erosion_iterations: 腐蚀迭代次数
+- publish_masked_pointcloud: 是否发布mask后的点云
+- publish_annotated_image: 是否发布标注图像
+- smoothing_alpha: 位姿平滑系数
+- tracking_persist: 是否在帧间保持跟踪器状态
+- tracking_tracker: 跟踪器类型 (botsort, bytetrack, etc.)
+"""
+
 # std
 import os
 import time
@@ -35,7 +59,6 @@ from .pose_smoother import PoseSmoother
 from .locator_backend import LocatorBackend
 from .visualization import publish_masked_pointcloud, publish_image
 from .publisher_pool import PublisherPool
-from .tracker_sort_3d import Sort3DTracker
 
 # profiler
 # from viztracer import trace_and_save
@@ -53,10 +76,7 @@ class EnergyUnitLocator(LifecycleNode):
         self.declare_parameter('publish_masked_pointcloud', False)
         self.declare_parameter('publish_annotated_image', False)
         self.declare_parameter('smoothing_alpha', 0.3)
-        self.declare_parameter('tracker_max_age', 8)
-        self.declare_parameter('tracker_min_hits', 3)
-        self.declare_parameter('tracker_mahalanobis_thresh', 9.0)
-        self.declare_parameter('tracker_iou_weight', 0.2)
+        self.declare_parameter('tracking_tracker', 'botsort.yaml')
 
         # 这些将在 configure 阶段初始化
         self.model = None
@@ -67,7 +87,7 @@ class EnergyUnitLocator(LifecycleNode):
         self.publish_annotated_image_enabled = None
         self.pose_smoother = None
         self.locator_backend = None
-        self.tracker = None
+        self.tracking_tracker = None
         self.tf_broadcaster = None
         self.publisher_pool = None
         self.bridge = None
@@ -76,6 +96,8 @@ class EnergyUnitLocator(LifecycleNode):
         self.sub_rgb = None
         self.sub_depth = None
         self.ts = None
+        
+        self.tracking_persist = False
 
         # 节点激活状态标志
         self.is_active = False
@@ -102,9 +124,9 @@ class EnergyUnitLocator(LifecycleNode):
         model_path = self.get_parameter(
             'model_path').get_parameter_value().string_value
         if not model_path:
-            pkg_share = get_package_share_directory('amorph_vision')
+            pkg_share = get_package_share_directory('amorph_assets')
             model_path = os.path.join(
-                pkg_share, 'models', '251120_epoch335.engine')
+                pkg_share, 'assets', '251120_epoch335.pt')
 
         self.conf_thresh = self.get_parameter(
             'confidence_threshold').get_parameter_value().double_value
@@ -118,14 +140,8 @@ class EnergyUnitLocator(LifecycleNode):
             'publish_annotated_image').get_parameter_value().bool_value
         smoothing_alpha = self.get_parameter(
             'smoothing_alpha').get_parameter_value().double_value
-        tracker_max_age = self.get_parameter(
-            'tracker_max_age').get_parameter_value().integer_value
-        tracker_min_hits = self.get_parameter(
-            'tracker_min_hits').get_parameter_value().integer_value
-        tracker_mahalanobis_thresh = self.get_parameter(
-            'tracker_mahalanobis_thresh').get_parameter_value().double_value
-        tracker_iou_weight = self.get_parameter(
-            'tracker_iou_weight').get_parameter_value().double_value
+        self.tracking_tracker = self.get_parameter(
+            'tracking_tracker').get_parameter_value().string_value
 
         # 加载yolo模型
         self.get_logger().info(f'Loading YOLO model from: {model_path}')
@@ -137,12 +153,6 @@ class EnergyUnitLocator(LifecycleNode):
             return TransitionCallbackReturn.FAILURE
 
         self.pose_smoother = PoseSmoother(alpha=smoothing_alpha)
-        self.tracker = Sort3DTracker(
-            max_age=max(1, int(tracker_max_age)),
-            min_hits=max(1, int(tracker_min_hits)),
-            mahalanobis_thresh=max(1e-3, float(tracker_mahalanobis_thresh)),
-            iou_weight=max(0.0, min(1.0, float(tracker_iou_weight))),
-        )
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
         self.publisher_pool = PublisherPool(self)
         self.bridge = CvBridge()
@@ -185,9 +195,9 @@ class EnergyUnitLocator(LifecycleNode):
 
         # 创建统计 timer（每 1 秒运行一次）
         self.stats_timer = self.create_timer(1.0, self.stats_callback)
+        
+        self.tracking_persist = False   # 每次激活时重置跟踪器状态，确保不受之前状态影响
 
-        if self.tracker:
-            self.tracker.reset()
         if self.pose_smoother:
             self.pose_smoother.reset()
         self.last_frame_time = None
@@ -240,9 +250,6 @@ class EnergyUnitLocator(LifecycleNode):
             self.pose_smoother.reset()
         self.pose_smoother = None
         self.locator_backend = None
-        if self.tracker:
-            self.tracker.reset()
-        self.tracker = None
         self.tf_broadcaster = None
         self.publisher_pool = None
         self.bridge = None
@@ -300,9 +307,6 @@ class EnergyUnitLocator(LifecycleNode):
         if self.locator_backend is None:
             self.get_logger().warn('Waiting for camera intrinsics...', throttle_duration_sec=2.0)
             return
-        if self.tracker is None:
-            self.get_logger().warn('Tracker not initialized yet', throttle_duration_sec=2.0)
-            return
         if self.bridge is None or self.tf_broadcaster is None or self.pose_smoother is None or self.intrinsics is None:
             self.get_logger().warn('Node runtime resources are not ready', throttle_duration_sec=2.0)
             return
@@ -322,17 +326,27 @@ class EnergyUnitLocator(LifecycleNode):
             self.get_logger().error(f'CV Bridge error: {e}')
             return
 
-        # 推理
+        # 推理 + 跟踪
         inference_start = time.time()
-        results = self.model(cv_rgb, verbose=False, conf=self.conf_thresh) # type: ignore
+        results = self.model.track(
+            cv_rgb,
+            verbose=False,
+            conf=self.conf_thresh,
+            persist=self.tracking_persist,
+            tracker=self.tracking_tracker
+        )  # type: ignore
         inference_time = time.time() - inference_start
+        
+        if not self.tracking_persist:
+            self.get_logger().info('Tracker state reset')
+            self.tracking_persist = True  # 下一帧继续保持跟踪状态
 
         # 累积统计数据
         self.frame_count += 1
         self.processed_frames += 1
         self.total_inference_time += inference_time
 
-        valid_detections: List[Dict[str, Any]] = []
+        frame_detections = 0  # 当前帧已确认并发布的目标数
 
         for result in results:
             if result.masks is None:
@@ -369,12 +383,13 @@ class EnergyUnitLocator(LifecycleNode):
                 masks = np.array([cv2.resize(mask, (cv_depth.shape[1], cv_depth.shape[0]),
                                  interpolation=cv2.INTER_NEAREST) for mask in masks])
 
-            frame_detections = 0  # 当前帧检测到的目标数
-
             # 标注、发布图像，调试用
             if self.publish_annotated_image_enabled:
                 annotated_frame = result.plot()
                 publish_image(self.publisher_pool, annotated_frame)
+
+            # 获取track ID (ultralytics track API 在 result.boxes.id 中)
+            track_ids = result.boxes.id.cpu().numpy() if result.boxes.id is not None else None
 
             for i, mask in enumerate(masks):
                 # 使用后端处理mask
@@ -387,79 +402,62 @@ class EnergyUnitLocator(LifecycleNode):
                 if pose_result is None:
                     continue
 
-                valid_detections.append({
-                    'position': pose_result['position'],
-                    'orientation': pose_result['orientation'],
-                    'axis_direction': pose_result['axis_direction'],
-                    'binary_mask': pose_result['binary_mask'],
-                    'box': boxes[i][:4],
-                })
+                # 获取对应的track_id
+                track_id = int(track_ids[i]) if track_ids is not None and i < len(track_ids) else None
 
-        now = time.time()
-        if self.last_frame_time is None:
-            dt = 1.0 / 30.0
-        else:
-            dt = max(1.0 / 120.0, min(0.5, now - self.last_frame_time))
-        self.last_frame_time = now
+                # 如果没有track_id，跳过（可能是新创建的track，需要稳定后再发布）
+                if track_id is None:
+                    continue
 
-        assignments, removed_track_ids = self.tracker.update(valid_detections, dt=dt)
-        for track_id in removed_track_ids:
-            pose_smoother.reset(track_id)
+                position = pose_result['position']
+                orientation = pose_result['orientation']
+                axis_direction = pose_result['axis_direction']
+                binary_mask = pose_result['binary_mask']
 
-        frame_detections = 0  # 当前帧已确认并发布的目标数
-        for assignment in assignments:
-            track_id = assignment.track_id
-            det = valid_detections[assignment.detection_index]
+                # 发布mask后的点云用于可视化
+                if self.publish_masked_pointcloud_enabled:
+                    publish_masked_pointcloud(
+                        self.publisher_pool,
+                        binary_mask,
+                        cv_rgb,
+                        cv_depth,
+                        intrinsics,
+                        depth_msg.header
+                    )
 
-            position = det['position']
-            orientation = det['orientation']
-            axis_direction = det['axis_direction']
-            binary_mask = det['binary_mask']
+                # 发布原始TF（使用 ultralytics 提供的 track_id）
+                t = TransformStamped()
+                t.header.stamp = depth_msg.header.stamp
+                t.header.frame_id = depth_msg.header.frame_id
+                t.child_frame_id = f'energy_unit_{track_id}'
+                t.transform.translation.x = position[0]
+                t.transform.translation.y = position[1]
+                t.transform.translation.z = position[2]
+                t.transform.rotation.x = orientation[0]
+                t.transform.rotation.y = orientation[1]
+                t.transform.rotation.z = orientation[2]
+                t.transform.rotation.w = orientation[3]
+                tf_broadcaster.sendTransform(t)
 
-            # 发布mask后的点云用于可视化
-            if self.publish_masked_pointcloud_enabled:
-                publish_masked_pointcloud(
-                    self.publisher_pool,
-                    binary_mask,
-                    cv_rgb,
-                    cv_depth,
-                    intrinsics,
-                    depth_msg.header
-                )
+                # 计算并发布平滑后的TF（按 track_id 平滑）
+                smoothed_pos, smoothed_ori = pose_smoother.update(
+                    track_id, position, orientation)
 
-            # 发布原始TF（使用稳定的 track_id）
-            t = TransformStamped()
-            t.header.stamp = depth_msg.header.stamp
-            t.header.frame_id = depth_msg.header.frame_id
-            t.child_frame_id = f'energy_unit_{track_id}'
-            t.transform.translation.x = position[0]
-            t.transform.translation.y = position[1]
-            t.transform.translation.z = position[2]
-            t.transform.rotation.x = orientation[0]
-            t.transform.rotation.y = orientation[1]
-            t.transform.rotation.z = orientation[2]
-            t.transform.rotation.w = orientation[3]
-            tf_broadcaster.sendTransform(t)
+                t_smoothed = TransformStamped()
+                t_smoothed.header.stamp = depth_msg.header.stamp
+                t_smoothed.header.frame_id = depth_msg.header.frame_id
+                t_smoothed.child_frame_id = f'energy_unit_{track_id}_smoothed'
+                t_smoothed.transform.translation.x = smoothed_pos[0]
+                t_smoothed.transform.translation.y = smoothed_pos[1]
+                t_smoothed.transform.translation.z = smoothed_pos[2]
+                t_smoothed.transform.rotation.x = smoothed_ori[0]
+                t_smoothed.transform.rotation.y = smoothed_ori[1]
+                t_smoothed.transform.rotation.z = smoothed_ori[2]
+                t_smoothed.transform.rotation.w = smoothed_ori[3]
+                tf_broadcaster.sendTransform(t_smoothed)
 
-            # 计算并发布平滑后的TF（按 track_id 平滑）
-            smoothed_pos, smoothed_ori = pose_smoother.update(
-                track_id, position, orientation)
-
-            t_smoothed = TransformStamped()
-            t_smoothed.header.stamp = depth_msg.header.stamp
-            t_smoothed.header.frame_id = depth_msg.header.frame_id
-            t_smoothed.child_frame_id = f'energy_unit_{track_id}_smoothed'
-            t_smoothed.transform.translation.x = smoothed_pos[0]
-            t_smoothed.transform.translation.y = smoothed_pos[1]
-            t_smoothed.transform.translation.z = smoothed_pos[2]
-            t_smoothed.transform.rotation.x = smoothed_ori[0]
-            t_smoothed.transform.rotation.y = smoothed_ori[1]
-            t_smoothed.transform.rotation.z = smoothed_ori[2]
-            t_smoothed.transform.rotation.w = smoothed_ori[3]
-            tf_broadcaster.sendTransform(t_smoothed)
-
-            if axis_direction is not None:
-                frame_detections += 1
+                if axis_direction is not None:
+                    frame_detections += 1
 
         # 更新前一帧检测计数
         self.last_frame_detections_count = frame_detections
@@ -476,7 +474,7 @@ class EnergyUnitLocator(LifecycleNode):
                             self.processed_frames) * 1000  # ms
         fps = self.frame_count
 
-        self.get_logger().debug(
+        self.get_logger().info(
             f'{self.last_frame_detections_count} detections, '
             f'{fps} FPS, '
             f'Inference={avg_inference_time:.1f}ms, '
