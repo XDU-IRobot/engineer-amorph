@@ -62,5 +62,3 @@ class WflyET16s : public rm::device::Sbus {
       {rc_ch::SH, {}},  //
   };
 };
-
-void InitUserInput();

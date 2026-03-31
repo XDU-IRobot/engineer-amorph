@@ -43,7 +43,7 @@ struct __attribute__((__packed__)) JointPosition {
 /**
  * 底盘发，机械臂收
  */
-using VtRemoteControl = rm::device::RefereeProtocol<rm::device::RefereeRevision::kV170>::RemoteControl;
+using VtRemoteControl = rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl;
 
 // clang-format off
 static_assert(sizeof(CustomControllerCommand) <= 64, "CustomControllerCommand struct doesn't fit in a single CANFD frame!");

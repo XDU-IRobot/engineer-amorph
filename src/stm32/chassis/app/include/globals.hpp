@@ -2,8 +2,10 @@
 
 #include <librm.hpp>
 
+#include "main.h"
 #include "fdcan.h"
 #include "usart.h"
+#include "spi.h"
 
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
@@ -19,6 +21,8 @@ struct Globals {
   rm::hal::Can left_can{hfdcan1}, right_can{hfdcan2}, comm_can{hfdcan3};
   rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
                               rm::hal::stm32::UartMode::kInterrupt};  ///< 接收遥控器的串口
+  rm::hal::Serial motor_485_serial{huart2, 100, rm::hal::stm32::UartMode::kInterrupt,
+                                   rm::hal::stm32::UartMode::kInterrupt};  ///< 电机485通信串口
 
   Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
   rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
@@ -36,11 +40,18 @@ struct Globals {
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
+  rm::device::BMI088 imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};
+  rm::modules::MahonyAhrs mahony{2000.f};
+
   WflyET16s rc{sbus_serial};                                               ///< 遥控器
   RcForwarder rc_forwarder{comm_can};                                      ///< 用于把遥控器数据转发到CAN总线上
-  rm::device::Referee<rm::device::RefereeRevision::kV170> ref_vt_link;  ///< 图传链路
+  rm::device::Referee<rm::device::RefereeRevision::kNewV110> ref_vt_link;  ///< 图传链路
   rm::device::VirtualDevice custom_ctrl_device, vt_remote_device;
   VtLinkForwarder vt_link_forwarder{comm_can};  ///< 用于把图传链路数据转发到CAN总线上
+  rm::modules::KeyboardHandler<> kh{
+      rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kCtrl |  //
+      rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kShift   //
+  };  ///< 键盘处理器，用于处理客户端的键盘输入
 
   TriSteerChassisController controller;
 
@@ -68,6 +79,7 @@ struct Globals {
     right_can.Begin();
     comm_can.Begin();
     rc.Begin();
+    motor_485_serial.Begin();
 
     actuator.f_steer = new rm::device::GM6020(right_can, 1);
     actuator.l_steer = new rm::device::GM6020(right_can, 2);
@@ -75,6 +87,7 @@ struct Globals {
     actuator.f_wheel = new rm::device::M3508(right_can, 2);
     actuator.l_wheel = new rm::device::M3508(right_can, 3);
     actuator.r_wheel = new rm::device::M3508(right_can, 1);
+    actuator.camera_lift = new rm::device::Go8010Motor(motor_485_serial, 1);
 
     rc.SetName("rc");
     actuator.f_steer->SetName("f_steer");
@@ -83,6 +96,7 @@ struct Globals {
     actuator.f_wheel->SetName("f_wheel");
     actuator.l_wheel->SetName("l_wheel");
     actuator.r_wheel->SetName("r_wheel");
+    actuator.camera_lift->SetName("camera_lift");
 
     // 把设备都注册给设备管理器
     device_manager << &rc << actuator.f_steer << actuator.l_steer << actuator.r_steer << actuator.f_wheel

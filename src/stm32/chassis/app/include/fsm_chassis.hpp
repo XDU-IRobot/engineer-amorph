@@ -1,12 +1,11 @@
 
 #pragma once
 
-#include <librm.hpp>
 #include <etl/fsm.h>
 
 #include "globals.hpp"
 
-namespace fsm {
+namespace fsm_chassis {
 
 struct EventId {
   enum {
@@ -108,12 +107,13 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
   REACT(event::ControlLoop) {
     using RC = rm::device::RefereeProtocol<rm::device::RefereeRevision::kV170>::RemoteControl;
     const uint16_t keycode = globals->ref_vt_link.data().remote_control.keyboard_value;
-    const float key_w = (keycode & RC::kW) ? 1.f : 0.f;
-    const float key_s = (keycode & RC::kS) ? 1.f : 0.f;
-    const float key_a = (keycode & RC::kA) ? 1.f : 0.f;
-    const float key_d = (keycode & RC::kD) ? 1.f : 0.f;
-    const float key_q = (keycode & RC::kQ) ? 1.f : 0.f;
-    const float key_e = (keycode & RC::kE) ? 1.f : 0.f;
+    const float slow_mod = (keycode & RC::kShift) ? 0.3f : 1.f;
+    const float key_w = ((keycode & RC::kW) ? 1.f : 0.f) * slow_mod;
+    const float key_s = ((keycode & RC::kS) ? 1.f : 0.f) * slow_mod;
+    const float key_a = ((keycode & RC::kA) ? 1.f : 0.f) * slow_mod;
+    const float key_d = ((keycode & RC::kD) ? 1.f : 0.f) * slow_mod;
+    const float key_q = ((keycode & RC::kQ) ? 1.f : 0.f) * slow_mod;
+    const float key_e = ((keycode & RC::kE) ? 1.f : 0.f) * slow_mod;
     const float target_vx = (globals->rc.left_x() + key_d - key_a) * 800.f;
     const float target_vy = (globals->rc.left_y() + key_w - key_s) * 800.f;
     const float target_w = -(globals->rc.right_x() + key_e - key_q) * 1000.f;
@@ -129,8 +129,6 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     globals->actuator.f_wheel->SetCurrent(-control.front_wheel);
     globals->actuator.l_wheel->SetCurrent(-control.lr_wheel);
     globals->actuator.r_wheel->SetCurrent(-control.rr_wheel);
-    // globals->actuator.l_wheel->SetCurrent(0);
-    // globals->actuator.r_wheel->SetCurrent(0);
     rm::device::DjiMotorBase::SendCommand();
     return No_State_Change;
   }
@@ -171,4 +169,4 @@ struct Fault : etl::fsm_state<Chassis, Fault, StateId::kFault,  //
 
 void Init();
 
-}  // namespace fsm
+}  // namespace fsm_chassis

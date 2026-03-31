@@ -13,6 +13,8 @@ class TriSteerChassisController {
     pid_.r_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
   }
 
+  float processed_output{0};
+
   /**
    * @brief 更新一步，角度单位均为弧度，速度单位均为弧度每秒
    */
@@ -40,9 +42,28 @@ class TriSteerChassisController {
       return;
     }
 
+    // 限制加速度，防止轮子打滑
+    static rm::modules::TrajectoryLimiter  //
+        vx_limiter{2000.f, 1000000.f},     //
+        vy_limiter{2000.f, 1000000.f};
+
+    // 如果命令为0就绕过限制器直接把速度命令设为0，保证刹车时响应迅速
+    using rm::modules::IsNear;
+    if (IsNear(target_.vx, 0.f, 1e-6)) {
+      vx_limiter.ResetAt(0.f);
+    }
+    if (IsNear(target_.vy, 0.f, 1e-6)) {
+      vy_limiter.ResetAt(0.f);
+    }
+    vx_limiter.SetTarget(target_.vx);
+    vy_limiter.SetTarget(target_.vy);
+    vx_limiter.Update(0.002f);
+    vy_limiter.Update(0.002f);
+
     // 运动学解算
-    const auto fk_result = kinematics_.Forward(target_.vx, target_.vy, target_.w, state_.front_steer_position,
-                                               state_.lr_steer_position, state_.rr_steer_position);
+    const auto fk_result =
+        kinematics_.Forward(vx_limiter.current_position(), vy_limiter.current_position(), target_.w,
+                            state_.front_steer_position, state_.lr_steer_position, state_.rr_steer_position);
 
     // 舵
     pid_.f_steer.UpdateExtDiff(fk_result.front_steer_position, state_.front_steer_position, -state_.front_steer_speed,
@@ -60,6 +81,24 @@ class TriSteerChassisController {
     output_.lr_wheel = pid_.l_wheel.out();
     pid_.r_wheel.Update(fk_result.rr_wheel_speed, state_.rr_wheel_speed, dt);
     output_.rr_wheel = pid_.r_wheel.out();
+
+    // 后处理：计算期望舵角和实际舵角的差值，两者误差过大，对应的轮速就越小，防止轮子朝错误方向发力，浪费能量
+    const float f_steer_error =
+        std::fabs(rm::modules::Wrap(fk_result.front_steer_position - state_.front_steer_position, -M_PI, M_PI)) / M_PI;
+    const float lr_steer_error =
+        std::fabs(rm::modules::Wrap(fk_result.lr_steer_position - state_.lr_steer_position, -M_PI, M_PI)) / M_PI;
+    const float rr_steer_error =
+        std::fabs(rm::modules::Wrap(fk_result.rr_steer_position - state_.rr_steer_position, -M_PI, M_PI)) / M_PI;
+    // 衰减比例和归一化误差使用修改后的sigmoid函数，使小误差时衰减不严重，但误差靠近0.1时衰减迅速增加
+    // k越大越陡峭 https://www.desmos.com/calculator/ta8zwdvofh
+    static auto sigmoid_mod = [](float k, float x) { return 1 / (1 + exp(-k * (x - 0.1))); };
+    constexpr float K = 50.f;
+    const float f_steer_decay = 1 - sigmoid_mod(K, f_steer_error);
+    const float lr_steer_decay = 1 - sigmoid_mod(K, lr_steer_error);
+    const float rr_steer_decay = 1 - sigmoid_mod(K, rr_steer_error);
+    output_.front_wheel *= f_steer_decay;
+    output_.lr_wheel *= lr_steer_decay;
+    output_.rr_wheel *= rr_steer_decay;
   }
 
   /**
@@ -86,9 +125,9 @@ class TriSteerChassisController {
   bool enabled_{false};                         ///< 有力/无力？
   rm::modules::TriSteeringChassis kinematics_;  ///< 底盘运动学模型
   struct {
-    rm::modules::PID f_wheel{70.f, 0.f, 0.f, 15000.f, 0.f};       ///< 前轮速度环
-    rm::modules::PID l_wheel{70.f, 0.f, 0.f, 15000.f, 0.f};       ///< 左后轮速度环
-    rm::modules::PID r_wheel{70.f, 0.f, 0.f, 15000.f, 0.f};       ///< 右后轮速度环
+    rm::modules::PID f_wheel{75.f, 0.f, 0.f, 15000.f, 0.f};       ///< 前轮速度环
+    rm::modules::PID l_wheel{65.f, 0.f, 0.f, 15000.f, 0.f};       ///< 左后轮速度环
+    rm::modules::PID r_wheel{65.f, 0.f, 0.f, 15000.f, 0.f};       ///< 右后轮速度环
     rm::modules::PID f_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
     rm::modules::PID l_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
     rm::modules::PID r_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
