@@ -46,7 +46,7 @@ class ArmController {
     pid_[6].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     // clang-format on
     for (auto &f : acc_lpf_) {
-      f.set_cutoff_frequency(9.f, 500.f);
+      f.set_cutoff_frequency(500.f, 9.f);
     }
   }
 
