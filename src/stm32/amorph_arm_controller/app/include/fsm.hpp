@@ -39,11 +39,13 @@ struct StateId {
 namespace event {
 /*******************************************/
 struct ControlLoop : etl::message<EventId::kControlLoop> {
-  ControlLoop(const std::array<float, 7> &positions,  //
-              const std::array<float, 7> &velocities)
-      : current_positions(positions), current_velocities(velocities) {}
+  ControlLoop(const std::array<float, 7> &positions,   //
+              const std::array<float, 7> &velocities,  //
+              Eigen::Vector3f imu_acc)
+      : current_positions(positions), current_velocities(velocities), imu_acc(imu_acc) {}
   std::array<float, 7> current_positions;
   std::array<float, 7> current_velocities;
+  Eigen::Vector3f imu_acc;  ///< 来自IMU的加速度数据，单位：m/s^2，机械臂坐标系（前左上）下的分量
 };
 
 /*******************************************/
@@ -125,7 +127,7 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
     subloop_divide_10_ = (subloop_divide_10_ + 1) % 10;
     globals->arm_controller.ResetAt(e.current_positions);
     globals->arm_controller.Update(e.current_positions, e.current_velocities,
-                                   globals->actuator.gripper.feedback().power, 0.002f);
+                                   globals->actuator.gripper.feedback().power, e.imu_acc, 0.002f);
     if (subloop_divide_10_ == 0) {
       globals->actuator.SetEnable(false, 1);
     }
@@ -165,14 +167,15 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
       target_positions_ = globals->arm_controller.current_positions();
       target_positions_initialized_ = true;
     }
-    const auto &joint_limits = ArmController<7>::joint_limits();
+    const auto &joint_limits = globals->arm_controller.joint_limits();
     target_positions_[ctrl_joint_idx_] =
         std::clamp(target_positions_[ctrl_joint_idx_] + (globals->rc.left_x() * 0.001f),  //
                    joint_limits[ctrl_joint_idx_].first, joint_limits[ctrl_joint_idx_].second);
     target_positions_[6] = (globals->rc.ch(RcReceiver::kSf) < 1000) ? 1.f : 0.f;  // sf控制夹爪开关
     globals->arm_controller.GoTo(target_positions_);
+
     globals->arm_controller.Update(e.current_positions, e.current_velocities,
-                                   globals->actuator.gripper.feedback().power, 0.002f);
+                                   globals->actuator.gripper.feedback().power, e.imu_acc, 0.002f);
 
     auto output = globals->arm_controller.output();
     globals->actuator.ApplyOutput(output, true);
@@ -226,7 +229,7 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     }
 
     globals->arm_controller.Update(e.current_positions, e.current_velocities,
-                                   globals->actuator.gripper.feedback().power, 0.002f);
+                                   globals->actuator.gripper.feedback().power, e.imu_acc, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }
@@ -245,6 +248,10 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
   REACT(event::CartesianCustomCtrlCommand) {
     if (e.btn_a) {  // 按下按钮a，自定义控制器接管
       return StateId::kCartesianCustomCtrl;
+    }
+    if (e.btn_b) {  // 没有按A使能自定义控制器的情况下，按B使机械臂归位
+      globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+      globals->arm_controller.GoTo({0.f, 2.8f, -2.74f, 0.f, 0.f, 0.f, 1.f});
     }
     return No_State_Change;
   }
@@ -278,7 +285,7 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
       get_fsm_context().planner_need_reset_ = false;
     }
     globals->arm_controller.Update(e.current_positions, e.current_velocities,
-                                   globals->actuator.gripper.feedback().power, 0.002f);
+                                   globals->actuator.gripper.feedback().power, e.imu_acc, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }
@@ -322,7 +329,7 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
       get_fsm_context().planner_need_reset_ = false;
     }
     globals->arm_controller.Update(e.current_positions, e.current_velocities,
-                                   globals->actuator.gripper.feedback().power, 0.002f);
+                                   globals->actuator.gripper.feedback().power, e.imu_acc, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }
@@ -382,7 +389,7 @@ struct CartesianCustomCtrl : etl::fsm_state<Arm, CartesianCustomCtrl, StateId::k
       get_fsm_context().planner_need_reset_ = false;
     }
     globals->arm_controller.Update(e.current_positions, e.current_velocities,
-                                   globals->actuator.gripper.feedback().power, 0.002f);
+                                   globals->actuator.gripper.feedback().power, e.imu_acc, 0.002f);
     globals->actuator.ApplyOutput(globals->arm_controller.output(), true);
     return No_State_Change;
   }

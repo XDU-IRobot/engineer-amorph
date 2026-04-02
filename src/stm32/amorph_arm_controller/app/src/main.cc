@@ -16,7 +16,12 @@ void MainLoop() {
   globals->rc.UpdateSwitchWatchers();
   globals->actuator.UpdateEncoderCounter();
 
-  fsm::arm.receive(fsm::event::ControlLoop{globals->actuator.GetPositions(), globals->actuator.GetVelocities()});
+  const auto &pos = globals->actuator.GetPositions();
+  globals->imu.Update();
+
+  fsm::arm.receive(fsm::event::ControlLoop{globals->actuator.GetPositions(),
+                                           globals->actuator.GetVelocities(),
+                                           {globals->imu.accel_x(), globals->imu.accel_y(), globals->imu.accel_z()}});
 
   static volatile int loop_divisor;
   loop_divisor = (loop_divisor + 1) % 100;
@@ -50,12 +55,7 @@ void MainLoop() {
 
 void InitUserInput() {
   // 1. 定义遥控器拨杆功能
-#if defined(I_AM_LEFT_ARM)
-  constexpr int kModeSwitch = RcReceiver::kSb;
-#elif defined(I_AM_RIGHT_ARM)
-  constexpr int kModeSwitch = RcReceiver::kSc;
-#endif
-  globals->rc(kModeSwitch).OnValueChange([](const int &old_value, const int &new_value) {
+  globals->rc(CONFIG_RC_CH_MODE_SWITCH).OnValueChange([](const int &old_value, const int &new_value) {
     // 353-up, 1024-mid, 1695-down
     if (old_value == 0) {
       return;  // 第一次触发不响应
@@ -71,13 +71,12 @@ void InitUserInput() {
       fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kLongJointCalibrating});
     }
   });
-  globals->rc(RcReceiver::kSh).OnValueChange([](const int &old_value, const int &new_value) {
+  globals->rc(CONFIG_RC_CH_NEXT_JOINT).OnValueChange([](const int &old_value, const int &new_value) {
     UNUSED(old_value);
     if (new_value > 1000) {  // SH按下
       fsm::arm.receive(fsm::event::NextJoint{});
     }
   });
-  globals->rc(RcReceiver::kSg).OnValueChange([](const int &old_value, const int &new_value) { UNUSED(old_value); });
 }
 }  // namespace
 

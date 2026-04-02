@@ -4,6 +4,7 @@
 
 #include "fdcan.h"
 #include "usart.h"
+#include "spi.h"
 
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
@@ -12,24 +13,18 @@
 #include "rc_forward.hpp"
 #include "vt_link_forward.hpp"
 #include "host_comm.hpp"
+#include "config.hpp"
 
 /**
  * @brief   全局数据仓库
  */
 struct Globals {
-#if defined(I_AM_LEFT_ARM)
-  rm::hal::Can lower_motor_can{hfdcan2}, upper_motor_can{hfdcan1};  ///< 用于电机控制的CAN总线
-#elif defined(I_AM_RIGHT_ARM)
-  rm::hal::Can lower_motor_can{hfdcan1}, upper_motor_can{hfdcan2};  ///< 用于电机控制的CAN总线
-#endif
-
-  rm::hal::Can comm_can{hfdcan3};  ///< 用于和上位机通信的CAN总线
-#if defined(I_AM_LEFT_ARM)
-  Host host{comm_can, 0x20};  ///< 上位机对象
-#elif defined(I_AM_RIGHT_ARM)
-  Host host{comm_can, 0x30};  ///< 上位机对象
-#endif
+  rm::hal::Can lower_motor_can{CONFIG_LOWER_MOTOR_CAN},
+      upper_motor_can{CONFIG_UPPER_MOTOR_CAN};           ///< 用于电机控制的CAN总线
+  rm::hal::Can comm_can{hfdcan3};                        ///< 用于和上位机通信的CAN总线
+  Host host{comm_can, CONFIG_HOST_COMM_ID};              ///< 上位机对象
   rm::device::DeviceManager<1> host_connection_watcher;  ///< 监视上位机连接状态的设备管理器
+  rm::device::BMI088 imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};
 
   rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
                               rm::hal::stm32::UartMode::kInterrupt};  ///< 用于接收遥控器信号的串口
@@ -53,10 +48,10 @@ struct Globals {
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
-  ArmController<7> arm_controller;                      ///< 机械臂控制器
-  Actuator actuator{lower_motor_can, upper_motor_can};  ///< 所有电机
-  rm::device::DeviceManager<10> device_manager;         ///< 设备管理器
-  etl::string<512> status_str{""};                      ///< 描述当前系统状态的字符串
+  ArmController<7> arm_controller{CONFIG_JOINT_LIMITS, CONFIG_TRAJECTORY_LIMITS};  ///< 机械臂控制器
+  Actuator actuator{lower_motor_can, upper_motor_can};                             ///< 所有电机
+  rm::device::DeviceManager<10> device_manager;                                    ///< 设备管理器
+  etl::string<512> status_str{""};                                                 ///< 描述当前系统状态的字符串
 
   /**
    * @brief 初始化所有全局对象

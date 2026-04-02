@@ -32,7 +32,10 @@ class ArmController {
     kFault,
   };
 
-  ArmController() {
+  ArmController() = delete;
+  explicit ArmController(std::array<std::pair<float, float>, NJoints> joint_limits,  //
+                         std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiters)
+      : trajectory_limiter_(std::move(trajectory_limiters)), joint_limits_(std::move(joint_limits)) {
     // clang-format off
     pid_[0].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[1].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
@@ -42,18 +45,22 @@ class ArmController {
     pid_[5].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(1000.f).SetDiffFirst(true);
     pid_[6].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     // clang-format on
+    for (auto &f : acc_lpf_) {
+      f.set_cutoff_frequency(9.f, 500.f);
+    }
   }
 
   void GoTo(const std::array<float, NJoints> &target_positions) {
     gripper_open_cmd_ = target_positions[6] > 0.5f;  // 夹爪位置大于0.5 rad视为打开命令
     for (size_t i = 0; i < NJoints; ++i) {
-      trajectory_limiter_[i].SetTarget(std::clamp(target_positions[i], kJointLimits[i].first, kJointLimits[i].second));
+      trajectory_limiter_[i].SetTarget(
+          std::clamp(target_positions[i], joint_limits_[i].first, joint_limits_[i].second));
     }
     UpdateStatus();
   }
 
   void Update(const std::array<float, NJoints> &current_positions, const std::array<float, NJoints> &current_velocities,
-              float gripper_power, float dt = 1.f) {
+              float gripper_power, Eigen::Vector3f imu_acc, float dt = 1.f) {
     current_positions_ = current_positions;
 
     for (size_t i = 0; i < NJoints; ++i) {
@@ -69,11 +76,16 @@ class ArmController {
       output_.efforts[i] = 0.f;
     }
 
-    // 对j2 j3叠加动力学前馈力矩
-    const auto feedforward_efforts =
-        dynamic_model_.Inverse({current_positions[0], current_positions[1], current_positions[2]});
-    for (size_t i = 1; i < 3; ++i) {
-      output_.efforts[i] += feedforward_efforts(i);
+    // 加速度计数据过低通滤波
+    const float acc_x = acc_lpf_[0].apply(imu_acc[0]);
+    const float acc_y = acc_lpf_[1].apply(imu_acc[1]);
+    // const float acc_z = acc_lpf_[2].apply(gravity_vector[2]);
+
+    // 对j1 j2 j3叠加动力学前馈力矩
+    const auto acc_comp_efforts = ArmDynamics::Compensate(
+        {current_positions[0], current_positions[1], current_positions[2]}, {acc_x, acc_y, -9.81f});
+    for (int i = 0; i < 3; ++i) {
+      output_.efforts[i] += acc_comp_efforts(i);
     }
 
     // 控制夹爪
@@ -108,7 +120,7 @@ class ArmController {
     }
   }
 
-  static const auto &joint_limits() { return kJointLimits; }
+  const auto &joint_limits() { return joint_limits_; }
   const auto &current_positions() const { return current_positions_; }
   const auto &output() const { return output_; }
   const auto &gripper() const { return gripper_controller_; }
@@ -154,21 +166,11 @@ class ArmController {
   bool gripper_open_cmd_{false};
   std::array<float, NJoints> current_positions_{};
   Output output_{};
-  DynamicModel dynamic_model_;
   GripperController<> gripper_controller_;
-  std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiter_  //
-      {rm::modules::TrajectoryLimiter{2.175f, 3.75f},                      //
-       rm::modules::TrajectoryLimiter{2.175f, 2.5f},                     //
-       rm::modules::TrajectoryLimiter{2.175f, 2.5f},                       //
-       rm::modules::TrajectoryLimiter{2.175f, 10.f},                       //
-       rm::modules::TrajectoryLimiter{2.61f, 3.75f},                       //
-       rm::modules::TrajectoryLimiter{2.61f, 15.f},                        //
-       rm::modules::TrajectoryLimiter{2.61f, 5.f}};
+  std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiter_;
   std::array<rm::modules::PID, NJoints> pid_;
-
-  constexpr static std::array<std::pair<float, float>, NJoints> kJointLimits{
-      std::pair{-0.698132f, 0.349066}, std::pair{1.362579, 2.93337535}, std::pair{-2.933375, 0.0}, std::pair{-M_PI, M_PI},
-      std::pair{-M_PI / 2.f, M_PI / 2.f}, std::pair{-M_PI, M_PI}, std::pair{-M_PI, M_PI}};  // placeholder joint limits
+  std::array<std::pair<float, float>, NJoints> joint_limits_;
+  rm::modules::LowPassFilter2p<float> acc_lpf_[3];
 
   Status status_{kIdle};
   int fault_counter_{0};
