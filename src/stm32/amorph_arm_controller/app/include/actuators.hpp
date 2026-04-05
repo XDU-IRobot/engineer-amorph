@@ -11,7 +11,7 @@
  */
 class Actuator {
  public:
-  Actuator(rm::hal::Can &lower_can, rm::hal::Can &upper_can)
+  Actuator(rm::hal::CanInterface &lower_can, rm::hal::CanInterface &upper_can)
       : j1{lower_can, rm::device::DmMotorMit::Settings{.master_id = 0xb1,
                                                        .slave_id = 0xa1,
                                                        .p_max = 3.141593f,
@@ -71,9 +71,6 @@ class Actuator {
     }
   }
   void ApplyOutput(const ArmController<7>::Output &output, bool apply_position = false) {
-    // j4 j5 j6 夹爪四个电机的指令一次全发的话会把can tx buffer塞满，所以用这个标志来回切换做分时
-    static bool upper_can_send_split = true;
-
     const auto &pd_config = CONFIG_MOTOR_PD_PARAMS;
     if (apply_position) {
       j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]),  //
@@ -91,13 +88,11 @@ class Actuator {
                        calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2],  //
                        pd_config[2].kp,                                                    //
                        pd_config[2].kd);
-      if (upper_can_send_split) {
-        j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, pd_config[3].kp, pd_config[3].kd);
-        j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, pd_config[4].kp, pd_config[4].kd);
-      } else {
-        j6.SetMitCommand(calibrators[5].LogicalToReal(output.positions[5]), 0, 0.f, pd_config[5].kp, pd_config[5].kd);
-        gripper.SetSpeed(output.velocities[6]);
-      }
+      j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, pd_config[3].kp, pd_config[3].kd);
+      j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, pd_config[4].kp, pd_config[4].kd);
+
+      j6.SetMitCommand(calibrators[5].LogicalToReal(output.positions[5]), 0, 0.f, pd_config[5].kp, pd_config[5].kd);
+      gripper.SetSpeed(output.velocities[6]);
       // j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]), 0, 0.f, 0.f, 0.f);
       // j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]), 0,
       //                  calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1], 0.f, 0.f);
@@ -113,15 +108,11 @@ class Actuator {
       j1.SetMitCommand(0, 0, 0, 0, 0);
       j2.SetMitCommand(0, 0, 0, 0, 0);
       j3.SetMitCommand(0, 0, 0, 0, 0);
-      if (upper_can_send_split) {
-        j4.SetMitCommand(0, 0, 0, 0, 0);
-        j5.SetMitCommand(0, 0, 0, 0, 0);
-      } else {
-        j6.SetMitCommand(0, 0, 0, 0, 0);
-        gripper.SetPower(0);
-      }
+      j4.SetMitCommand(0, 0, 0, 0, 0);
+      j5.SetMitCommand(0, 0, 0, 0, 0);
+      j6.SetMitCommand(0, 0, 0, 0, 0);
+      gripper.SetPower(0);
     }
-    upper_can_send_split = !upper_can_send_split;
   }
   void UpdateEncoderCounter() { gripper_encoder.Update(gripper.feedback().position_rad); }
 

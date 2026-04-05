@@ -19,9 +19,9 @@
  * @brief   全局数据仓库
  */
 struct Globals {
-  rm::hal::Can lower_motor_can{CONFIG_LOWER_MOTOR_CAN},
-      upper_motor_can{CONFIG_UPPER_MOTOR_CAN};           ///< 用于电机控制的CAN总线
-  rm::hal::Can comm_can{hfdcan3};                        ///< 用于和上位机通信的CAN总线
+  rm::hal::ThrottledCan<128> lower_motor_can{CONFIG_LOWER_MOTOR_CAN, 7000};
+  rm::hal::ThrottledCan<128> upper_motor_can{CONFIG_UPPER_MOTOR_CAN, 7000};
+  rm::hal::ThrottledCan<128> comm_can{hfdcan3, 1000};    ///< 用于和上位机通信的CAN总线
   Host host{comm_can, CONFIG_HOST_COMM_ID};              ///< 上位机对象
   rm::device::DeviceManager<1> host_connection_watcher;  ///< 监视上位机连接状态的设备管理器
   rm::device::BMI088 imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};

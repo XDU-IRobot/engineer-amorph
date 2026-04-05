@@ -128,6 +128,9 @@ extern "C" {
   globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
 
   for (;;) {
+    globals->lower_motor_can.Process();
+    globals->upper_motor_can.Process();
+    globals->comm_can.Process();
   }
 }
 }
