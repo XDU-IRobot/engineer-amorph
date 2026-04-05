@@ -1,6 +1,8 @@
 
 #include <etl/cyclic_value.h>
 
+#include "adc.h"
+
 #include "fsm_chassis.hpp"
 #include "fsm_gimbal.hpp"
 #include "bsp/timer_task.hpp"
@@ -14,6 +16,7 @@ void SubLoop500hz() {
   globals->device_manager.Update();
   globals->rc.Update();
   globals->system_status = globals->device_manager.GetSummaryString();
+  globals->vbus = (globals_no_dtcm.adc_val[0] * 3.3f / 65535) * 11.0f;
 
   static etl::cyclic_value<int, 0, 499> loop_divisor;
   ++loop_divisor;
@@ -49,6 +52,9 @@ void SubLoop500hz() {
     ret.f_wheel_vel = -globals->actuator.f_wheel->rpm() / 60.f * 2.f * M_PI;
     ret.l_wheel_vel = -globals->actuator.l_wheel->rpm() / 60.f * 2.f * M_PI;
     ret.r_wheel_vel = -globals->actuator.r_wheel->rpm() / 60.f * 2.f * M_PI;
+    ret.f_wheel_current = -globals->actuator.f_wheel->current();
+    ret.l_wheel_current = -globals->actuator.l_wheel->current();
+    ret.r_wheel_current = -globals->actuator.r_wheel->current();
     return ret;
   }();
   fsm_chassis::chassis.receive(control_loop_event);
@@ -86,6 +92,9 @@ extern "C" {
   globals->Init();      // 初始化全局对象
   fsm_chassis::Init();  //
   fsm_gimbal::Init();   // 初始化状态机
+
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)globals_no_dtcm.adc_val, 2);
 
   // 定义遥控器拨杆功能
   globals->rc(rc_ch::SD).OnValueChange([](const int &old_value, const int &new_value) {
@@ -184,6 +193,9 @@ extern "C" {
 
   globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
   for (;;) {
+    globals->left_can.Process();
+    globals->right_can.Process();
+    globals->comm_can.Process();
   }
 }
 }

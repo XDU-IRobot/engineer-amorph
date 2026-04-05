@@ -35,6 +35,9 @@ struct ControlLoop : etl::message<EventId::kControlLoop> {
   float f_wheel_vel;
   float l_wheel_vel;
   float r_wheel_vel;
+  float f_wheel_current;
+  float l_wheel_current;
+  float r_wheel_current;
 };
 
 /*******************************************/
@@ -107,21 +110,24 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
   REACT(event::ControlLoop) {
     using RC = rm::device::RefereeProtocol<rm::device::RefereeRevision::kV170>::RemoteControl;
     const uint16_t keycode = globals->ref_vt_link.data().remote_control.keyboard_value;
-    const float slow_mod = (keycode & RC::kShift) ? 0.3f : 1.f;
+    const bool move_gently = (keycode & RC::kShift) != 0;  // 按住Ctrl键，慢速移动
+    const float slow_mod = move_gently ? 0.3f : 1.f;
     const float key_w = ((keycode & RC::kW) ? 1.f : 0.f) * slow_mod;
     const float key_s = ((keycode & RC::kS) ? 1.f : 0.f) * slow_mod;
     const float key_a = ((keycode & RC::kA) ? 1.f : 0.f) * slow_mod;
     const float key_d = ((keycode & RC::kD) ? 1.f : 0.f) * slow_mod;
     const float key_q = ((keycode & RC::kQ) ? 1.f : 0.f) * slow_mod;
     const float key_e = ((keycode & RC::kE) ? 1.f : 0.f) * slow_mod;
-    const float target_vx = (globals->rc.left_x() + key_d - key_a) * 800.f;
-    const float target_vy = (globals->rc.left_y() + key_w - key_s) * 800.f;
-    const float target_w = -(globals->rc.right_x() + key_e - key_q) * 1000.f;
+    const float target_vx = (globals->rc.left_x() + key_d - key_a) * 1000.f;
+    const float target_vy = (globals->rc.left_y() + key_w - key_s) * 1000.f;
+    const float target_w = -(globals->rc.right_x() + key_e - key_q) * 3000.f;
     globals->controller.SetTarget(target_vx, target_vy, target_w);
-    globals->controller.Update(e.f_steer_pos, e.f_steer_vel,  //
-                               e.l_steer_pos, e.l_steer_vel,  //
-                               e.r_steer_pos, e.r_steer_vel,  //
-                               e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel);
+    globals->controller.Update(e.f_steer_pos, e.f_steer_vel,                             //
+                               e.l_steer_pos, e.l_steer_vel,                             //
+                               e.r_steer_pos, e.r_steer_vel,                             //
+                               e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
+                               e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
+                               move_gently);
     const auto &control = globals->controller.output();
     globals->actuator.f_steer->SetCurrent(-control.front_steer);
     globals->actuator.l_steer->SetCurrent(-control.lr_steer);

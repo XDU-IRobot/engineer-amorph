@@ -7,7 +7,7 @@
  */
 class TriSteerChassisController {
  public:
-  explicit TriSteerChassisController(float chassis_radius = 0.2f) : kinematics_(chassis_radius) {
+  explicit TriSteerChassisController(float chassis_radius = 0.2f) : kinematics_(0.19485f * 2.f, 0.48f) {
     pid_.f_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
     pid_.l_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
     pid_.r_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
@@ -18,9 +18,13 @@ class TriSteerChassisController {
   /**
    * @brief 更新一步，角度单位均为弧度，速度单位均为弧度每秒
    */
-  void Update(float front_steer_position, float front_steer_speed, float lr_steer_position, float lr_steer_speed,
-              float rr_steer_position, float rr_steer_speed, float front_wheel_speed, float lr_wheel_speed,
-              float rr_wheel_speed, float dt = 1.f) {
+  void Update(float front_steer_position, float front_steer_speed,                        //
+              float lr_steer_position, float lr_steer_speed,                              //
+              float rr_steer_position, float rr_steer_speed,                              //
+              float front_wheel_speed, float lr_wheel_speed, float rr_wheel_speed,        //
+              float front_wheel_current, float lr_wheel_current, float rr_wheel_current,  //
+              bool move_gently,                                                           //
+              float dt = 1.f) {
     // 更新当前状态
     state_.front_steer_position = front_steer_position;
     state_.lr_steer_position = lr_steer_position;
@@ -42,28 +46,41 @@ class TriSteerChassisController {
       return;
     }
 
+    float vx_cmd = target_.vx;
+    float vy_cmd = target_.vy;
     // 限制加速度，防止轮子打滑
-    static rm::modules::TrajectoryLimiter  //
-        vx_limiter{2000.f, 1000000.f},     //
-        vy_limiter{2000.f, 1000000.f};
+    if (move_gently) {
+      static rm::modules::TrajectoryLimiter  //
+          vx_limiter{2000.f, 1000000.f},     //
+          vy_limiter{2000.f, 1000000.f};
 
-    // 如果命令为0就绕过限制器直接把速度命令设为0，保证刹车时响应迅速
-    using rm::modules::IsNear;
-    if (IsNear(target_.vx, 0.f, 1e-6)) {
-      vx_limiter.ResetAt(0.f);
+      if (!moving_gently_) {
+        vx_limiter.ResetAt(0.f);
+        vy_limiter.ResetAt(0.f);
+        moving_gently_ = true;
+      }
+
+      // 如果命令为0就绕过限制器直接把速度命令设为0，保证刹车时响应迅速
+      using rm::modules::IsNear;
+      if (IsNear(target_.vx, 0.f, 1e-6)) {
+        vx_limiter.ResetAt(0.f);
+      }
+      if (IsNear(target_.vy, 0.f, 1e-6)) {
+        vy_limiter.ResetAt(0.f);
+      }
+      vx_limiter.SetTarget(target_.vx);
+      vy_limiter.SetTarget(target_.vy);
+      vx_limiter.Update(0.002f);
+      vy_limiter.Update(0.002f);
+      vx_cmd = vx_limiter.current_position();
+      vy_cmd = vy_limiter.current_position();
+    } else {
+      moving_gently_ = false;
     }
-    if (IsNear(target_.vy, 0.f, 1e-6)) {
-      vy_limiter.ResetAt(0.f);
-    }
-    vx_limiter.SetTarget(target_.vx);
-    vy_limiter.SetTarget(target_.vy);
-    vx_limiter.Update(0.002f);
-    vy_limiter.Update(0.002f);
 
     // 运动学解算
-    const auto fk_result =
-        kinematics_.Forward(vx_limiter.current_position(), vy_limiter.current_position(), target_.w,
-                            state_.front_steer_position, state_.lr_steer_position, state_.rr_steer_position);
+    const auto fk_result = kinematics_.Forward(vx_cmd, vy_cmd, target_.w, state_.front_steer_position,
+                                               state_.lr_steer_position, state_.rr_steer_position);
 
     // 舵
     pid_.f_steer.UpdateExtDiff(fk_result.front_steer_position, state_.front_steer_position, -state_.front_steer_speed,
@@ -99,6 +116,24 @@ class TriSteerChassisController {
     output_.front_wheel *= f_steer_decay;
     output_.lr_wheel *= lr_steer_decay;
     output_.rr_wheel *= rr_steer_decay;
+
+    // 功率限制
+    const float pid_outputs[3] = {output_.front_wheel, output_.lr_wheel, output_.rr_wheel};
+    float pid_outputs_limited[3];
+    std::array<rm::modules::MotorPowerModel::MotorState, 3> motor_states{
+        {{state_.front_wheel_speed / 2.0f / (float)M_PI * 60.0f, pid_outputs[0], front_wheel_current},
+         {state_.lr_wheel_speed / 2.0f / (float)M_PI * 60.0f, pid_outputs[1], lr_wheel_current},
+         {state_.rr_wheel_speed / 2.0f / (float)M_PI * 60.0f, pid_outputs[2], rr_wheel_current}}};
+    power_model_.DistributePower(motor_states, pid_outputs, 120, pid_outputs_limited);
+    output_.front_wheel = pid_outputs_limited[0];
+    output_.lr_wheel = pid_outputs_limited[1];
+    output_.rr_wheel = pid_outputs_limited[2];
+    motor_states[0].give_current = output_.front_wheel;
+    motor_states[1].give_current = output_.lr_wheel;
+    motor_states[2].give_current = output_.rr_wheel;
+    estimated_power_ = power_model_.CalculatePower(motor_states[0]).total_power +  //
+                       power_model_.CalculatePower(motor_states[1]).total_power +  //
+                       power_model_.CalculatePower(motor_states[2]).total_power;
   }
 
   /**
@@ -132,6 +167,11 @@ class TriSteerChassisController {
     rm::modules::PID l_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
     rm::modules::PID r_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
   } pid_;
+
+  rm::modules::MotorPowerModel power_model_{rm::modules::MotorPowerModel::kM3508};
+  float estimated_power_{0.f};
+
+  bool moving_gently_{false};
 
   struct {
     float front_wheel_speed;     ///< 前轮速度

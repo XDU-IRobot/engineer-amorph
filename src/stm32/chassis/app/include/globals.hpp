@@ -18,7 +18,7 @@
  * @brief   全局数据仓库
  */
 struct Globals {
-  rm::hal::Can left_can{hfdcan1}, right_can{hfdcan2}, comm_can{hfdcan3};
+  rm::hal::ThrottledCan<128> left_can{hfdcan1, 7000}, right_can{hfdcan2, 7000}, comm_can{hfdcan3, 1000};
   rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
                               rm::hal::stm32::UartMode::kInterrupt};  ///< 接收遥控器的串口
   rm::hal::Serial motor_485_serial{huart2, 100, rm::hal::stm32::UartMode::kInterrupt,
@@ -68,6 +68,8 @@ struct Globals {
 
   etl::string<512> system_status;  ///< 系统状态摘要字符串
 
+  float vbus;
+
   /**
    * @brief 初始化所有全局对象
    */
@@ -116,6 +118,7 @@ struct Globals {
  * } >RAM_D1
  */
 struct GlobalsNoDtcm {
+  uint16_t adc_val[2];  ///< ADC采样值，必须在DMA可访问的RAM_D1中（DTCM不可被DMA访问）
   rm::hal::Serial vt_link_serial_7{huart7, 25, rm::hal::stm32::UartMode::kInterrupt,
                                    rm::hal::stm32::UartMode::kInterrupt},                                          //
       vt_link_serial_10{huart10, 25, rm::hal::stm32::UartMode::kInterrupt, rm::hal::stm32::UartMode::kInterrupt};  //
@@ -123,4 +126,4 @@ struct GlobalsNoDtcm {
 };
 
 extern Globals *globals;
-extern /*__attribute__((section(".sram4")))*/ GlobalsNoDtcm globals_no_dtcm;
+extern __attribute__((section(".sram4"))) GlobalsNoDtcm globals_no_dtcm;
