@@ -76,7 +76,21 @@
 | Ctrl/Shift + B   | 打断正在执行的动作                                                                                                                                                            |
 |                  | 机械臂正在执行动作时，UI 上会在准星左侧或右侧显示“EXEC”，此时可以使用这个组合键来强制打断动作                                                                                 |
 
-### 自定义控制器
+### T265自定义控制器
+
+![](https://private-user-images.githubusercontent.com/41246950/574174627-2b7ecb7d-9c2c-4f71-a60e-0ab76e72e2dc.jpg?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzU0ODM5NzgsIm5iZiI6MTc3NTQ4MzY3OCwicGF0aCI6Ii80MTI0Njk1MC81NzQxNzQ2MjctMmI3ZWNiN2QtOWMyYy00ZjcxLWE2MGUtMGFiNzZlNzJlMmRjLmpwZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA0MDYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwNDA2VDEzNTQzOFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTRiZGJjOTMyMDZiY2I3Y2E0YmU4ZDEwMTU2N2YyMDFjZmI3ZjM5NjBmYWRjNzA1MjkzZDZjZTcwN2RkZWEwMDYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.Gr_4KALLbL9RZSvmD4s7NZmBQ3HzBT_i4gRGL3zcktU)
+
+- 按住按钮A，使能自定义控制器，可以控制机械臂运动，松开按钮A，自定义控制器失能，机械臂停止运动。
+
+- 按住按钮A，控制器使能的情况下，按钮B控制夹爪开合。
+
+- 不按按钮A的情况下，按一下按钮B，机械臂归位。
+
+- 自定义控制器上有一个小屏幕，显示一个人工地平线表示控制器当前的姿态、一个小箭头表示哪个方向代表机械臂的正前方。
+
+- 若需要重置正前方方向/T265的位姿飞掉，按按钮C重置位姿。
+
+### 同构自定义控制器
 
 自定义控制器上电时重力补偿默认关闭，按主控 C 板上的"KEY"键一次，开启重力补偿，再按一次关闭重力补偿。
 
