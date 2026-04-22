@@ -5,7 +5,6 @@
 
 #include <etl/debounce.h>
 
-#include "usart.h"
 #include "can.h"
 #include "dynamics.hpp"
 #include "rgb_led.hpp"
@@ -17,8 +16,7 @@ struct Globals {
 
   // rm::hal::Serial dbus{huart1, 36, rm::hal::stm32::UartMode::kNormal, rm::hal::stm32::UartMode::kDma};  //
   // rm::device::DR16 rc{dbus};  ///< 遥控器，调试用的，自定义控制器就别给他整个遥控器了
-
-  rm::hal::Can motor_can{hcan1};
+  rm::hal::ThrottledCan<128> motor_can{3000, hcan1};
   DynamicModel dynamic_model;
 
   LED led;

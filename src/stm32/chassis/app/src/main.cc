@@ -11,17 +11,27 @@
 Globals *globals{nullptr};
 __attribute__((section(".sram4"))) GlobalsNoDtcm globals_no_dtcm;
 
+volatile long long timestamp_us = 0;
+volatile long long mainloop_time_us = 0;
+
 namespace {
 void SubLoop500hz() {
+  timestamp_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
+          .count();
+  const auto start = std::chrono::steady_clock::now();
+
   globals->device_manager.Update();
   globals->rc.Update();
   globals->system_status = globals->device_manager.GetSummaryString();
-  globals->vbus = (globals_no_dtcm.adc_val[0] * 3.3f / 65535) * 11.0f;
+  globals->vbus = globals_no_dtcm.vbus_adc.vbus();
 
   static etl::cyclic_value<int, 0, 499> loop_divisor;
   ++loop_divisor;
 
   if ((loop_divisor % 10) == 0) { /** 50hz subloop **/
+    // globals->servo.MoveTime((HAL_GetTick() % 5000) / 5, 20);
+    globals->servo.ReadTemperature();
     // 转发遥控器数据
     if (globals->rc.online_status() == rm::device::Device::Status::kOk) {
       int16_t rc_channels[16];
@@ -59,6 +69,9 @@ void SubLoop500hz() {
   }();
   fsm_chassis::chassis.receive(control_loop_event);
   fsm_gimbal::gimbal.receive(fsm_gimbal::event::ControlLoop{});
+
+  mainloop_time_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
 }
 
 void AhrsLoop2khz() {
@@ -87,14 +100,17 @@ void MainLoop2khz() {
 
 extern "C" {
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == MCP_INT_Pin) {
+    globals->mcp_can.ExtiIrqHandler();
+  }
+}
+
 [[noreturn]] void AppMain(void) {
   globals = new Globals;
   globals->Init();      // 初始化全局对象
   fsm_chassis::Init();  //
   fsm_gimbal::Init();   // 初始化状态机
-
-  HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED);
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)globals_no_dtcm.adc_val, 2);
 
   // 定义遥控器拨杆功能
   globals->rc(rc_ch::SD).OnValueChange([](const int &old_value, const int &new_value) {
@@ -152,9 +168,9 @@ extern "C" {
   });
 
   // 初始化图传链路串口
-  rm::hal::SerialRxCallbackFunction on_vt_serial_rx = [&](const std::vector<uint8_t> &data, uint16_t len) {
-    for (int i = 0; i < len; ++i) {
-      globals->ref_vt_link << data[i];
+  rm::hal::SerialRxCallbackFunction on_vt_serial_rx = [&](etl::span<const uint8_t> data) {
+    for (auto byte : data) {
+      globals->ref_vt_link << byte;
     }
   };
   globals->ref_vt_link.AttachCallback([&](uint16_t cmd_id, uint8_t seq) {
@@ -181,8 +197,8 @@ extern "C" {
   });                                                                  // 注册解包回调
   globals_no_dtcm.vt_link_serial_7.AttachRxCallback(on_vt_serial_rx);  // 注册接收回调，把收到的数据传给解码器
   // globals_no_dtcm.vt_link_serial_10.AttachRxCallback(on_vt_serial_rx);
-  globals_no_dtcm.vt_link_serial_7.Begin();
-  // globals_no_dtcm.vt_link_serial_10.Begin();
+  globals_no_dtcm.vt_link_serial_7.Start();
+  // globals_no_dtcm.vt_link_serial_10.Start();
 
   // 创建主循环定时任务，定频2khz
   TimerTask mainloop{
@@ -191,11 +207,23 @@ extern "C" {
   };
   mainloop.Start();
 
+  globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
   globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
   for (;;) {
     globals->left_can.Process();
     globals->right_can.Process();
     globals->comm_can.Process();
+    globals->mcp_can.Process();
+    // 兜底轮询：若 MCU 错过了下降沿，INT 引脚仍会持续拉低。
+    // 此时临时屏蔽 EXTI 中断（防止与 ISR 重入），检查引脚并补调一次，
+    // 再立即重新使能，保证正常路径的实时性不受影响。
+    if (HAL_GPIO_ReadPin(MCP_INT_GPIO_Port, MCP_INT_Pin) == GPIO_PIN_RESET) {
+      HAL_NVIC_DisableIRQ(MCP_INT_EXTI_IRQn);
+      if (HAL_GPIO_ReadPin(MCP_INT_GPIO_Port, MCP_INT_Pin) == GPIO_PIN_RESET) {
+        globals->mcp_can.ExtiIrqHandler();
+      }
+      HAL_NVIC_EnableIRQ(MCP_INT_EXTI_IRQn);
+    }
   }
 }
 }

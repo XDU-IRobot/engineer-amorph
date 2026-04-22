@@ -14,7 +14,8 @@ struct __attribute__((packed)) Stm32FeedbackCompressed {
     kIdle,                               ///< 空闲，可执行轨迹
     kHostControl,                        ///< 正在被上位机控制
     kCustomCtrl,                         ///< 自定义控制器操作
-    kLongJointCalibrating,               ///< 超过位置编码器1圈的长关节校准位置(j6、夹爪）
+    kCartesianCustomCtrl,                ///< 笛卡尔空间自定义控制器操作（T265）
+    kLongJointCalibrating,               ///< 夹爪校准位置
     kFault,                              ///< 故障状态
   } mode;                                ///< 下位机目前所处的模式，定义见fsm.hpp
   rm::modules::f16 joint_positions[6];   ///< 当前关节位置，单位：rad

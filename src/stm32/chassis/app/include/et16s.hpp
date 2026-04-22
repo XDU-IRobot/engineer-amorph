@@ -31,7 +31,7 @@ constexpr int SH = 15;
  */
 class WflyET16s : public rm::device::Sbus {
  public:
-  WflyET16s(rm::hal::SerialInterface &serial) : Sbus(serial) {}
+  WflyET16s(rm::hal::AsyncReadable &serial) : Sbus(serial) {}
 
   void Update() {
     for (auto &[ch, watcher] : switch_watchers_) {

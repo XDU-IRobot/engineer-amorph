@@ -9,20 +9,43 @@
 
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
+#include "bsp/vbus_adc.hpp"
 #include "et16s.hpp"
 #include "tri_steer_chassis_controller.hpp"
 #include "rc_forward.hpp"
 #include "vt_link_forward.hpp"
 
 /**
- * @brief   全局数据仓库
+ * STM32H7的DTCM区域只能被CPU访问，不能被DMA访问，所以需要开一块在DTCM之外的全局数据区域，专门放一些需要被DMA访问的对象
+ * 注意linker script里要相应的开一块放在RAM_D1里的区域sram4：
+ *   .sram4 (NOLOAD) :
+ * {
+ *   . = ALIGN(32);
+ *   *(.sram4)
+ *   . = ALIGN(32);
+ * } >RAM_D1
+ */
+struct GlobalsNoDtcm {
+  rm::hal::Serial<25> vt_link_serial_7{huart7, false, true}, vt_link_serial_10{huart10, false, true};
+  ///< 图传链路的串口，两路功能完全相同，互做冗余，一路出故障只需要把线接到另一路上即可
+  rm::hal::Serial<100> servo_serial{huart1, false, true};      ///< 舵机串口
+  rm::hal::Serial<50> sbus_serial{huart5, false, true};        ///< 接收遥控器的串口
+  rm::hal::Serial<100> motor_485_serial{huart2, false, true};  ///< 电机485通信串口
+  VbusAdc vbus_adc{hadc1};
+};
+extern __attribute__((section(".sram4"))) GlobalsNoDtcm globals_no_dtcm;
+
+/**
+ * @brief   全局资源
  */
 struct Globals {
-  rm::hal::ThrottledCan<128> left_can{hfdcan1, 7000}, right_can{hfdcan2, 7000}, comm_can{hfdcan3, 1000};
-  rm::hal::Serial sbus_serial{huart5, 50, rm::hal::stm32::UartMode::kNormal,
-                              rm::hal::stm32::UartMode::kInterrupt};  ///< 接收遥控器的串口
-  rm::hal::Serial motor_485_serial{huart2, 100, rm::hal::stm32::UartMode::kInterrupt,
-                                   rm::hal::stm32::UartMode::kInterrupt};  ///< 电机485通信串口
+  rm::hal::ThrottledCan<128> left_can{4000, hfdcan1}, right_can{4000, hfdcan2}, comm_can{1000, hfdcan3};
+  rm::hal::ThrottledMcp2515<128> mcp_can{4000, hspi1, MCP_CS_GPIO_Port, MCP_CS_Pin,
+                                         rm::hal::stm32::Mcp2515::Bitrate::k1Mbps};
+
+  rm::hal::Pin servo_tx_en{*SERVO_TX_EN_GPIO_Port, SERVO_TX_EN_Pin},
+      servo_rx_en{*SERVO_RX_EN_GPIO_Port, SERVO_RX_EN_Pin};
+  rm::device::HiWonderServo servo{globals_no_dtcm.servo_serial, servo_tx_en, servo_rx_en, 1};
 
   Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
   rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
@@ -43,7 +66,7 @@ struct Globals {
   rm::device::BMI088 imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};
   rm::modules::MahonyAhrs mahony{2000.f};
 
-  WflyET16s rc{sbus_serial};                                               ///< 遥控器
+  WflyET16s rc{globals_no_dtcm.sbus_serial};                               ///< 遥控器
   RcForwarder rc_forwarder{comm_can};                                      ///< 用于把遥控器数据转发到CAN总线上
   rm::device::Referee<rm::device::RefereeRevision::kNewV110> ref_vt_link;  ///< 图传链路
   rm::device::VirtualDevice custom_ctrl_device, vt_remote_device;
@@ -74,22 +97,25 @@ struct Globals {
    * @brief 初始化所有全局对象
    */
   void Init() {
-    buzzer.Init();
+    buzzer.Begin();
     left_can.SetFilter(0, 0);
     right_can.SetFilter(0, 0);
     left_can.Begin();
     right_can.Begin();
     comm_can.Begin();
+    mcp_can.Begin();
     rc.Begin();
-    motor_485_serial.Begin();
+    globals_no_dtcm.motor_485_serial.Start();
+    globals_no_dtcm.servo_serial.Start();
+    globals_no_dtcm.vbus_adc.Begin();
 
-    actuator.f_steer = new rm::device::GM6020(right_can, 1);
-    actuator.l_steer = new rm::device::GM6020(right_can, 2);
-    actuator.r_steer = new rm::device::GM6020(right_can, 3);
-    actuator.f_wheel = new rm::device::M3508(right_can, 2);
-    actuator.l_wheel = new rm::device::M3508(right_can, 3);
-    actuator.r_wheel = new rm::device::M3508(right_can, 1);
-    actuator.camera_lift = new rm::device::Go8010Motor(motor_485_serial, 1);
+    actuator.f_steer = new rm::device::GM6020(mcp_can, 1);
+    actuator.l_steer = new rm::device::GM6020(mcp_can, 2);
+    actuator.r_steer = new rm::device::GM6020(mcp_can, 3);
+    actuator.f_wheel = new rm::device::M3508(mcp_can, 2);
+    actuator.l_wheel = new rm::device::M3508(mcp_can, 3);
+    actuator.r_wheel = new rm::device::M3508(mcp_can, 1);
+    actuator.camera_lift = new rm::device::Go8010Motor(globals_no_dtcm.motor_485_serial, 1);
 
     rc.SetName("rc");
     actuator.f_steer->SetName("f_steer");
@@ -107,23 +133,4 @@ struct Globals {
   }
 };
 
-/**
- * STM32H7的DTCM区域只能被CPU访问，不能被DMA访问，所以需要开一块在DTCM之外的全局数据区域，专门放一些需要被DMA访问的对象
- * 注意linker script里要相应的开一块放在RAM_D1里的区域sram4：
- *   .sram4 (NOLOAD) :
- * {
- *   . = ALIGN(32);
- *   *(.sram4)
- *   . = ALIGN(32);
- * } >RAM_D1
- */
-struct GlobalsNoDtcm {
-  uint16_t adc_val[2];  ///< ADC采样值，必须在DMA可访问的RAM_D1中（DTCM不可被DMA访问）
-  rm::hal::Serial vt_link_serial_7{huart7, 25, rm::hal::stm32::UartMode::kInterrupt,
-                                   rm::hal::stm32::UartMode::kInterrupt},                                          //
-      vt_link_serial_10{huart10, 25, rm::hal::stm32::UartMode::kInterrupt, rm::hal::stm32::UartMode::kInterrupt};  //
-  ///< 图传链路的串口，两路功能完全相同，互做冗余，一路出故障只需要把线接到另一路上即可
-};
-
 extern Globals *globals;
-extern __attribute__((section(".sram4"))) GlobalsNoDtcm globals_no_dtcm;

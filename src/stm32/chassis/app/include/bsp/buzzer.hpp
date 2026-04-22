@@ -10,9 +10,9 @@ class Buzzer {
  public:
   Buzzer(TIM_HandleTypeDef& htim, uint32_t channel) : htim_(&htim), channel_(channel) {}
 
-  void Init() { HAL_TIM_PWM_Start(htim_, channel_); }
+  void Begin() const { HAL_TIM_PWM_Start(htim_, channel_); }
 
-  void SetFrequency(uint32_t frequency) {
+  void SetFrequency(uint32_t frequency) const {
     if (frequency == 0) {
       __HAL_TIM_SET_COMPARE(htim_, channel_, 0);  // 关闭蜂鸣器
       return;

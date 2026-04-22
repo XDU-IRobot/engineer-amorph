@@ -61,13 +61,10 @@ class Actuator {
       j1.SendInstruction(dm_cmd);
       j2.SendInstruction(dm_cmd);
       j3.SendInstruction(dm_cmd);
-      {
-        j4.SendInstruction(dm_cmd);
-        j5.SendInstruction(dm_cmd);
-        rm::Sleep(std::chrono::microseconds(900));
-        j6.SendInstruction(dm_cmd);
-        gripper.SetPower(0);
-      }
+      j4.SendInstruction(dm_cmd);
+      j5.SendInstruction(dm_cmd);
+      j6.SendInstruction(dm_cmd);
+      gripper.SetPower(0);
     }
   }
   void ApplyOutput(const ArmController<7>::Output &output, bool apply_position = false) {

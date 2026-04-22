@@ -92,6 +92,7 @@ struct NoForce : etl::fsm_state<Chassis, NoForce, StateId::kNoForce,  //
     globals->actuator.f_wheel->SetCurrent(0);
     globals->actuator.l_wheel->SetCurrent(0);
     globals->actuator.r_wheel->SetCurrent(0);
+    rm::device::DjiMotorBase::SendCommand();
     return No_State_Change;
   }
 };

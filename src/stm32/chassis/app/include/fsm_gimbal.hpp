@@ -54,7 +54,7 @@ class Gimbal : public etl::fsm {
 
   static void Cmd(bool up) {
     if (up) {
-      globals->actuator.camera_lift->SetMitCommand(0, 0, 0.55f, 0, 0.014f);
+      globals->actuator.camera_lift->SetMitCommand(0, 0, 6.5f, 0, 0.0f);
     } else {
       globals->actuator.camera_lift->SetMitCommand(0, 0, -0.3f, 0, 0.009f);
     }
