@@ -3,9 +3,8 @@
 ## CI status
 
 [![build_host](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_host.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_host.yaml)
+[![build_stm32](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_stm32.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_stm32.yaml)
 [![build_custom_ctrller](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_custom_ctrller.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_custom_ctrller.yaml)
-[![build_arm_ctrller](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_arm_ctrller.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_arm_ctrller.yaml)
-[![build_chassis_ctrller](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_chassis_ctrller.yaml/badge.svg)](https://github.com/XDU-IRobot/engineer-amorph/actions/workflows/build_chassis_ctrller.yaml)
 
 ## 操作指南
 

@@ -1,4 +1,4 @@
-name: build_chassis_ctrller
+name: build_stm32
 
 on: [push, pull_request]
 
@@ -17,6 +17,6 @@ jobs:
         uses: carlosperate/arm-none-eabi-gcc-action@v1
       - name: Build
         run: |
-          cd src/stm32/chassis
+          cd src/stm32/amorph_arm_controller
           cmake --preset $BUILD_TYPE -G "Unix Makefiles"
           cmake --build ./build/Release --target app_main -- -j
