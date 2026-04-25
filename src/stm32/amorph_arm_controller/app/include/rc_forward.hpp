@@ -33,7 +33,7 @@ class RcReceiver : public rm::device::CanDevice {
   /**
    * @brief 遥控器通道枚举
    */
-  enum ch {
+  enum Channel {
     kLeftX = 3,
     kLeftY = 1,
     kRightX = 0,
@@ -61,10 +61,10 @@ class RcReceiver : public rm::device::CanDevice {
   }
 
   // l-c-r 1695-1024-353, l- r+
-  float left_x() const { return -(static_cast<float>(channels_[ch::kLeftX]) - 1024.f) / 671.f; }
-  float left_y() const { return -(static_cast<float>(channels_[ch::kLeftY]) - 1024.f) / 671.f; }
-  float right_x() const { return (static_cast<float>(channels_[ch::kRightX]) - 1024.f) / 671.f; }
-  float right_y() const { return -(static_cast<float>(channels_[ch::kRightY]) - 1024.f) / 671.f; }
+  float left_x() const { return -(static_cast<float>(channels_[kLeftX]) - 1024.f) / 671.f; }
+  float left_y() const { return -(static_cast<float>(channels_[kLeftY]) - 1024.f) / 671.f; }
+  float right_x() const { return (static_cast<float>(channels_[kRightX]) - 1024.f) / 671.f; }
+  float right_y() const { return -(static_cast<float>(channels_[kRightY]) - 1024.f) / 671.f; }
 
   auto &operator()(int ch) {
     // 没有错误检查，用的时候要保证ch合法
@@ -84,13 +84,13 @@ class RcReceiver : public rm::device::CanDevice {
 
   int16_t channels_[16]{};
   etl::unordered_map<int, rm::modules::SparseValueWatcher<int, true>, 8> switch_watchers_{
-      {ch::kSa, {}},  //
-      {ch::kSb, {}},  //
-      {ch::kSc, {}},  //
-      {ch::kSd, {}},  //
-      {ch::kSe, {}},  //
-      {ch::kSf, {}},  //
-      {ch::kSg, {}},  //
-      {ch::kSh, {}},  //
+      {kSa, {}},  //
+      {kSb, {}},  //
+      {kSc, {}},  //
+      {kSd, {}},  //
+      {kSe, {}},  //
+      {kSf, {}},  //
+      {kSg, {}},  //
+      {kSh, {}},  //
   };  ///< 拨杆通道的值监视器，拨杆被拨动时触发用户注册的回调函数
 };

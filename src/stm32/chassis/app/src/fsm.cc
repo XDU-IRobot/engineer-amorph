@@ -1,6 +1,7 @@
 
-#include "fsm_chassis.hpp"
-#include "fsm_gimbal.hpp"
+#include "chassis/fsm_chassis.hpp"
+#include "chassis/fsm_gimbal.hpp"
+#include "arm/fsm_arm.hpp"
 
 // fsm&state instances
 namespace fsm_chassis {

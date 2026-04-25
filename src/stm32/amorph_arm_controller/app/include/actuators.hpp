@@ -3,58 +3,35 @@
 #include <librm.hpp>
 
 #include "arm_controller.hpp"
+#include "arm_config.hpp"
 #include "encoder_counter.hpp"
-#include "config.hpp"
 
 /**
  * @brief 用来储存所有电机，以及实现一些电机相关的helper（使能、处理反转、设零点）
+ *
+ * 原来通过编译期宏注入的参数（CAN总线、电机ID、校准配置、PD增益）现在全部
+ * 通过 ArmConfig 在运行期传入，从而支持一个固件中创建多个 Actuator 实例。
  */
 class Actuator {
  public:
-  Actuator(rm::hal::CanInterface &lower_can, rm::hal::CanInterface &upper_can)
-      : j1{lower_can, rm::device::DmMotorMit::Settings{.master_id = 0xb1,
-                                                       .slave_id = 0xa1,
-                                                       .p_max = 3.141593f,
-                                                       .v_max = 20.f,
-                                                       .t_max = 28.f,
-                                                       .kp_range = {0, 500},
-                                                       .kd_range = {0, 50}}},
-        j2{lower_can, rm::device::DmMotorMit::Settings{.master_id = 0xb2,
-                                                       .slave_id = 0xa2,
-                                                       .p_max = 3.141593f,
-                                                       .v_max = 45.f,
-                                                       .t_max = 54.f,
-                                                       .kp_range = {0, 500},
-                                                       .kd_range = {0, 50}}},
-        j3{lower_can, rm::device::DmMotorMit::Settings{.master_id = 0xb3,
-                                                       .slave_id = 0xa3,
-                                                       .p_max = 3.141593f,
-                                                       .v_max = 20.f,
-                                                       .t_max = 28.f,
-                                                       .kp_range = {0, 500},
-                                                       .kd_range = {0, 50}}},
-        j4{upper_can, rm::device::DmMotorMit::Settings{.master_id = 0xb4,
-                                                       .slave_id = 0xa4,
-                                                       .p_max = 3.141593f,
-                                                       .v_max = 30.f,
-                                                       .t_max = 10.f,
-                                                       .kp_range = {0, 500},
-                                                       .kd_range = {0, 50}}},
-        j5{upper_can, rm::device::DmMotorMit::Settings{.master_id = 0xb5,
-                                                       .slave_id = 0xa5,
-                                                       .p_max = 3.141593f,
-                                                       .v_max = 30.f,
-                                                       .t_max = 10.f,
-                                                       .kp_range = {0, 500},
-                                                       .kd_range = {0, 50}}},
-        j6{upper_can, rm::device::DmMotorMit::Settings{.master_id = 0xb6,
-                                                       .slave_id = 0xa6,
-                                                       .p_max = 3.141593f,
-                                                       .v_max = 30.f,
-                                                       .t_max = 10.f,
-                                                       .kp_range = {0, 500},
-                                                       .kd_range = {0, 50}}},
-        gripper{upper_can, CONFIG_GRIPPER_MOTOR_ID} {}
+  Actuator(rm::hal::CanInterface& lower_can, rm::hal::CanInterface& upper_can, const ArmConfig& config)
+      : j1{lower_can, config.dm_settings[0]},
+        j2{lower_can, config.dm_settings[1]},
+        j3{lower_can, config.dm_settings[2]},
+        j4{upper_can, config.dm_settings[3]},
+        j5{upper_can, config.dm_settings[4]},
+        j6{upper_can, config.dm_settings[5]},
+        gripper{upper_can, config.gripper_motor_id} {
+    // 从 ArmConfig 初始化校准器
+    for (int i = 0; i < 7; ++i) {
+      calibrators[i].UpdateConfig(config.calibrators[i]);
+    }
+    // 从 ArmConfig 拷贝 PD 参数
+    for (int i = 0; i < 6; ++i) {
+      pd_params_[i] = config.pd_params[i];
+    }
+  }
+
   void SetEnable(bool enable, int repeats = 5) {
     const auto dm_cmd = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
     for (int i = 0; i < repeats; ++i) {
@@ -67,8 +44,9 @@ class Actuator {
       gripper.SetPower(0);
     }
   }
-  void ApplyOutput(const ArmController<7>::Output &output, bool apply_position = false) {
-    const auto &pd_config = CONFIG_MOTOR_PD_PARAMS;
+
+  void ApplyOutput(const ArmController<7>::Output& output, bool apply_position = false) {
+    const auto& pd_config = pd_params_;
     if (apply_position) {
       j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]),  //
                        0,                                                  //
@@ -87,20 +65,8 @@ class Actuator {
                        pd_config[2].kd);
       j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, pd_config[3].kp, pd_config[3].kd);
       j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, pd_config[4].kp, pd_config[4].kd);
-
       j6.SetMitCommand(calibrators[5].LogicalToReal(output.positions[5]), 0, 0.f, pd_config[5].kp, pd_config[5].kd);
       gripper.SetSpeed(output.velocities[6]);
-      // j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]), 0, 0.f, 0.f, 0.f);
-      // j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]), 0,
-      //                  calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1], 0.f, 0.f);
-      // calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2], 0.f, 0.f);
-      // if (upper_can_send_split) {
-      // j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]), 0, 0.f, 0.f, 0.f);
-      // j5.SetMitCommand(calibrators[4].LogicalToReal(output.positions[4]), 0, 0.f, 0.f, 0.f);
-      // } else {
-      // j6.SetMitCommand(calibrators[5].LogicalToReal(output.positions[5]), 0, 0.f, 0.f, 0.f);
-      // gripper.SetSpeed(output.velocities[6]);
-      // }
     } else {
       j1.SetMitCommand(0, 0, 0, 0, 0);
       j2.SetMitCommand(0, 0, 0, 0, 0);
@@ -111,6 +77,7 @@ class Actuator {
       gripper.SetPower(0);
     }
   }
+
   void UpdateEncoderCounter() { gripper_encoder.Update(gripper.feedback().position_rad); }
 
   /**
@@ -119,12 +86,7 @@ class Actuator {
   void DmSetZero() {
     SetEnable(true);
     for (int i = 0; i < 10; i++) {
-      // j1.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      // j2.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       j4.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      // j5.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      // j6.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       HAL_Delay(10);
     }
     SetEnable(false);
@@ -140,7 +102,6 @@ class Actuator {
         j6.pos(),                       //
         gripper_encoder.RealPosition()  //
     };
-    // 对每个电机应用反转和零点偏移补偿
     for (int i = 0; i < 7; ++i) {
       positions[i] = calibrators[i].RealToLogical(positions[i]);
     }
@@ -157,14 +118,11 @@ class Actuator {
         j6.vel(),                        //
         gripper.feedback().speed_rad_ps  //
     };
-
-    // 对每个电机应用反转
     for (int i = 0; i < 7; ++i) {
       if (calibrators[i].reverse()) {
         velocities[i] = -velocities[i];
       }
     }
-
     return velocities;
   }
 
@@ -178,19 +136,22 @@ class Actuator {
         j6.tau(),                                     //
         static_cast<float>(gripper.feedback().power)  //
     };
-
-    // 对每个电机应用反转
     for (int i = 0; i < 7; ++i) {
       if (calibrators[i].reverse()) {
         efforts[i] = -efforts[i];
       }
     }
-
     return efforts;
   }
 
-  rm::modules::MotorCalibrator calibrators[7]{CONFIG_MOTOR_CALIB_CONFIG};
+  // 校准器保持 public，供 FSM LongJointCalibrating 状态在校准完成后更新零点
+  rm::modules::MotorCalibrator calibrators[7]{
+      {false, 0.f}, {false, 0.f}, {false, 0.f}, {false, 0.f},
+      {false, 0.f}, {false, 0.f}, {false, 0.f}};
   rm::device::DmMotorMit j1, j2, j3, j4, j5, j6;
   rm::device::LkMotorMS<15> gripper;
   EncoderCounter gripper_encoder{2.f * M_PI};
+
+ private:
+  detail::PDParams pd_params_[6]{};  ///< 从 ArmConfig 拷贝的 PD 参数
 };

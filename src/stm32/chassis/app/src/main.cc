@@ -3,7 +3,7 @@
 
 #include "adc.h"
 
-#include "fsm_chassis.hpp"
+#include "../include/chassis/fsm_chassis.hpp"
 #include "fsm_gimbal.hpp"
 #include "bsp/timer_task.hpp"
 #include "globals.hpp"

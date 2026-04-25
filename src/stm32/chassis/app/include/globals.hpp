@@ -10,8 +10,8 @@
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
 #include "bsp/vbus_adc.hpp"
+#include "chassis/tri_steer_chassis_controller.hpp"
 #include "et16s.hpp"
-#include "tri_steer_chassis_controller.hpp"
 #include "rc_forward.hpp"
 #include "vt_link_forward.hpp"
 

@@ -3,7 +3,7 @@
 
 #include <etl/fsm.h>
 
-#include "globals.hpp"
+#include "../globals.hpp"
 
 namespace fsm_gimbal {
 

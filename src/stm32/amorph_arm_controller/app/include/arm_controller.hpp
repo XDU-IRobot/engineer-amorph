@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <array>
@@ -34,8 +33,12 @@ class ArmController {
 
   ArmController() = delete;
   explicit ArmController(std::array<std::pair<float, float>, NJoints> joint_limits,  //
-                         std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiters)
-      : trajectory_limiter_(std::move(trajectory_limiters)), joint_limits_(std::move(joint_limits)) {
+                         std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiters,
+                         float dynamics_b1 = 0.f,
+                         float dynamics_b2 = 0.f)
+      : trajectory_limiter_(std::move(trajectory_limiters)),
+        joint_limits_(std::move(joint_limits)),
+        dynamics_(dynamics_b1, dynamics_b2) {
     // clang-format off
     pid_[0].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[1].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
@@ -64,25 +67,17 @@ class ArmController {
     current_positions_ = current_positions;
 
     for (size_t i = 0; i < NJoints; ++i) {
-      // 应用轨迹限制器，生成平滑的参考位置和速度
       trajectory_limiter_[i].Update(dt);
-
-      // // 计算位置PID
-      // pid_[i].Update(trajectory_limiter_[i].current_position(), current_positions[i]);
-
-      // 输出当前 limiter 的位置和速度
       output_.positions[i] = trajectory_limiter_[i].current_position();
       output_.velocities[i] = 0.f;
       output_.efforts[i] = 0.f;
     }
 
-    // 加速度计数据过低通滤波
     const float acc_x = acc_lpf_[0].apply(imu_acc[0]);
     const float acc_y = acc_lpf_[1].apply(imu_acc[1]);
-    // const float acc_z = acc_lpf_[2].apply(gravity_vector[2]);
 
-    // 对j1 j2 j3叠加动力学前馈力矩
-    const auto acc_comp_efforts = ArmDynamics::Compensate(
+    // 对j1 j2 j3叠加动力学前馈力矩（使用实例的 b1/b2 参数）
+    const auto acc_comp_efforts = dynamics_.Compensate(
         {current_positions[0], current_positions[1], current_positions[2]}, {acc_x, acc_y, -9.81f});
     for (int i = 0; i < 3; ++i) {
       output_.efforts[i] += acc_comp_efforts(i);
@@ -174,4 +169,6 @@ class ArmController {
 
   Status status_{kIdle};
   int fault_counter_{0};
+
+  ArmDynamics dynamics_;  ///< 动力学模型（b1/b2 由构造函数传入）
 };

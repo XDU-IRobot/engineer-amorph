@@ -1,136 +1,112 @@
-#include "fsm.hpp"
+/**
+ * @file  main.cc
+ * @brief 单板双臂控制器主入口
+ *
+ * 左臂电机 CAN：FDCAN1（lower）+ FDCAN2（upper）
+ * 右臂电机 CAN：FDCAN2（lower）+ FDCAN1（upper）
+ * 通信  CAN：FDCAN3（与上位机 / 底盘）
+ *
+ * 注意：两臂共用同两根 CAN 总线，电机 CAN ID 必须互不冲突。
+ *       在 arm_config.cc 中为右臂分配不同 ID 段。
+ */
+
+#include "arm_instance.hpp"
+#include "arm_config.hpp"
 #include "bsp/timer_task.hpp"
-#include "globals.hpp"
 
-Globals *globals{nullptr};
+static SharedResources* S{nullptr};
+static ArmInstance*     arms[2]{};  // arms[0]=左臂  arms[1]=右臂
 
-namespace {
-volatile uint32_t mainloop_time_us = 0;
-void MainLoop() {
-  // tim12计时开始
-  const uint32_t start_tick = __HAL_TIM_GET_COUNTER(&htim12);
-  const uint32_t timer_max = __HAL_TIM_GET_AUTORELOAD(&htim12) + 1;
+// ============================================================
+//  500 Hz 主循环
+// ============================================================
+static void MainLoop() {
+  static volatile uint32_t loop_us = 0;
+  const uint32_t t0      = __HAL_TIM_GET_COUNTER(&htim12);
+  const uint32_t tim_max = __HAL_TIM_GET_AUTORELOAD(&htim12) + 1;
 
-  globals->device_manager.Update();
-  globals->host_connection_watcher.Update();
-  globals->rc.UpdateSwitchWatchers();
-  globals->actuator.UpdateEncoderCounter();
+  S->rc.UpdateSwitchWatchers();
+  S->imu.Update();
 
-  const auto &pos = globals->actuator.GetPositions();
-  globals->imu.Update();
+  for (auto* a : arms) a->Tick();
 
-  fsm::arm.receive(fsm::event::ControlLoop{globals->actuator.GetPositions(),
-                                           globals->actuator.GetVelocities(),
-                                           {globals->imu.accel_x(), globals->imu.accel_y(), globals->imu.accel_z()}});
-
-  static volatile int loop_divisor;
-  loop_divisor = (loop_divisor + 1) % 100;
-
-  if ((loop_divisor % 10) == 0) { /** 50hz subloop **/
-    // 更新LED灯和蜂鸣器状态
-    const auto &[r, g, b] = globals->led_controller.Update();
-    globals->led.SetColor(r, g, b);
-    globals->buzzer.SetFrequency(globals->buzzer_controller.Update().frequency);
-
-    // 向上位机发送反馈
-    globals->host.tx_data_.mode = static_cast<Stm32FeedbackCompressed::Mode>(fsm::arm.get_state_id());
-    const auto current_pos = globals->actuator.GetPositions();
-    const auto current_vel = globals->actuator.GetVelocities();
-    const auto current_effort = globals->actuator.GetEfforts();
-    std::memcpy(globals->host.tx_data_.joint_positions, current_pos.data(), sizeof(float) * 6);
-    std::memcpy(globals->host.tx_data_.joint_velocities, current_vel.data(), sizeof(float) * 6);
-    std::memcpy(globals->host.tx_data_.joint_efforts, current_effort.data(), sizeof(float) * 6);
-    globals->host.tx_data_.gripper_state =
-        static_cast<Stm32FeedbackCompressed::GripperState>(globals->arm_controller.gripper().state());
-    globals->host.Write();
-  }
-  if ((loop_divisor % 25) == 1) { /** 20hz subloop 1 **/
+  static int div = 0;
+  if (++div >= 10) {  // 50 Hz 子循环
+    div = 0;
+    const auto& [r, g, b] = S->led_controller.Update();
+    S->led.SetColor(r, g, b);
+    S->buzzer.SetFrequency(S->buzzer_controller.Update().frequency);
+    for (auto* a : arms) a->TickSlow();
   }
 
-  // tim12计时结束
-  const uint32_t end_tick = __HAL_TIM_GET_COUNTER(&htim12);
-  const uint32_t diff = (end_tick >= start_tick) ? (end_tick - start_tick) : (timer_max + end_tick - start_tick);
-  mainloop_time_us = diff;
+  const uint32_t t1 = __HAL_TIM_GET_COUNTER(&htim12);
+  loop_us = (t1 >= t0) ? (t1 - t0) : (tim_max + t1 - t0);
 }
 
-void InitUserInput() {
-  // 1. 定义遥控器拨杆功能
-  globals->rc(CONFIG_RC_CH_MODE_SWITCH).OnValueChange([](const int &old_value, const int &new_value) {
-    // 353-up, 1024-mid, 1695-down
-    if (old_value == 0) {
-      return;  // 第一次触发不响应
-    }
-    if (new_value > 1300 && new_value < 1700) {  // 机械臂模式杆在下 - 无力
-      fsm::arm.receive(fsm::event::FaultClear{});
-      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNoForce});
-    }
-    if (new_value > 0 && new_value < 500) {  // 机械臂模式杆在上 - 自动模式，idle
-      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kIdle});
-    }
-    if (new_value > 500 && new_value < 1100) {  // 机械臂模式杆在中 - 手动调试模式
-      fsm::arm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kLongJointCalibrating});
+static void BindRc(ArmInstance& a) {
+  S->rc(a.rc_ch_mode_switch).OnValueChange([&a](const int& old_v, const int& new_v) {
+    if (old_v == 0) return;
+    if (new_v > 1300 && new_v < 1700) {
+      a.arm_fsm.receive(fsm::event::FaultClear{});
+      a.arm_fsm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kNoForce});
+    } else if (new_v > 0 && new_v < 500) {
+      a.arm_fsm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kIdle});
+    } else if (new_v > 500 && new_v < 1100) {
+      a.arm_fsm.receive(fsm::event::ForceModeSwitch{fsm::StateId::kLongJointCalibrating});
     }
   });
-  globals->rc(CONFIG_RC_CH_NEXT_JOINT).OnValueChange([](const int &old_value, const int &new_value) {
-    UNUSED(old_value);
-    if (new_value > 1000) {  // SH按下
-      fsm::arm.receive(fsm::event::NextJoint{});
-    }
+  S->rc(a.rc_ch_next_joint).OnValueChange([&a](const int&, const int& new_v) {
+    if (new_v > 1000) a.arm_fsm.receive(fsm::event::NextJoint{});
   });
 }
-}  // namespace
 
-extern "C" {
+// ============================================================
+//  应用入口
+// ============================================================
+extern "C" [[noreturn]] void AppMain(void) {
+  S = new SharedResources;
+  S->Init();
+  S->rc.SetName("rc");
 
-[[noreturn]] void AppMain(void) {
-  globals = new Globals;
-  globals->Init();  // 初始化全局对象
-  fsm::Init();      // 初始化状态机
-  InitUserInput();  // 初始化用户输入处理
+  // 创建两个臂实例（共享 FDCAN1/FDCAN2，仅初始化一次）
+  arms[0] = new ArmInstance{MakeLeftArmConfig (S->fdcan1_bus, S->fdcan2_bus), *S};
+  arms[1] = new ArmInstance{MakeRightArmConfig(S->fdcan2_bus, S->fdcan1_bus), *S};
+  S->fdcan1_bus.SetFilter(0, 0); S->fdcan1_bus.Begin();
+  S->fdcan2_bus.SetFilter(0, 0); S->fdcan2_bus.Begin();
 
-  // // 设零点
-  // HAL_Delay(1500);  // 达妙电机开机需要时间
-  // globals->actuator.DmSetZero();
+  for (auto* a : arms) {
+    a->Init(*S);
+    BindRc(*a);
+    a->host.OnRx([a](const HostCommand& cmd) {
+      a->arm_fsm.receive(fsm::event::HostCommand{cmd});
+    });
+    a->device_manager.OnDeviceStatusChange([](rm::device::Device*) {
+      const bool ok = arms[0]->device_manager.all_device_ok() &&
+                      arms[1]->device_manager.all_device_ok();
+      if (ok) S->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
+      else     S->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
+    });
+  }
 
-  // 订阅上位机通过CANFD发送的控制命令，转发给状态机处理
-  globals->host.OnRx([](const HostCommand &cmd) { fsm::arm.receive(fsm::event::HostCommand{cmd}); });
-
-  // 监听设备状态变化，所有设备正常时LED为绿色呼吸灯，否则红灯闪烁
-  globals->device_manager.OnDeviceStatusChange([](rm::device::Device *) {
-    if (globals->device_manager.all_device_ok()) {
-      globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
-    } else {
-      globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-    }
+  // 图传链路自定义控制（广播给两臂）
+  S->vt_link_receiver.OnCustomCtrlRecv([]() {
+    static CustomControllerCommand cmd;
+    std::memcpy(&cmd, &S->vt_link_receiver.custom_ctrl_data(), sizeof(cmd));
+    for (auto* a : arms) a->arm_fsm.receive(fsm::event::CustomCtrlCommand{cmd});
+  });
+  S->vt_link_receiver.OnCartesianCustomCtrlRecv([]() {
+    static CartesianCustomControllerCommand cmd;
+    std::memcpy(&cmd, &S->vt_link_receiver.cartesian_custom_ctrl_data(), sizeof(cmd));
+    for (auto* a : arms) a->arm_fsm.receive(fsm::event::CartesianCustomCtrlCommand{cmd});
   });
 
-  // 初始化图传链路串口，注册解包回调，收到自定义控制器数据时转发命令给状态机
-  globals->vt_link_receiver.OnCustomCtrlRecv([&]() {
-    static CustomControllerCommand cc_cmd;
-    const auto &data = globals->vt_link_receiver.custom_ctrl_data();
-    std::memcpy(&cc_cmd, &data, sizeof(cc_cmd));
-    fsm::arm.receive(fsm::event::CustomCtrlCommand{cc_cmd});
-  });
-  globals->vt_link_receiver.OnCartesianCustomCtrlRecv([&]() {
-    static CartesianCustomControllerCommand ccc_cmd;
-    const auto &data = globals->vt_link_receiver.cartesian_custom_ctrl_data();
-    std::memcpy(&ccc_cmd, &data, sizeof(ccc_cmd));
-    fsm::arm.receive(fsm::event::CartesianCustomCtrlCommand{ccc_cmd});
-  });
-
-  // 创建主循环定时任务，定频500hz
-  TimerTask mainloop{
-      &htim13,                                   //
-      etl::delegate<void()>::create<MainLoop>()  //
-  };
+  TimerTask mainloop{&htim13, etl::delegate<void()>::create<MainLoop>()};
   mainloop.Start();
-
-  globals->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
+  S->buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
 
   for (;;) {
-    globals->lower_motor_can.Process();
-    globals->upper_motor_can.Process();
-    globals->comm_can.Process();
+    S->fdcan1_bus.Process();
+    S->fdcan2_bus.Process();
+    S->comm_can.Process();
   }
-}
 }
