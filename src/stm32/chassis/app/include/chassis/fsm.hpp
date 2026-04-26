@@ -3,7 +3,8 @@
 
 #include <etl/fsm.h>
 
-#include "../globals.hpp"
+#include "resources.hpp"
+#include "shared_resources.hpp"
 
 namespace fsm_chassis {
 
@@ -55,7 +56,12 @@ class Chassis : public etl::fsm {
   constexpr static etl::message_router_id_t kMessageRouterId = 0;
 
  public:
-  Chassis() : fsm(kMessageRouterId) {}
+  Chassis(ChassisResources &r) : fsm(kMessageRouterId), resources_(&r) {}
+
+  ChassisResources &resources() const { return *resources_; }
+
+ private:
+  ChassisResources *resources_;
 };
 extern Chassis chassis;
 
@@ -81,18 +87,19 @@ struct NoForce : etl::fsm_state<Chassis, NoForce, StateId::kNoForce,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
-    globals->controller.Enable(false);
+    auto &shared = SharedResources::GetInstance();
+    shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    get_fsm_context().resources().controller.Enable(false);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    globals->actuator.f_steer->SetCurrent(0);
-    globals->actuator.l_steer->SetCurrent(0);
-    globals->actuator.r_steer->SetCurrent(0);
-    globals->actuator.f_wheel->SetCurrent(0);
-    globals->actuator.l_wheel->SetCurrent(0);
-    globals->actuator.r_wheel->SetCurrent(0);
-    rm::device::DjiMotorBase::SendCommand();
+    auto &resources = get_fsm_context().resources();
+    resources.f_steer.SetCurrent(0);
+    resources.l_steer.SetCurrent(0);
+    resources.r_steer.SetCurrent(0);
+    resources.f_wheel.SetCurrent(0);
+    resources.l_wheel.SetCurrent(0);
+    resources.r_wheel.SetCurrent(0);
     return No_State_Change;
   }
 };
@@ -104,13 +111,16 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
-    globals->controller.Enable(true);
+    SharedResources::GetInstance().buzzer_controller.Play<buzzer_melody::EnterManualMode>();
+    get_fsm_context().resources().controller.Enable(true);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
+    auto &resources = get_fsm_context().resources();
+
     using RC = rm::device::RefereeProtocol<rm::device::RefereeRevision::kV170>::RemoteControl;
-    const uint16_t keycode = globals->ref_vt_link.data().remote_control.keyboard_value;
+    const uint16_t keycode = shared.ref_vt_link.data().remote_control.keyboard_value;
     const bool move_gently = (keycode & RC::kShift) != 0;  // 按住Ctrl键，慢速移动
     const float slow_mod = move_gently ? 0.3f : 1.f;
     const float key_w = ((keycode & RC::kW) ? 1.f : 0.f) * slow_mod;
@@ -119,24 +129,23 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     const float key_d = ((keycode & RC::kD) ? 1.f : 0.f) * slow_mod;
     const float key_q = ((keycode & RC::kQ) ? 1.f : 0.f) * slow_mod;
     const float key_e = ((keycode & RC::kE) ? 1.f : 0.f) * slow_mod;
-    const float target_vx = (globals->rc.left_x() + key_d - key_a) * 1000.f;
-    const float target_vy = (globals->rc.left_y() + key_w - key_s) * 1000.f;
-    const float target_w = -(globals->rc.right_x() + key_e - key_q) * 3000.f;
-    globals->controller.SetTarget(target_vx, target_vy, target_w);
-    globals->controller.Update(e.f_steer_pos, e.f_steer_vel,                             //
-                               e.l_steer_pos, e.l_steer_vel,                             //
-                               e.r_steer_pos, e.r_steer_vel,                             //
-                               e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
-                               e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
-                               move_gently);
-    const auto &control = globals->controller.output();
-    globals->actuator.f_steer->SetCurrent(-control.front_steer);
-    globals->actuator.l_steer->SetCurrent(-control.lr_steer);
-    globals->actuator.r_steer->SetCurrent(-control.rr_steer);
-    globals->actuator.f_wheel->SetCurrent(-control.front_wheel);
-    globals->actuator.l_wheel->SetCurrent(-control.lr_wheel);
-    globals->actuator.r_wheel->SetCurrent(-control.rr_wheel);
-    rm::device::DjiMotorBase::SendCommand();
+    const float target_vx = (shared.rc.left_x() + key_d - key_a) * 1000.f;
+    const float target_vy = (shared.rc.left_y() + key_w - key_s) * 1000.f;
+    const float target_w = -(shared.rc.right_x() + key_e - key_q) * 3000.f;
+    resources.controller.SetTarget(target_vx, target_vy, target_w);
+    resources.controller.Update(e.f_steer_pos, e.f_steer_vel,                             //
+                                e.l_steer_pos, e.l_steer_vel,                             //
+                                e.r_steer_pos, e.r_steer_vel,                             //
+                                e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
+                                e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
+                                move_gently);
+    const auto &control = resources.controller.output();
+    resources.f_steer.SetCurrent(-control.front_steer);
+    resources.l_steer.SetCurrent(-control.lr_steer);
+    resources.r_steer.SetCurrent(-control.rr_steer);
+    resources.f_wheel.SetCurrent(-control.front_wheel);
+    resources.l_wheel.SetCurrent(-control.lr_wheel);
+    resources.r_wheel.SetCurrent(-control.rr_wheel);
     return No_State_Change;
   }
 };
@@ -147,19 +156,19 @@ struct Fault : etl::fsm_state<Chassis, Fault, StateId::kFault,  //
                               event::FaultClear> {
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
-    globals->controller.Enable(false);
+    SharedResources::GetInstance().buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
+    get_fsm_context().resources().controller.Enable(false);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
     UNUSED(e);
-    globals->actuator.f_steer->SetCurrent(0);
-    globals->actuator.l_steer->SetCurrent(0);
-    globals->actuator.r_steer->SetCurrent(0);
-    globals->actuator.f_wheel->SetCurrent(0);
-    globals->actuator.l_wheel->SetCurrent(0);
-    globals->actuator.r_wheel->SetCurrent(0);
+    auto &resources = get_fsm_context().resources();
+    resources.f_steer.SetCurrent(0);
+    resources.l_steer.SetCurrent(0);
+    resources.r_steer.SetCurrent(0);
+    resources.f_wheel.SetCurrent(0);
+    resources.l_wheel.SetCurrent(0);
+    resources.r_wheel.SetCurrent(0);
     return No_State_Change;
   }
   REACT(event::FaultClear) {

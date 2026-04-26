@@ -10,10 +10,7 @@
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
 #include "bsp/vbus_adc.hpp"
-#include "chassis/tri_steer_chassis_controller.hpp"
 #include "et16s.hpp"
-#include "rc_forward.hpp"
-#include "vt_link_forward.hpp"
 
 /**
  * STM32H7的DTCM区域只能被CPU访问，不能被DMA访问，所以需要开一块在DTCM之外的全局数据区域，专门放一些需要被DMA访问的对象
@@ -25,7 +22,7 @@
  *   . = ALIGN(32);
  * } >RAM_D1
  */
-struct GlobalsNoDtcm {
+struct SharedResourcesNoDtcm {
   rm::hal::Serial<25> vt_link_serial_7{huart7, false, true}, vt_link_serial_10{huart10, false, true};
   ///< 图传链路的串口，两路功能完全相同，互做冗余，一路出故障只需要把线接到另一路上即可
   rm::hal::Serial<100> servo_serial{huart1, false, true};      ///< 舵机串口
@@ -33,19 +30,21 @@ struct GlobalsNoDtcm {
   rm::hal::Serial<100> motor_485_serial{huart2, false, true};  ///< 电机485通信串口
   VbusAdc vbus_adc{hadc1};
 };
-extern __attribute__((section(".sram4"))) GlobalsNoDtcm globals_no_dtcm;
+extern __attribute__((section(".sram4"))) SharedResourcesNoDtcm shared_no_dtcm;
 
 /**
- * @brief   全局资源
+ * @brief   板级全局共享资源
  */
-struct Globals {
+struct SharedResources {
+  SharedResourcesNoDtcm *no_dtcm{&shared_no_dtcm};  ///< DTCMRAM外的资源指针
+
   rm::hal::ThrottledCan<128> left_can{4000, hfdcan1}, right_can{4000, hfdcan2}, comm_can{1000, hfdcan3};
   rm::hal::ThrottledMcp2515<128> mcp_can{4000, hspi1, MCP_CS_GPIO_Port, MCP_CS_Pin,
                                          rm::hal::stm32::Mcp2515::Bitrate::k1Mbps};
 
   rm::hal::Pin servo_tx_en{*SERVO_TX_EN_GPIO_Port, SERVO_TX_EN_Pin},
       servo_rx_en{*SERVO_RX_EN_GPIO_Port, SERVO_RX_EN_Pin};
-  rm::device::HiWonderServo servo{globals_no_dtcm.servo_serial, servo_tx_en, servo_rx_en, 1};
+  rm::device::HiWonderServo servo{shared_no_dtcm.servo_serial, servo_tx_en, servo_rx_en, 0};
 
   Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
   rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
@@ -64,34 +63,30 @@ struct Globals {
       led_controller;  ///< LED控制器
 
   rm::device::BMI088 imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};
-  rm::modules::MahonyAhrs mahony{2000.f};
 
-  WflyET16s rc{globals_no_dtcm.sbus_serial};                               ///< 遥控器
-  RcForwarder rc_forwarder{comm_can};                                      ///< 用于把遥控器数据转发到CAN总线上
+  WflyET16s rc{shared_no_dtcm.sbus_serial};                                ///< 遥控器
   rm::device::Referee<rm::device::RefereeRevision::kNewV110> ref_vt_link;  ///< 图传链路
   rm::device::VirtualDevice custom_ctrl_device, vt_remote_device;
-  VtLinkForwarder vt_link_forwarder{comm_can};  ///< 用于把图传链路数据转发到CAN总线上
   rm::modules::KeyboardHandler<> kh{
       rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kCtrl |  //
       rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kShift   //
   };  ///< 键盘处理器，用于处理客户端的键盘输入
 
-  TriSteerChassisController controller;
-
-  struct Actuator {
-    rm::device::GM6020 *f_steer, *l_steer, *r_steer;  ///< 舵电机
-    rm::device::M3508 *f_wheel, *l_wheel, *r_wheel;   ///< 轮电机
-    rm::device::Go8010Motor *camera_lift;             ///< 升降杆电机
-    rm::modules::MotorCalibrator                      //
-        f_steer_calib{true, 2.62112617f},             //
-        l_steer_calib{true, 6.03081465f},             //
-        r_steer_calib{true, 1.34316409f};
-  } actuator;
-  rm::device::DeviceManager<10> device_manager;  ///< 设备管理器
-
   etl::string<512> system_status;  ///< 系统状态摘要字符串
 
   float vbus;
+
+  /**
+   * @brief 获取单例实例
+   */
+  static SharedResources &GetInstance() {
+    static SharedResources *shared_resources_instance{nullptr};
+    if (shared_resources_instance == nullptr) {
+      shared_resources_instance = new SharedResources;
+      shared_resources_instance->Init();
+    }
+    return *shared_resources_instance;
+  }
 
   /**
    * @brief 初始化所有全局对象
@@ -100,37 +95,14 @@ struct Globals {
     buzzer.Begin();
     left_can.SetFilter(0, 0);
     right_can.SetFilter(0, 0);
+    comm_can.SetFilter(0, 0);
     left_can.Begin();
     right_can.Begin();
     comm_can.Begin();
     mcp_can.Begin();
     rc.Begin();
-    globals_no_dtcm.motor_485_serial.Start();
-    globals_no_dtcm.servo_serial.Start();
-    globals_no_dtcm.vbus_adc.Begin();
-
-    actuator.f_steer = new rm::device::GM6020(mcp_can, 1);
-    actuator.l_steer = new rm::device::GM6020(mcp_can, 2);
-    actuator.r_steer = new rm::device::GM6020(mcp_can, 3);
-    actuator.f_wheel = new rm::device::M3508(mcp_can, 2);
-    actuator.l_wheel = new rm::device::M3508(mcp_can, 3);
-    actuator.r_wheel = new rm::device::M3508(mcp_can, 1);
-    actuator.camera_lift = new rm::device::Go8010Motor(globals_no_dtcm.motor_485_serial, 1);
-
-    rc.SetName("rc");
-    actuator.f_steer->SetName("f_steer");
-    actuator.l_steer->SetName("l_steer");
-    actuator.r_steer->SetName("r_steer");
-    actuator.f_wheel->SetName("f_wheel");
-    actuator.l_wheel->SetName("l_wheel");
-    actuator.r_wheel->SetName("r_wheel");
-    actuator.camera_lift->SetName("camera_lift");
-
-    // 把设备都注册给设备管理器
-    device_manager << &rc << actuator.f_steer << actuator.l_steer << actuator.r_steer << actuator.f_wheel
-                   << actuator.l_wheel << actuator.r_wheel;
-    //<< actuator.camera_lift;
+    shared_no_dtcm.motor_485_serial.Start();
+    shared_no_dtcm.servo_serial.Start();
+    shared_no_dtcm.vbus_adc.Begin();
   }
 };
-
-extern Globals *globals;

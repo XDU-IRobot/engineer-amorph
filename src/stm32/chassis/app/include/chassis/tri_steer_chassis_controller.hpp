@@ -7,7 +7,8 @@
  */
 class TriSteerChassisController {
  public:
-  explicit TriSteerChassisController(float chassis_radius = 0.2f) : kinematics_(0.19485f * 2.f, 0.48f) {
+  explicit TriSteerChassisController(const ChassisConfig &config)
+      : kinematics_(config.kine_base_len, config.kine_height) {
     pid_.f_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
     pid_.l_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
     pid_.r_steer.SetCircular(true).SetCircularCycle(M_PI * 2.0f).SetDiffLpfAlpha(0.9f);
@@ -163,9 +164,9 @@ class TriSteerChassisController {
     rm::modules::PID f_wheel{75.f, 0.f, 0.f, 15000.f, 0.f};       ///< 前轮速度环
     rm::modules::PID l_wheel{65.f, 0.f, 0.f, 15000.f, 0.f};       ///< 左后轮速度环
     rm::modules::PID r_wheel{65.f, 0.f, 0.f, 15000.f, 0.f};       ///< 右后轮速度环
-    rm::modules::PID f_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
-    rm::modules::PID l_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
-    rm::modules::PID r_steer{30000.f, 0.f, 200.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
+    rm::modules::PID f_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
+    rm::modules::PID l_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
+    rm::modules::PID r_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
   } pid_;
 
   rm::modules::MotorPowerModel power_model_{rm::modules::MotorPowerModel::kM3508};

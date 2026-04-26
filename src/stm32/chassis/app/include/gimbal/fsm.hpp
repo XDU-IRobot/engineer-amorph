@@ -3,7 +3,7 @@
 
 #include <etl/fsm.h>
 
-#include "../globals.hpp"
+#include "../shared_resources.hpp"
 
 namespace fsm_gimbal {
 
@@ -54,9 +54,9 @@ class Gimbal : public etl::fsm {
 
   static void Cmd(bool up) {
     if (up) {
-      globals->actuator.camera_lift->SetMitCommand(0, 0, 6.5f, 0, 0.0f);
+      S->actuator.camera_lift->SetMitCommand(0, 0, 6.5f, 0, 0.0f);
     } else {
-      globals->actuator.camera_lift->SetMitCommand(0, 0, -0.3f, 0, 0.009f);
+      S->actuator.camera_lift->SetMitCommand(0, 0, -0.3f, 0, 0.009f);
     }
   }
 };
@@ -84,11 +84,11 @@ struct NoForce : etl::fsm_state<Gimbal, NoForce, StateId::kNoForce,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    S->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    globals->actuator.camera_lift->SetMitCommand(0, 0, 0, 0, 0);
+    S->actuator.camera_lift->SetMitCommand(0, 0, 0, 0, 0);
     return No_State_Change;
   }
 };
@@ -101,7 +101,7 @@ struct Normal : etl::fsm_state<Gimbal, Normal, StateId::kNormal,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
+    S->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
     return No_State_Change;
   }
   REACT(event::ControlLoop) { return No_State_Change; }
@@ -122,11 +122,11 @@ struct Manual : etl::fsm_state<Gimbal, Manual, StateId::kManual,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
+    S->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    if (globals->rc.channel(rc_ch::SF) < 1000) {
+    if (S->rc.channel(rc_ch::SF) < 1000) {
       Gimbal::Cmd(true);
     } else {
       Gimbal::Cmd(false);
@@ -141,19 +141,19 @@ struct Fault : etl::fsm_state<Gimbal, Fault, StateId::kFault,  //
                               event::FaultClear> {
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
-    globals->controller.Enable(false);
+    S->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
+    S->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
+    S->controller.Enable(false);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
     UNUSED(e);
-    globals->actuator.f_steer->SetCurrent(0);
-    globals->actuator.l_steer->SetCurrent(0);
-    globals->actuator.r_steer->SetCurrent(0);
-    globals->actuator.f_wheel->SetCurrent(0);
-    globals->actuator.l_wheel->SetCurrent(0);
-    globals->actuator.r_wheel->SetCurrent(0);
+    S->actuator.f_steer->SetCurrent(0);
+    S->actuator.l_steer->SetCurrent(0);
+    S->actuator.r_steer->SetCurrent(0);
+    S->actuator.f_wheel->SetCurrent(0);
+    S->actuator.l_wheel->SetCurrent(0);
+    S->actuator.r_wheel->SetCurrent(0);
     return No_State_Change;
   }
   REACT(event::FaultClear) {
