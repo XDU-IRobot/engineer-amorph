@@ -1,17 +1,10 @@
 [submodule "src/jetson/sbus_ros2"]
 	path = src/jetson/sbus_ros2
 	url = https://github.com/eryeden/sbus_ros2.git
-[submodule "src/stm32/amorph_arm_controller/libs/librm"]
-	path = src/stm32/amorph_arm_controller/libs/librm
-	url = https://github.com/XDU-IRobot/librm.git
-	branch = develop
 [submodule "src/stm32/amorph_custom_controller/libs/librm"]
 	path = src/stm32/amorph_custom_controller/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
-[submodule "src/stm32/amorph_arm_controller/libs/CMSIS-DSP"]
-	path = src/stm32/amorph_arm_controller/libs/CMSIS-DSP
-	url = https://github.com/ARM-software/CMSIS-DSP.git
 [submodule "src/stm32/amorph_custom_controller/libs/CMSIS-DSP"]
 	path = src/stm32/amorph_custom_controller/libs/CMSIS-DSP
 	url = https://github.com/ARM-software/CMSIS-DSP.git
