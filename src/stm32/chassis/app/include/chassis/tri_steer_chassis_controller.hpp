@@ -24,6 +24,7 @@ class TriSteerChassisController {
               float rr_steer_position, float rr_steer_speed,                              //
               float front_wheel_speed, float lr_wheel_speed, float rr_wheel_speed,        //
               float front_wheel_current, float lr_wheel_current, float rr_wheel_current,  //
+              float gyro_z,                                                               //
               bool move_gently,                                                           //
               float dt = 1.f) {
     // 更新当前状态
@@ -79,8 +80,11 @@ class TriSteerChassisController {
       moving_gently_ = false;
     }
 
+    pid_.gyro_z.Update(target_.w, gyro_z, dt);
+    const float w_cmd = pid_.gyro_z.out() * 2000;
+
     // 运动学解算
-    const auto fk_result = kinematics_.Forward(vx_cmd, vy_cmd, target_.w, state_.front_steer_position,
+    const auto fk_result = kinematics_.Forward(vx_cmd, vy_cmd, w_cmd, state_.front_steer_position,
                                                state_.lr_steer_position, state_.rr_steer_position);
 
     // 舵
@@ -167,6 +171,7 @@ class TriSteerChassisController {
     rm::modules::PID f_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
     rm::modules::PID l_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
     rm::modules::PID r_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
+    rm::modules::PID gyro_z{0.4f, 0.f, 0.f, 100.f, 0.f};          ///<
   } pid_;
 
   rm::modules::MotorPowerModel power_model_{rm::modules::MotorPowerModel::kM3508};

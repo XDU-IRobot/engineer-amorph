@@ -34,5 +34,4 @@ struct ChassisResources {
   TriSteerChassisController controller;  ///< 轨迹规划 + 控制输出计算
 
   rm::device::DeviceManager<10> device_manager;  ///< 管理所有电机的在线状态
-  etl::string<512> status_str{""};               ///< 描述当前设备状态的字符串
 };

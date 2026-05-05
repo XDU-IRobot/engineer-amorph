@@ -29,9 +29,9 @@ struct ChassisConfig {
         .f_wheel_id = 2,
         .l_wheel_id = 3,
         .r_wheel_id = 1,
-        .f_steer_calib = {.reverse = true, .zero_offset = 2.62112665f},
-        .l_steer_calib = {.reverse = true, .zero_offset = 4.95919847f},
-        .r_steer_calib = {.reverse = true, .zero_offset = 2.36492014f},
+        .f_steer_calib = {.reverse = true, .zero_offset = 4766.f / 8191.f * M_PI * 2.f},
+        .l_steer_calib = {.reverse = true, .zero_offset = 2354.f / 8191.f * M_PI * 2.f},
+        .r_steer_calib = {.reverse = true, .zero_offset = 1771.f / 8191.f * M_PI * 2.f},
     };
   }
 };

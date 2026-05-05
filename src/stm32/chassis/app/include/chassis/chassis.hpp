@@ -21,6 +21,8 @@ struct Chassis {
   fsm_chassis::state::Normal fsm_state_normal;
   fsm_chassis::state::Fault fsm_state_idle;
 
+  float measured_power{0.f};
+
  private:
   // 这个数组需与fsm同生命周期，所以放在这里
   etl::ifsm_state *state_list_[3]{
@@ -37,6 +39,7 @@ struct Chassis {
    */
   void Init() {
     auto &shared = SharedResources::GetInstance();
+
     // 定义遥控器拨杆功能
     shared.rc(rc_ch::SD).OnValueChange([this](const int &old_value, const int &new_value) {
       // 353-up, 1024-mid, 1695-down
@@ -44,6 +47,7 @@ struct Chassis {
         return;  // 第一次触发不响应
       }
       if (new_value > 1300 && new_value < 1700) {  // SD在下
+        fsm.receive(fsm_chassis::event::FaultClear{});
         fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kNoForce});
       }
       if (new_value > 0 && new_value < 500) {  // SD在上
@@ -53,22 +57,12 @@ struct Chassis {
         fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kNoForce});
       }
     });
-    // // 定义遥控器拨杆功能
-    // shared->rc(rc_ch::SA).OnValueChange([this](const int &old_value, const int &new_value) {
-    //   // 353-up, 1024-mid, 1695-down
-    //   if (old_value == 0) {
-    //     return;  // 第一次触发不响应
-    //   }
-    //   if (new_value > 1300 && new_value < 1700) {  // SD在下
-    //     fsm_gimbal::gimbal.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kNoForce});
-    //   }
-    //   if (new_value > 0 && new_value < 500) {  // SD在上
-    //     fsm_gimbal::gimbal.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kNormal});
-    //   }
-    //   if (new_value > 500 && new_value < 1100) {  // SD在中
-    //     fsm_gimbal::gimbal.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kManual});
-    //   }
-    // });
+
+    shared.device_manager.OnDeviceStatusChange([&](rm::device::Device *dev) {
+      if (dev->name() == "remote" && dev->online_status() != rm::device::Device::kOk) {  // 遥控器离线，无力
+        fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kNoForce});
+      }
+    });
 
     fsm.set_states(state_list_, std::size(state_list_));
     fsm.start();
@@ -80,6 +74,15 @@ struct Chassis {
    */
   void Tick() {
     resources.device_manager.Update();
+    const float motor_current_sum =            //
+        (resources.f_steer.current() * 3.f +   //
+         resources.l_steer.current() * 3.f +   //
+         resources.r_steer.current() * 3.f +   //
+         resources.f_wheel.current() * 20.f +  //
+         resources.l_wheel.current() * 20.f +  //
+         resources.r_wheel.current() * 20.f) /
+        16384.f;
+    measured_power = motor_current_sum * SharedResources::GetInstance().vbus;
     const fsm_chassis::event::ControlLoop control_loop_event = [this] {
       using rm::modules::Wrap;
       fsm_chassis::event::ControlLoop ret;
@@ -98,7 +101,6 @@ struct Chassis {
       return ret;
     }();
     fsm.receive(control_loop_event);
-    // fsm_gimbal::gimbal.receive(fsm_gimbal::event::ControlLoop{});
     rm::device::DjiMotorBase::SendCommand(SharedResources::GetInstance().mcp_can);
   }
 };

@@ -19,7 +19,7 @@ static lv_obj_t *line_arm2;     /* 前臂 */
 static lv_obj_t *label_j0;
 static lv_obj_t *label_j1;
 static lv_obj_t *label_j2;
-static lv_obj_t *label_loop_time;  /* MainLoop 执行时间 */
+static lv_obj_t *label_loop_time; /* MainLoop 执行时间 */
 
 /* Point arrays – must stay alive as long as lines exist */
 static lv_point_precise_t pts_base[2];
@@ -38,7 +38,7 @@ static void set_line_style(lv_obj_t *line, lv_color_t color) {
 static void update_cb(lv_timer_t *timer) {
   (void)timer;
 
-  const auto joint_pos = globals->motors.GetPositions();
+  const auto joint_pos = globals->actuator.GetPositions();
   const float j0 = joint_pos[0]; /* yaw */
   const float j1 = joint_pos[1]; /* pitch1 */
   const float j2 = joint_pos[2]; /* pitch2 */

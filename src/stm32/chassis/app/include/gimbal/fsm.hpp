@@ -3,14 +3,13 @@
 
 #include <etl/fsm.h>
 
-#include "../shared_resources.hpp"
+#include "shared_resources.hpp"
 
 namespace fsm_gimbal {
 
 struct EventId {
   enum {
     kControlLoop,      ///< 控制循环时钟事件
-    kKeyboardCommand,  ///< 客户端键盘命令
     kForceModeSwitch,  ///< 切换模式命令
     kFaultClear,       ///< 故障清除命令
   };
@@ -18,22 +17,18 @@ struct EventId {
 
 struct StateId {
   enum : etl::fsm_state_id_t {
-    kNoForce,  ///< 无力
-    kNormal,   ///< 有力
-    kManual,   ///< 遥控器手动模式
-    kFault,    ///< 故障
+    kNoForce,    ///< 无力
+    kUp,         ///< 有力，抬起
+    kMid,        ///< 有力，保持在底盘中心+云台yaw自稳
+    kDown,       ///< 有力，放下，根据底盘imu抬起一定角度
+    kForceDown,  ///< 有力，放下到最低处
+    kFault,      ///< 故障
   };
 };
 
 namespace event {
 /*******************************************/
 struct ControlLoop : etl::message<EventId::kControlLoop> {};
-
-/*******************************************/
-struct KeyboardCommand : etl::message<EventId::kKeyboardCommand> {
-  explicit KeyboardCommand(bool up) : up{up} {}
-  bool up;  ///< 杆升？
-};
 
 /*******************************************/
 struct ForceModeSwitch : etl::message<EventId::kForceModeSwitch> {
@@ -50,15 +45,12 @@ class Gimbal : public etl::fsm {
   constexpr static etl::message_router_id_t kMessageRouterId = 1;
 
  public:
-  Gimbal() : fsm(kMessageRouterId) {}
+  explicit Gimbal(GimbalResources &resources) : fsm(kMessageRouterId), resources_(&resources) {}
 
-  static void Cmd(bool up) {
-    if (up) {
-      S->actuator.camera_lift->SetMitCommand(0, 0, 6.5f, 0, 0.0f);
-    } else {
-      S->actuator.camera_lift->SetMitCommand(0, 0, -0.3f, 0, 0.009f);
-    }
-  }
+  GimbalResources &resources() const { return *resources_; }
+
+ private:
+  GimbalResources *resources_;
 };
 extern Gimbal gimbal;
 
@@ -84,55 +76,101 @@ struct NoForce : etl::fsm_state<Gimbal, NoForce, StateId::kNoForce,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    S->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    SharedResources::GetInstance().buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    S->actuator.camera_lift->SetMitCommand(0, 0, 0, 0, 0);
+    auto &resources = get_fsm_context().resources();
+    resources.pitch_servo.SetLoad(true);
+    resources.yaw_motor.SetCurrent(0);
     return No_State_Change;
   }
 };
 
 /*******************************************/
-struct Normal : etl::fsm_state<Gimbal, Normal, StateId::kNormal,  //
-                               event::ForceModeSwitch,            //
-                               event::KeyboardCommand,            //
-                               event::ControlLoop> {
+struct Up : etl::fsm_state<Gimbal, Up, StateId::kUp,  //
+                           event::ForceModeSwitch,    //
+                           event::ControlLoop> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    S->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
+    auto &resources = get_fsm_context().resources();
+    const float current_yaw = resources.yaw_calib.RealToLogical(resources.yaw_motor.pos_rad());
+    resources.encoder_yaw_pid.Clear();
+    yaw_planner_.ResetAt(current_yaw);
+    yaw_planner_.SetTarget(0.f);  // 回中
+    resources.pitch_servo.MoveTime(resources.config.servo_mid_angle, resources.config.servo_move_time_ms);
+    SharedResources::GetInstance()
+        .buzzer_controller.Play<rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kE6>>();
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) {
+    auto &resources = get_fsm_context().resources();
+    const float current_yaw = resources.yaw_calib.RealToLogical(resources.yaw_motor.pos_rad());
+    yaw_planner_.Update(resources.config.control_loop_dt);
+    resources.encoder_yaw_pid.UpdateExtDiff(yaw_planner_.current_position(), current_yaw,
+                                            resources.yaw_motor.rpm() * 2.f * M_PI / 60.f,  // to rad/s
+                                            resources.config.control_loop_dt);
+    resources.yaw_motor.SetCurrent(-resources.encoder_yaw_pid.out());
+    return No_State_Change;
+  }
+
+ private:
+  rm::modules::TrajectoryLimiter yaw_planner_{50.f, 100.f};
+};
+
+/*******************************************/
+struct Mid : etl::fsm_state<Gimbal, Mid, StateId::kMid,  //
+                            event::ForceModeSwitch,      //
+                            event::ControlLoop> {
+  ACCEPT_MODE_SWITCH();
+  IGNORE_UNINTEREST_EVENT();
+  ENTER {
+    auto &resources = get_fsm_context().resources();
+    target_yaw_ = resources.imu.yaw();
+    resources.imu_yaw_pid.Clear();
+    resources.pitch_servo.MoveTime(resources.config.servo_mid_angle, resources.config.servo_move_time_ms);
+    SharedResources::GetInstance()
+        .buzzer_controller.Play<rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kD6>>();
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) {
+    auto &resources = get_fsm_context().resources();
+    resources.imu_yaw_pid.UpdateExtDiff(target_yaw_, resources.imu.yaw(), -resources.imu.gyro_z(),
+                                        resources.config.control_loop_dt);
+    resources.yaw_motor.SetCurrent(-resources.imu_yaw_pid.out());
+    return No_State_Change;
+  }
+
+ private:
+  float target_yaw_{0.f};
+};
+
+/*******************************************/
+struct Down : etl::fsm_state<Gimbal, Down, StateId::kDown,  //
+                             event::ForceModeSwitch,        //
+                             event::ControlLoop> {
+  ACCEPT_MODE_SWITCH();
+  IGNORE_UNINTEREST_EVENT();
+  ENTER {
+    SharedResources::GetInstance()
+        .buzzer_controller.Play<rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kC6>>();
     return No_State_Change;
   }
   REACT(event::ControlLoop) { return No_State_Change; }
-  REACT(event::KeyboardCommand) {
-    if (e.up) {
-      Gimbal::Cmd(true);
-    } else {
-      Gimbal::Cmd(false);
-    }
-    return No_State_Change;
-  }
 };
 
 /*******************************************/
-struct Manual : etl::fsm_state<Gimbal, Manual, StateId::kManual,  //
-                               event::ForceModeSwitch,            //
-                               event::ControlLoop> {
+struct ForceDown : etl::fsm_state<Gimbal, ForceDown, StateId::kForceDown,  //
+                                  event::ForceModeSwitch,                  //
+                                  event::ControlLoop> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    S->buzzer_controller.Play<buzzer_melody::EnterManualMode>();
+    SharedResources::GetInstance().buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     return No_State_Change;
   }
-  REACT(event::ControlLoop) {
-    if (S->rc.channel(rc_ch::SF) < 1000) {
-      Gimbal::Cmd(true);
-    } else {
-      Gimbal::Cmd(false);
-    }
-    return No_State_Change;
-  }
+  REACT(event::ControlLoop) { return No_State_Change; }
 };
 
 /*******************************************/
@@ -141,19 +179,13 @@ struct Fault : etl::fsm_state<Gimbal, Fault, StateId::kFault,  //
                               event::FaultClear> {
   IGNORE_UNINTEREST_EVENT();
   ENTER {
-    S->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-    S->buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
-    S->controller.Enable(false);
+    SharedResources::GetInstance().buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
     UNUSED(e);
-    S->actuator.f_steer->SetCurrent(0);
-    S->actuator.l_steer->SetCurrent(0);
-    S->actuator.r_steer->SetCurrent(0);
-    S->actuator.f_wheel->SetCurrent(0);
-    S->actuator.l_wheel->SetCurrent(0);
-    S->actuator.r_wheel->SetCurrent(0);
+    auto &resources = get_fsm_context().resources();
+    resources.yaw_motor.SetCurrent(0);
     return No_State_Change;
   }
   REACT(event::FaultClear) {

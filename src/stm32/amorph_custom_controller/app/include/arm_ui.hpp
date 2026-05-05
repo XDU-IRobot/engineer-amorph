@@ -3,7 +3,7 @@
 #include <cstdint>
 
 /// MainLoop 执行时间（µs），由 MainLoop 写入，UI 定时读取
-extern volatile uint32_t g_mainloop_time_us;
+extern volatile long long g_mainloop_time_us;
 
 namespace arm_ui {
 

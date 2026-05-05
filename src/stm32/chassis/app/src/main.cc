@@ -1,36 +1,69 @@
 
-#include "bsp/timer_task.hpp"
+#include "usbd_cdc_if.h"
+
+#include "bsp/timer_task_scheduler.hpp"
 #include "global_objects.hpp"
 #include "shared_resources.hpp"
 
 __attribute__((section(".sram4"))) SharedResourcesNoDtcm shared_no_dtcm;
 
+Arm *right_arm{nullptr};
+Chassis *chassis{nullptr};
+Gimbal *gimbal{nullptr};
+
 namespace {
-void SubLoop500hz() {
+void AhrsLoop1khz() {
   auto &shared = SharedResources::GetInstance();
-
-  shared.rc.Update();
-  shared.vbus = shared_no_dtcm.vbus_adc.vbus();
-
-  chassis->Tick();
-
-  shared.system_status = chassis->resources.device_manager.GetSummaryString();
+  shared.onboard_imu.Update();
+  shared.mahony_ahrs.Update(rm::modules::ImuData6Dof{
+      .gx = shared.onboard_imu.gyro_x(),
+      .gy = shared.onboard_imu.gyro_y(),
+      .gz = shared.onboard_imu.gyro_z(),
+      .ax = shared.onboard_imu.accel_x(),
+      .ay = shared.onboard_imu.accel_y(),
+      .az = shared.onboard_imu.accel_z(),
+  });
 }
 
-void SubLoop50hz() {
+void LeftArmLoop500hz() {}
+
+void RightArmLoop300hz() { right_arm->Tick(); }
+
+void ChassisLoop500hz() { chassis->Tick(); }
+
+void GimbalLoop250hz() { gimbal->Tick(); }
+
+void FastIoLoop125hz() {
   auto &shared = SharedResources::GetInstance();
+  shared.rc.Update();
+  shared.vbus = shared_no_dtcm.vbus_adc.vbus();
+  shared.device_manager.Update();
+  shared.system_status = chassis->resources.device_manager.GetSummaryString();
 
-  shared.servo.ReadPosition();
+  // 按下图传遥控器的暂停键时，重启MCU
+  if (shared.vt_rc.data().pause_button) {
+    __ASM volatile("cpsid i");  // 进入临界区，禁止所有中断
+    NVIC_SystemReset();         // 重启
+  }
+}
 
+void SlowIoLoop50hz() {
+  auto &shared = SharedResources::GetInstance();
   // 更新LED和蜂鸣器
   const auto &[r, g, b] = shared.led_controller.Update();
   shared.led.SetColor(r, g, b);
   shared.buzzer.SetFrequency(shared.buzzer_controller.Update().frequency);
 }
 
-void AhrsLoop2khz() {
-  auto &shared = SharedResources::GetInstance();
-  shared.imu.Update();
+void LoggingLoop1hz() {
+  etl::string<2048> buf;
+  buf += "\r\n\r\n====== CHASSIS ======\r\n";
+  buf += chassis->resources.device_manager.GetSummaryString();
+  buf += "\r\n====== GIMBAL ======\r\n";
+  buf += gimbal->resources.device_manager.GetSummaryString();
+  buf += "\r\n====== RIGHT ARM ======\r\n";
+  buf += right_arm->resources.device_manager.GetSummaryString();
+  CDC_Transmit_HS((uint8_t *)buf.c_str(), buf.length());
 }
 }  // namespace
 
@@ -45,71 +78,35 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 [[noreturn]] void AppMain(void) {
   auto &shared = SharedResources::GetInstance();
 
+  right_arm = new Arm{ArmConfig::MakeRight()};
+  right_arm->Init();
   chassis = new Chassis{ChassisConfig::Make()};
   chassis->Init();
-
-  // // 定义键盘键位
-  // S.kh.OnKeyDown(rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kF,
-  //                [](const rm::modules::KeyEvent &e) {
-  //                  // 杆升
-  //                  fsm_gimbal::gimbal.receive(fsm_gimbal::event::KeyboardCommand{true});
-  //                })
-  //     .OnKeyDown(rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kC,
-  //                [](const rm::modules::KeyEvent &e) {
-  //                  // 杆降
-  //                  fsm_gimbal::gimbal.receive(fsm_gimbal::event::KeyboardCommand{false});
-  //                });
-
-  // // 监听设备状态变化，所有设备正常时LED为绿色呼吸灯，否则红灯闪烁
-  // S.device_manager.OnDeviceStatusChange([&](rm::device::Device *) {
-  //   if (S.device_manager.all_device_ok()) {
-  //     S.led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
-  //   } else {
-  //     S.led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-  //   }
-  // });
-
-  shared.ref_vt_link.AttachCallback([&](uint16_t cmd_id, uint8_t seq) {
-    UNUSED(seq);
-    switch (cmd_id) {
-      case rm::device::RefereeCmdId<rm::device::RefereeRevision::kNewV110>::kCustomRobotData: {
-        // 从图传链路解包出自定义控制器数据，转发到CAN总线上
-        shared.custom_ctrl_device.ReportStatus(rm::device::Device::kOk);
-        break;
-      }
-      case rm::device::RefereeCmdId<rm::device::RefereeRevision::kNewV110>::kRemoteControl: {
-        shared.vt_remote_device.ReportStatus(rm::device::Device::kOk);
-        break;
-      }
-      default: {
-        break;
-      }
-    }
-  });  // 注册解包回调
-  // 初始化图传链路串口
-  rm::hal::SerialRxCallbackFunction on_vt_serial_rx = [&](etl::span<const uint8_t> data) {
-    for (auto byte : data) {
-      shared.ref_vt_link << byte;
-    }
-  };
-  shared_no_dtcm.vt_link_serial_7.AttachRxCallback(on_vt_serial_rx);  // 注册接收回调，把收到的数据传给解码器
-  shared_no_dtcm.vt_link_serial_7.Start();
+  gimbal = new Gimbal{GimbalConfig::Make()};
+  gimbal->Init();
 
   // 创建调度器，绑定htim13
   static TimerTaskScheduler sched{&htim13};
-  sched.AddTask(2000.f, etl::delegate<void()>::create<AhrsLoop2khz>(), "ahrs_2khz")
-      .AddTask(500.f, etl::delegate<void()>::create<SubLoop500hz>(), "state_500hz")
-      .AddTask(50.f, etl::delegate<void()>::create<SubLoop50hz>(), "io_50hz");
+  sched
+      .AddTask(2000.f, etl::delegate<void()>::create<AhrsLoop1khz>(), "ahrs_1khz")
+      // .AddTask(500.f, etl::delegate<void()>::create<LeftArmLoop500hz>(), "left_arm_500hz")
+      .AddTask(300.f, etl::delegate<void()>::create<RightArmLoop300hz>(), "right_arm_300hz")
+      .AddTask(500.f, etl::delegate<void()>::create<ChassisLoop500hz>(), "chassis_500hz")
+      .AddTask(250.f, etl::delegate<void()>::create<GimbalLoop250hz>(), "gimbal_250hz")
+      .AddTask(50.f, etl::delegate<void()>::create<SlowIoLoop50hz>(), "slow_io_50hz")
+      .AddTask(125.f, etl::delegate<void()>::create<FastIoLoop125hz>(), "fast_io_125hz")
+      .AddTask(1.f, etl::delegate<void()>::create<LoggingLoop1hz>(), "logging_1hz");
   sched.Start();
 
-  shared.led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
   shared.buzzer_controller.Play<rm::modules::buzzer_melody::Startup>();
 
   for (;;) {
+    // 处理CAN定频发送
     shared.left_can.Process();
     shared.right_can.Process();
     shared.comm_can.Process();
     shared.mcp_can.Process();
+
     // 禁用 EXTI 中断，统一执行以下两项维护操作，防止与 Write() 中的 PRIMASK
     // 临界区以外的残余窗口产生 SPI 竞争：
     //   1. Bus-Off 恢复：检测 EFLG.TXBO/TXEP 并在必要时重新初始化 MCP2515

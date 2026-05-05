@@ -11,6 +11,7 @@
 #include "bsp/led.hpp"
 #include "bsp/vbus_adc.hpp"
 #include "et16s.hpp"
+#include "global_config.hpp"
 
 /**
  * STM32H7的DTCM区域只能被CPU访问，不能被DMA访问，所以需要开一块在DTCM之外的全局数据区域，专门放一些需要被DMA访问的对象
@@ -38,21 +39,21 @@ extern __attribute__((section(".sram4"))) SharedResourcesNoDtcm shared_no_dtcm;
 struct SharedResources {
   SharedResourcesNoDtcm *no_dtcm{&shared_no_dtcm};  ///< DTCMRAM外的资源指针
 
-  rm::hal::ThrottledCan<128> left_can{4000, hfdcan1}, right_can{4000, hfdcan2}, comm_can{1000, hfdcan3};
-  rm::hal::ThrottledMcp2515<128> mcp_can{4000, hspi1, MCP_CS_GPIO_Port, MCP_CS_Pin,
+  rm::hal::ThrottledCan<200> left_can{5500, hfdcan1}, right_can{5500, hfdcan2};
+  rm::hal::ThrottledCan<100> comm_can{2500, hfdcan3};
+  rm::hal::ThrottledMcp2515<100> mcp_can{2500, hspi1, MCP_CS_GPIO_Port, MCP_CS_Pin,
                                          rm::hal::stm32::Mcp2515::Bitrate::k1Mbps};
 
-  rm::hal::Pin servo_tx_en{*SERVO_TX_EN_GPIO_Port, SERVO_TX_EN_Pin},
-      servo_rx_en{*SERVO_RX_EN_GPIO_Port, SERVO_RX_EN_Pin};
-  rm::device::HiWonderServo servo{shared_no_dtcm.servo_serial, servo_tx_en, servo_rx_en, 0};
-
   Buzzer buzzer{htim12, TIM_CHANNEL_2};  ///< 蜂鸣器
-  rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
-                                rm::modules::buzzer_melody::Beeps<2>, rm::modules::buzzer_melody::Startup,
-                                rm::modules::buzzer_melody::Error, rm::modules::buzzer_melody::Success,
-                                rm::modules::buzzer_melody::TheLick, buzzer_melody::EnterManualMode,
-                                buzzer_melody::HiBeeps<1>, buzzer_melody::HiBeeps<2>, buzzer_melody::HiBeeps<3>,
-                                buzzer_melody::HiBeeps<4>, buzzer_melody::HiBeeps<5>, buzzer_melody::HiBeeps<6>>
+  rm::modules::BuzzerController<
+      rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>, rm::modules::buzzer_melody::Beeps<2>,
+      rm::modules::buzzer_melody::Startup, rm::modules::buzzer_melody::Error, rm::modules::buzzer_melody::Success,
+      rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kC6>,
+      rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kD6>,
+      rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kE6>,
+      rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kF6>, buzzer_melody::EnterManualMode,
+      buzzer_melody::HiBeeps<1>, buzzer_melody::HiBeeps<2>, buzzer_melody::HiBeeps<3>, buzzer_melody::HiBeeps<4>,
+      buzzer_melody::HiBeeps<5>, buzzer_melody::HiBeeps<6>>
       buzzer_controller;
   WS2812Led led{hspi6};                                                 ///< WS2812 LED灯
   rm::modules::RgbLedController<rm::modules::led_pattern::Off,          //
@@ -62,14 +63,18 @@ struct SharedResources {
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
-  rm::device::BMI088 imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};
+  rm::device::BMI088 onboard_imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};
+  rm::modules::MahonyAhrs mahony_ahrs{1000.f};  ///< AHRS算法
 
-  WflyET16s rc{shared_no_dtcm.sbus_serial};                                ///< 遥控器
-  rm::device::Referee<rm::device::RefereeRevision::kNewV110> ref_vt_link;  ///< 图传链路
-  rm::device::VirtualDevice custom_ctrl_device, vt_remote_device;
+  rm::device::VT03 vt_rc;                                      ///< 图传遥控器
+  WflyET16s rc{shared_no_dtcm.sbus_serial};                    ///< 遥控器
+  rm::device::Referee<GlobalConfig::kRefereeRev> ref_pm;       ///< 电管模块串口
+  rm::device::Referee<GlobalConfig::kRefereeRev> ref_vt_link;  ///< 图传链路
+  rm::device::VirtualDevice custom_ctrl_device;
+  rm::device::DeviceManager<5> device_manager;  ///< 设备管理器，用于监测各个设备的在线状态
   rm::modules::KeyboardHandler<> kh{
-      rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kCtrl |  //
-      rm::device::RefereeProtocol<rm::device::RefereeRevision::kNewV110>::RemoteControl::kShift   //
+      rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl::kCtrl |  //
+      rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl::kShift   //
   };  ///< 键盘处理器，用于处理客户端的键盘输入
 
   etl::string<512> system_status;  ///< 系统状态摘要字符串
@@ -92,6 +97,44 @@ struct SharedResources {
    * @brief 初始化所有全局对象
    */
   void Init() {
+    rc.SetName("remote");
+    vt_rc.SetName("vt_remote");
+    device_manager << &rc << &vt_rc;
+
+    // 初始化图传链路串口
+    ref_vt_link.AttachCallback([&](uint16_t cmd_id, uint8_t seq) {
+      UNUSED(seq);
+      switch (cmd_id) {
+        case rm::device::RefereeCmdId<GlobalConfig::kRefereeRev>::kCustomRobotData: {
+          // 从图传链路解包出自定义控制器数据，转发到CAN总线上
+          custom_ctrl_device.ReportStatus(rm::device::Device::kOk);
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    });  // 注册解包回调
+    rm::hal::SerialRxCallbackFunction on_vt_serial_rx = [&](etl::span<const uint8_t> data) {
+      for (auto byte : data) {
+        ref_vt_link << byte;
+        vt_rc << byte;
+      }
+    };
+    no_dtcm->vt_link_serial_7.AttachRxCallback(on_vt_serial_rx);  // 注册接收回调，把收到的数据传给解码器
+
+    device_manager.OnDeviceStatusChange([&](rm::device::Device *dev) {
+      if (dev->name() == "remote") {
+        if (dev->online_status() == rm::device::Device::kOk) {
+          buzzer_controller.Play<rm::modules::buzzer_melody::Success>();
+          led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
+        } else if (dev->online_status() != rm::device::Device::kOk) {
+          buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
+          led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
+        }
+      }
+    });
+
     buzzer.Begin();
     left_can.SetFilter(0, 0);
     right_can.SetFilter(0, 0);
@@ -101,8 +144,9 @@ struct SharedResources {
     comm_can.Begin();
     mcp_can.Begin();
     rc.Begin();
-    shared_no_dtcm.motor_485_serial.Start();
-    shared_no_dtcm.servo_serial.Start();
-    shared_no_dtcm.vbus_adc.Begin();
+    no_dtcm->vt_link_serial_7.Start();
+    no_dtcm->motor_485_serial.Start();
+    no_dtcm->servo_serial.Start();
+    no_dtcm->vbus_adc.Begin();
   }
 };

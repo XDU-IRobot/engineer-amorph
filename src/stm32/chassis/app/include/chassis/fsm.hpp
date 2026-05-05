@@ -119,8 +119,8 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    using RC = rm::device::RefereeProtocol<rm::device::RefereeRevision::kV170>::RemoteControl;
-    const uint16_t keycode = shared.ref_vt_link.data().remote_control.keyboard_value;
+    using RC = rm::device::VT03::KeyboardKey;
+    const uint16_t keycode = shared.vt_rc.data().keyboard_key;
     const bool move_gently = (keycode & RC::kShift) != 0;  // 按住Ctrl键，慢速移动
     const float slow_mod = move_gently ? 0.3f : 1.f;
     const float key_w = ((keycode & RC::kW) ? 1.f : 0.f) * slow_mod;
@@ -131,13 +131,14 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     const float key_e = ((keycode & RC::kE) ? 1.f : 0.f) * slow_mod;
     const float target_vx = (shared.rc.left_x() + key_d - key_a) * 1000.f;
     const float target_vy = (shared.rc.left_y() + key_w - key_s) * 1000.f;
-    const float target_w = -(shared.rc.right_x() + key_e - key_q) * 3000.f;
+    const float target_w = -(shared.rc.right_x() + key_e - key_q) * 10.f;
     resources.controller.SetTarget(target_vx, target_vy, target_w);
     resources.controller.Update(e.f_steer_pos, e.f_steer_vel,                             //
                                 e.l_steer_pos, e.l_steer_vel,                             //
                                 e.r_steer_pos, e.r_steer_vel,                             //
                                 e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
                                 e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
+                                shared.onboard_imu.gyro_z(),                              //
                                 move_gently);
     const auto &control = resources.controller.output();
     resources.f_steer.SetCurrent(-control.front_steer);

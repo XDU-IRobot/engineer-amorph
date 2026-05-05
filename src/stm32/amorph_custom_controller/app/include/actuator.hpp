@@ -1,0 +1,103 @@
+#pragma once
+
+#include <librm.hpp>
+
+#include "m_pi_f.hpp"
+
+struct Actuator {
+  explicit Actuator(rm::hal::CanInterface &can)
+      : j1{can, 1},
+        j2{can, {.master_id = 0x25, .slave_id = 0x15}},
+        j3{can,
+           {.master_id = 0x26,
+            .slave_id = 0x16,
+            .p_max = 12.5f,
+            .v_max = 30.f,
+            .t_max = 10.f,
+            .kp_range = {0, 500},
+            .kd_range = {0, 50}}},
+        j4{can, 1},
+        j5{can, 2},
+        j6{can, 3} {}
+
+  void SetEnable(bool enable, int repeats = 2) {
+    const auto ht_cmd =
+        enable ? rm::device::Ht04Motor::Instruction::kEnable : rm::device::Ht04Motor::Instruction::kDisable;
+    const auto dm_cmd = enable ? rm::device::DmMotorInstructions::kEnable : rm::device::DmMotorInstructions::kDisable;
+    const auto lk_cmd = enable ? rm::device::LkMotorMS<15>::kEnable : rm::device::LkMotorMS<15>::kDisable;
+    for (int i = 0; i < repeats; ++i) {
+      j1.SetCurrent(0);
+      j2.SendInstruction(ht_cmd);
+      j3.SendInstruction(dm_cmd);
+      j4.SendInstruction(lk_cmd);
+      j5.SendInstruction(lk_cmd);
+      j6.SendInstruction(lk_cmd);
+    }
+  }
+
+  /**
+   * @brief 给达妙电机设零点
+   */
+  void SetZero() {
+    SetEnable(true);
+    for (int i = 0; i < 5; i++) {
+      // j2.SendInstruction(rm::device::Ht04Motor::Instruction::kSetZeroPosition);
+      j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      HAL_Delay(10);
+    }
+    SetEnable(false);
+  }
+
+  std::array<float, 6> GetPositions() const {
+    std::array<float, 6> positions{
+        j1.pos_rad(),                //
+        j2.pos(),                    //
+        j3.pos(),                    //
+        j4.feedback().position_rad,  //
+        j5.feedback().position_rad,  //
+        j6.feedback().position_rad,  //
+    };
+    // 对每个电机应用反转和零点偏移补偿
+    for (size_t i = 0; i < 6; ++i) {
+      positions[i] = calibrators[i].RealToLogical(positions[i]);
+    }
+    // 3个瓴控的电机编码器是0~2pi，需要处理到-pi~pi
+    positions[3] = rm::modules::Wrap(positions[3], -M_PI, M_PI);
+    positions[4] = rm::modules::Wrap(positions[4], -M_PI, M_PI);
+    positions[5] = rm::modules::Wrap(positions[5], -M_PI, M_PI);
+    return positions;
+  }
+
+  std::array<float, 6> GetVelocities() const {
+    std::array<float, 6> velocities{
+        j1.rpm() * 2.f * M_PIf / 60.f,  //
+        j2.vel(),
+        j3.vel(),
+        j4.feedback().speed_rad_ps,
+        j5.feedback().speed_rad_ps,
+        j6.feedback().speed_rad_ps,
+    };
+    // 对每个电机应用反转
+    for (int i = 0; i < 6; ++i) {
+      if (calibrators[i].reverse()) {
+        velocities[i] = -velocities[i];
+      }
+    }
+    return velocities;
+  }
+
+  //---------------------------------------------
+
+  rm::device::GM6020 j1;
+  rm::device::Ht04Motor j2;
+  rm::device::DmMotorMit j3;
+  rm::device::LkMotor<rm::device::LkMotorType::kMS, 15> j4, j5, j6;
+  rm::modules::MotorCalibrator calibrators[6]{
+      {false, 5697.f / 8191.f * 2.f * M_PI},  //
+      {true, M_PIf - atan2f(84.5f, 415.f)},   //
+      {false, -atan2f(84.5f, 415.f)},         //
+      {false, 0.f},                           //
+      {false, 0.f},                           //
+      {false, 0.f},                           //
+  };
+};
