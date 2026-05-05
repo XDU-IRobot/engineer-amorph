@@ -1,5 +1,6 @@
 #pragma once
 
+#include <librm.hpp>
 #include <etl/debounce.h>
 
 #include "gpio.h"
@@ -7,6 +8,13 @@
 class Buttons {
  public:
   enum { kOnBoardKey, kA, kB, kC, kD, kE };
+
+  struct Event {
+    int button_idx;
+    bool pressed;
+  };
+
+  using Callback = std::function<void(const Event&)>;
 
   void Update() {
     a_.add(HAL_GPIO_ReadPin(KEY_A_GPIO_Port, KEY_A_Pin) == GPIO_PIN_RESET);

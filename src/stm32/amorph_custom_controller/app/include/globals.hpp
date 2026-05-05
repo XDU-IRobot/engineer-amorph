@@ -28,7 +28,8 @@ struct Globals {
   Buzzer buzzer;
   rm::modules::BuzzerController<rm::modules::buzzer_melody::Silent, rm::modules::buzzer_melody::Beeps<1>,
                                 rm::modules::buzzer_melody::Startup, rm::modules::buzzer_melody::Error,
-                                rm::modules::buzzer_melody::Success, rm::modules::buzzer_melody::Beeps<2>>
+                                rm::modules::buzzer_melody::Success, rm::modules::buzzer_melody::Beeps<2>,
+                                rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kC6>>
       buzzer_controller;
 
   Actuator actuator{motor_can};

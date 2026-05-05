@@ -68,6 +68,17 @@ struct Actuator {
     return positions;
   }
 
+  std::array<float, 6> GetRawPositions() const {
+    return std::array<float, 6>{
+        j1.pos_rad(),                //
+        j2.pos(),                    //
+        j3.pos(),                    //
+        j4.feedback().position_rad,  //
+        j5.feedback().position_rad,  //
+        j6.feedback().position_rad,  //
+    };
+  }
+
   std::array<float, 6> GetVelocities() const {
     std::array<float, 6> velocities{
         j1.rpm() * 2.f * M_PIf / 60.f,  //

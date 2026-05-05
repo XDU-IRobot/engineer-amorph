@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include <etl/fsm.h>
 
 #include "dynamics.hpp"
@@ -80,7 +82,7 @@ struct NoForce : etl::fsm_state<CcArm, NoForce, StateId::kNoForce,  //
   ENTER {
     globals->actuator.SetEnable(false);
     globals->led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kC6>>();
     return No_State_Change;
   }
   REACT(event::ButtonEvent) {
@@ -104,29 +106,34 @@ struct LockPosition : etl::fsm_state<CcArm, LockPosition, StateId::kLockPosition
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     globals->actuator.SetEnable(true);
-    target_pos[0] = globals->actuator.j1.pos_rad();
-    target_pos[1] = globals->actuator.j2.pos();
-    target_pos[2] = globals->actuator.j3.pos();
+    target_pos_ = globals->actuator.GetRawPositions();
     globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
-    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     return No_State_Change;
   }
   REACT(event::ButtonEvent) {
-    if (e.button_idx == Buttons::kOnBoardKey) {
-      return StateId::kNoForce;
+    switch (e.button_idx) {
+      case Buttons::kOnBoardKey:
+        return StateId::kNoForce;
+      default:
+        return No_State_Change;
     }
-    return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    current_pos = {globals->actuator.GetPositions()[0],  //
-                   globals->actuator.GetPositions()[1],  //
-                   globals->actuator.GetPositions()[2]};
-    compensate_t = get_fsm_context().dynamic_model.Compensate(current_pos, {0.f, 0.f, -9.81f});
+    UNUSED(e);
+    if (globals->buttons.b()) {
+      return StateId::kEnabled;
+    }
+
+    current_pos_ = {globals->actuator.GetPositions()[0],  //
+                    globals->actuator.GetPositions()[1],  //
+                    globals->actuator.GetPositions()[2]};
+    compensate_t_ = get_fsm_context().dynamic_model.Compensate(current_pos_, {0.f, 0.f, -9.81f});
     globals->actuator.j1.SetCurrent(0);
     // globals->actuator.j2.SetMitCommand(target_pos[1], 0, 0, 20, 0.4);
     // globals->actuator.j3.SetMitCommand(target_pos[2], 0, 0, 15, 2);
-    globals->actuator.j2.SetMitCommand(0, 0, -std::clamp(compensate_t(1), -5.f, 5.f), 0, 0);
-    globals->actuator.j3.SetMitCommand(0, 0, std::clamp(compensate_t(2), -5.f, 5.f), 0, 0);
+    globals->actuator.j2.SetMitCommand(target_pos_[1], 0, -std::clamp(compensate_t_(1), -5.f, 5.f), 2, 0.5);
+    globals->actuator.j3.SetMitCommand(target_pos_[2], 0, std::clamp(compensate_t_(2), -5.f, 5.f), 7, 2);
     globals->actuator.j4.SetSpeed(0);
     globals->actuator.j5.SetSpeed(0);
     globals->actuator.j6.SetSpeed(0);
@@ -134,9 +141,9 @@ struct LockPosition : etl::fsm_state<CcArm, LockPosition, StateId::kLockPosition
     return No_State_Change;
   }
 
-  float target_pos[3];
-  Eigen::Vector3f current_pos;
-  Eigen::Vector3f compensate_t;
+  std::array<float, 6> target_pos_{};
+  Eigen::Vector3f current_pos_;
+  Eigen::Vector3f compensate_t_;
 };
 
 /*******************************************/
@@ -146,14 +153,52 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
                                 event::ControlLoop> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
-  ENTER { return No_State_Change; }
-  REACT(event::ButtonEvent) {
-    if (e.button_idx == Buttons::kOnBoardKey) {
-      return StateId::kNoForce;
-    }
+  ENTER {
+    globals->actuator.SetEnable(true);
+    globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
+    globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
     return No_State_Change;
   }
-  REACT(event::ControlLoop) { return No_State_Change; }
+  REACT(event::ButtonEvent) {
+    switch (e.button_idx) {
+      case Buttons::kOnBoardKey:
+        return StateId::kNoForce;
+      default:
+        return No_State_Change;
+    }
+  }
+  REACT(event::ControlLoop) {
+    UNUSED(e);
+    if (!globals->buttons.b()) {
+      return StateId::kLockPosition;
+    }
+
+    current_vel_ = globals->actuator.GetVelocities();
+    boost_torque_[1] = std::tanhf(current_vel_[1]);
+    boost_torque_[2] = std::tanhf(0.6f * current_vel_[2]);
+    current_pos_ = {globals->actuator.GetPositions()[0],  //
+                    globals->actuator.GetPositions()[1],  //
+                    globals->actuator.GetPositions()[2]};
+    compensate_torque_ = get_fsm_context().dynamic_model.Compensate(current_pos_, {0.f, 0.f, -9.81f});
+    globals->actuator.j1.SetCurrent(0);
+    // globals->actuator.j2.SetMitCommand(target_pos[1], 0, 0, 20, 0.4);
+    // globals->actuator.j3.SetMitCommand(target_pos[2], 0, 0, 15, 2);
+    globals->actuator.j2.SetMitCommand(0, 0, -std::clamp(compensate_torque_(1) + (boost_torque_[1] * 0.4f), -5.f, 5.f),
+                                       0, 0);
+    globals->actuator.j3.SetMitCommand(0, 0, std::clamp(compensate_torque_(2) + (boost_torque_[2] * 0.3f), -5.f, 5.f),
+                                       0, 0);
+    globals->actuator.j4.SetPower(0);
+    globals->actuator.j5.SetPower(0);
+    globals->actuator.j6.SetPower(0);
+    rm::device::DjiMotorBase::SendCommand();
+    return No_State_Change;
+  }
+
+ private:
+  float boost_torque_[3]{};
+  std::array<float, 6> current_vel_{};
+  Eigen::Vector3f current_pos_;
+  Eigen::Vector3f compensate_torque_;
 };
 
 #undef IGNORE_UNINTEREST_EVENT
