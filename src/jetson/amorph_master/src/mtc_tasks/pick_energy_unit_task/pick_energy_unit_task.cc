@@ -15,10 +15,31 @@ namespace amorph {
 
 namespace mtc = moveit::task_constructor;
 
-PickEnergyUnitTask::PickEnergyUnitTask(const std::string& task_name) : task_name_(task_name) {}
+PickEnergyUnitTask::PickEnergyUnitTask(rclcpp::Node* node, const std::string& task_name)
+    : node_(node),
+      task_name_(task_name),
+      tf_buffer_(std::make_shared<tf2_ros::Buffer>(node->get_clock())),
+      tf_listener_(std::make_shared<tf2_ros::TransformListener>(*tf_buffer_)) {}
 
-bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometry_msgs::msg::Pose& object_pose) {
-  L::I("Initializing PickEnergyUnitTask pipeline");
+bool PickEnergyUnitTask::Setup() {
+  L::I("Setting up PickEnergyUnitTask pipeline");
+
+  auto node = node_->shared_from_this();
+
+  // 通过 TF 查找能量单元位姿
+  geometry_msgs::msg::TransformStamped transform_stamped;
+  try {
+    transform_stamped = tf_buffer_->lookupTransform("world", "energy_unit_selected", tf2::TimePointZero);
+  } catch (const tf2::TransformException& ex) {
+    L::E("Failed to get transform world->energy_unit_selected: %s", ex.what());
+    return false;
+  }
+
+  geometry_msgs::msg::Pose object_pose;
+  object_pose.position.x = transform_stamped.transform.translation.x;
+  object_pose.position.y = transform_stamped.transform.translation.y;
+  object_pose.position.z = transform_stamped.transform.translation.z;
+  object_pose.orientation = transform_stamped.transform.rotation;
 
   const auto param_listener = std::make_shared<pick_energy_unit_task::ParamListener>(node, "pick_energy_unit_task");
   const auto params = param_listener->get_params();
@@ -220,7 +241,7 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
 
       // Set upward direction
       geometry_msgs::msg::Vector3Stamped vec;
-      vec.header.frame_id = "energy_unit_1_smoothed";
+      vec.header.frame_id = "energy_unit_selected";
       vec.vector.z = -1.0;
       stage->setDirection(vec);
       grasp->insert(std::move(stage));

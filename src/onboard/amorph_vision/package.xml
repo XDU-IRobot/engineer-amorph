@@ -15,6 +15,9 @@
   <depend>tf_transformations</depend>
   <depend>message_filters</depend>
   <depend>std_srvs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>interactive_markers</depend>
+  <depend>ament_index_python</depend>
   
 
   <test_depend>ament_copyright</test_depend>

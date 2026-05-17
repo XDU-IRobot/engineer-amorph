@@ -2,36 +2,20 @@
 
 // ROS
 #include <rclcpp/node.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
-// MoveIt
-#include <moveit/planning_scene/planning_scene.hpp>
-#include <moveit/robot_model/robot_model.hpp>
-#include <moveit/planning_scene_interface/planning_scene_interface.hpp>
-
-// MTC
-#include <moveit/task_constructor/task.h>
-#include <moveit/task_constructor/stages/compute_ik.h>
-#include <moveit/task_constructor/stages/connect.h>
-#include <moveit/task_constructor/stages/current_state.h>
-#include <moveit/task_constructor/stages/generate_grasp_pose.h>
-#include <moveit/task_constructor/stages/generate_pose.h>
-#include <moveit/task_constructor/stages/generate_place_pose.h>
-#include <moveit/task_constructor/stages/modify_planning_scene.h>
-#include <moveit/task_constructor/stages/move_relative.h>
-#include <moveit/task_constructor/stages/move_to.h>
-#include <moveit/task_constructor/stages/predicate_filter.h>
-#include <moveit/task_constructor/solvers/cartesian_path.h>
-#include <moveit/task_constructor/solvers/pipeline_planner.h>
-#include <moveit_task_constructor_msgs/action/execute_task_solution.hpp>
+#include "mtc_includes.hpp"
 
 namespace amorph {
 
 class PickEnergyUnitTask {
  public:
-  explicit PickEnergyUnitTask(const std::string& task_name);
+  PickEnergyUnitTask(rclcpp::Node* node, const std::string& task_name);
   ~PickEnergyUnitTask() = default;
 
-  bool init(const rclcpp::Node::SharedPtr& node, const geometry_msgs::msg::Pose& object_pose);
+  /// 内部通过 TF 查找 world->energy_unit_1_smoothed 变换来获取物体位姿
+  bool Setup();
 
   bool plan(std::size_t max_solutions);
 
@@ -40,7 +24,10 @@ class PickEnergyUnitTask {
   auto& task() const { return task_; }
 
  private:
+  rclcpp::Node* node_;
   std::string task_name_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   moveit::task_constructor::TaskPtr task_;
 };
 

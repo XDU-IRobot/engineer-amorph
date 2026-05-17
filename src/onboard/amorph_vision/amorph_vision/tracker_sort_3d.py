@@ -133,12 +133,16 @@ class Sort3DTracker:
         self.process_var = process_var
         self.measurement_var = measurement_var
 
-        self._next_track_id = 0
+        # LRU ID pool: 0-15, 最多同时跟踪 16 个目标
+        self._max_tracks = 16
+        self._available_ids: List[int] = list(range(self._max_tracks))
+        self._lru_order: List[int] = []  # 最近使用顺序: 队首 = LRU, 队尾 = MRU
         self._tracks: Dict[int, _KalmanTrack3D] = {}
 
     def reset(self) -> None:
         self._tracks.clear()
-        self._next_track_id = 0
+        self._available_ids = list(range(self._max_tracks))
+        self._lru_order.clear()
 
     def update(
         self,
@@ -159,9 +163,15 @@ class Sort3DTracker:
         det_boxes = [np.asarray(det['box'][:4], dtype=np.float64) for det in detections]
 
         if len(self._tracks) == 0:
-            for det_pos, det_box in zip(det_positions, det_boxes):
-                self._create_track(det_pos, det_box)
-            return self._collect_assignments_for_new_tracks(len(detections)), []
+            new_ids: List[int] = []
+            for i, (det_pos, det_box) in enumerate(zip(det_positions, det_boxes)):
+                track, _ = self._create_track(det_pos, det_box)
+                if track is None:
+                    break  # ID 池耗尽（不会发生在空 tracker 场景，但做防御）
+                new_ids.append(track.track_id)
+            if self.min_hits <= 1:
+                return [TrackAssignment(track_id=tid, detection_index=i) for i, tid in enumerate(new_ids)], []
+            return [], []
 
         track_ids = list(self._tracks.keys())
         cost_matrix = self._build_cost_matrix(track_ids, det_positions, det_boxes)
@@ -189,6 +199,7 @@ class Sort3DTracker:
         matched_track_ids = set()
         matched_det_ids = set()
         assignments: List[TrackAssignment] = []
+        evicted_ids: List[int] = []
 
         for r, c in zip(row_ind, col_ind):
             cost = cost_matrix[r, c]
@@ -202,6 +213,7 @@ class Sort3DTracker:
                 continue
 
             track.update(det_positions[c], det_boxes[c])
+            self._mark_mru(track_id)
             matched_track_ids.add(track_id)
             matched_det_ids.add(c)
 
@@ -212,37 +224,68 @@ class Sort3DTracker:
         unmatched_det_ids = [idx for idx in range(len(detections)) if idx not in matched_det_ids]
 
         for det_id in unmatched_det_ids:
-            new_track = self._create_track(det_positions[det_id], det_boxes[det_id])
+            new_track, evicted_id = self._create_track(det_positions[det_id], det_boxes[det_id])
+            if new_track is None:
+                continue  # ID 池满且所有轨迹均活跃，丢弃该检测
+            if evicted_id is not None:
+                evicted_ids.append(evicted_id)
             if self.min_hits <= 1:
                 assignments.append(TrackAssignment(track_id=new_track.track_id, detection_index=det_id))
 
         removed_ids = self._prune_specific_tracks(unmatched_track_ids)
+        removed_ids.extend(evicted_ids)
 
         return assignments, removed_ids
 
-    def _create_track(self, det_pos: np.ndarray, det_box: np.ndarray) -> _KalmanTrack3D:
+    def _create_track(self, det_pos: np.ndarray, det_box: np.ndarray) -> Tuple[Optional[_KalmanTrack3D], Optional[int]]:
+        """创建新轨迹，返回 (track, evicted_id)。
+
+        若 ID 池耗尽，淘汰 LRU 轨迹并复用其 ID。
+        若所有 16 个 ID 均在本帧被匹配，则拒绝创建（返回 None, None）。
+        evicted_id 为被淘汰的 track_id，调用方应清理该 ID 的相关状态。
+        """
+        evicted_id: Optional[int] = None
+
+        if self._available_ids:
+            track_id = self._available_ids.pop(0)
+        else:
+            # LRU 淘汰：从队首开始找第一个本帧未匹配的轨迹
+            evict_idx: Optional[int] = None
+            for i, tid in enumerate(self._lru_order):
+                if tid in self._tracks and self._tracks[tid].missed > 0:
+                    evict_idx = i
+                    break
+            if evict_idx is None:
+                # 所有 16 个 ID 都在活跃跟踪中，拒绝创建
+                return None, None
+            lru_id = self._lru_order.pop(evict_idx)
+            if lru_id in self._tracks:
+                del self._tracks[lru_id]
+            evicted_id = lru_id
+            track_id = lru_id
+
         track = _KalmanTrack3D(
-            track_id=self._next_track_id,
+            track_id=track_id,
             measurement_xyz=det_pos,
             bbox_xyxy=det_box,
             measurement_var=self.measurement_var,
         )
-        self._tracks[track.track_id] = track
-        self._next_track_id += 1
-        return track
+        self._tracks[track_id] = track
+        self._mark_mru(track_id)
+        return track, evicted_id
 
-    def _collect_assignments_for_new_tracks(self, det_count: int) -> List[TrackAssignment]:
-        if self.min_hits > 1:
-            return []
-        start_id = self._next_track_id - det_count
-        return [TrackAssignment(track_id=start_id + i, detection_index=i) for i in range(det_count)]
+    def _mark_mru(self, track_id: int) -> None:
+        """将 track_id 移到 LRU 队列队尾（标记为最近使用）。"""
+        if track_id in self._lru_order:
+            self._lru_order.remove(track_id)
+        self._lru_order.append(track_id)
 
     def _prune_dead_tracks(self) -> List[int]:
         removed: List[int] = []
         for track_id in list(self._tracks.keys()):
             if self._tracks[track_id].missed > self.max_age:
                 removed.append(track_id)
-                del self._tracks[track_id]
+                self._release_track_id(track_id)
         return removed
 
     def _prune_specific_tracks(self, track_ids: Sequence[int]) -> List[int]:
@@ -252,8 +295,17 @@ class Sort3DTracker:
                 continue
             if self._tracks[track_id].missed > self.max_age:
                 removed.append(track_id)
-                del self._tracks[track_id]
+                self._release_track_id(track_id)
         return removed
+
+    def _release_track_id(self, track_id: int) -> None:
+        """释放 track_id：归还到可用池并从 LRU 队列移除。"""
+        if track_id in self._tracks:
+            del self._tracks[track_id]
+        if track_id in self._lru_order:
+            self._lru_order.remove(track_id)
+        if track_id not in self._available_ids:
+            self._available_ids.append(track_id)
 
     def _build_cost_matrix(
         self,

@@ -30,6 +30,7 @@ setup(
             'locator_v2 = amorph_vision.locator_node_v2:main',
             'yolo_test = amorph_vision.yolo_test_node:main',
             'export_engine = amorph_vision.engine_exporter:main',
+            'fake_eu_marker = amorph_vision.fake_eu_marker:main',
         ],
     },
 )

@@ -1,0 +1,55 @@
+pick_energy_unit_task:
+  object_name:
+    type: string
+    validation:
+      not_empty<>: []
+  object_reference_frame:
+    type: string
+    validation:
+      not_empty<>: []
+  arm_group_name:
+    type: string
+    validation:
+      not_empty<>: []
+  eef_name:
+    type: string
+    validation:
+      not_empty<>: []
+  hand_group_name:
+    type: string
+    validation:
+      not_empty<>: []
+  hand_frame:
+    type: string
+    validation:
+      not_empty<>: []
+  hand_open_pose:
+    type: string
+    validation:
+      not_empty<>: []
+  hand_close_pose:
+    type: string
+    validation:
+      not_empty<>: []
+  arm_home_pose:
+    type: string
+    validation:
+      not_empty<>: []
+  arm_controller_name:
+    type: string
+    default_value: "arm_controller"
+  hand_controller_name:
+    type: string
+    default_value: "gripper_controller"
+  grasp_frame_transform:
+    type: double_array
+    validation:
+      fixed_size<>: [6]
+  approach_object_min_dist:
+    type: double
+  approach_object_max_dist:
+    type: double
+  lift_object_min_dist:
+    type: double
+  lift_object_max_dist:
+    type: double

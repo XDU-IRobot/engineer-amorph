@@ -5,11 +5,6 @@
 
 #include <librm.hpp>
 
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-
 #include "sbus_interface/msg/sbus.hpp"
 #include "rm_referee_msgs/msg/remote_control.hpp"
 
@@ -42,9 +37,6 @@ class AmorphMasterNode : public rclcpp::Node {
   using ExecuteTaskSolution = moveit_task_constructor_msgs::action::ExecuteTaskSolution;
   rclcpp_action::Client<ExecuteTaskSolution>::SharedPtr execute_task_client_;
 
-  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-
   struct {
     rclcpp::TimerBase::SharedPtr rpc_heartbeat{nullptr};
   } timers_{};
@@ -54,8 +46,8 @@ class AmorphMasterNode : public rclcpp::Node {
   } subs_{};
   struct {
     PickPlaceTask pick_place_task{"pick_place_task"};
-    PickEnergyUnitTask pick_energy_unit_task{"pick_energy_unit_task"};
-  } mtc_tasks_{};
+    PickEnergyUnitTask pick_energy_unit_task;
+  } mtc_tasks_;
 };
 
 }  // namespace amorph

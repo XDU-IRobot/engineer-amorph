@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>OperatorPanelUi</class>
+ <widget class="QWidget" name="OperatorPanelUi">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>360</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>能量单元操作面板</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="leftMargin"><number>8</number></property>
+   <property name="topMargin"><number>8</number></property>
+   <property name="rightMargin"><number>8</number></property>
+   <property name="bottomMargin"><number>8</number></property>
+   <property name="spacing"><number>6</number></property>
+   <item>
+    <widget class="QPushButton" name="refreshBtn">
+     <property name="text"><string>🔄 刷新识别结果</string></property>
+     <property name="minimumHeight"><number>36</number></property>
+     <property name="styleSheet"><string notr="true">QPushButton { font-size: 14px; font-weight: bold; background-color: #3498db; color: white; border-radius: 4px; padding: 6px; } QPushButton:hover { background-color: #2980b9; }</string></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="detectionGroup">
+     <property name="title"><string>识别结果</string></property>
+     <layout class="QVBoxLayout" name="detectionLayout">
+      <item>
+       <widget class="QLabel" name="detectionLabel">
+        <property name="text"><string>等待刷新...</string></property>
+        <property name="wordWrap"><bool>true</bool></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="leftArmGroup">
+     <property name="title"><string>🤖 左臂</string></property>
+     <layout class="QVBoxLayout" name="leftArmLayout">
+      <item>
+       <layout class="QHBoxLayout" name="leftArmControlLayout">
+        <item>
+         <widget class="QPushButton" name="leftUpBtn">
+          <property name="text"><string>▲ 抓取</string></property>
+          <property name="enabled"><bool>false</bool></property>
+          <property name="toolTip"><string>设置抓取方向向上</string></property>
+          <property name="minimumHeight"><number>30</number></property>
+          <property name="checkable"><bool>true</bool></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="leftSetBtn">
+          <property name="text"><string>⊙ Set</string></property>
+          <property name="enabled"><bool>false</bool></property>
+          <property name="toolTip"><string>进入左臂选点模式——点击 3D 视口中的能量单元</string></property>
+          <property name="minimumHeight"><number>30</number></property>
+          <property name="checkable"><bool>true</bool></property>
+          <property name="styleSheet"><string notr="true">QPushButton { font-weight: bold; background-color: #2ecc71; color: white; border-radius: 4px; } QPushButton:hover { background-color: #27ae60; } QPushButton:checked { background-color: #e74c3c; }</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="leftDownBtn">
+          <property name="text"><string>▼ 放置</string></property>
+          <property name="enabled"><bool>false</bool></property>
+          <property name="toolTip"><string>设置抓取方向向下</string></property>
+          <property name="minimumHeight"><number>30</number></property>
+          <property name="checkable"><bool>true</bool></property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="leftTargetLabel">
+        <property name="text"><string>目标: 未分配 · 方向: 向下</string></property>
+        <property name="wordWrap"><bool>true</bool></property>
+        <property name="styleSheet"><string notr="true">QLabel { color: #7f8c8d; font-style: italic; padding: 2px; }</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="planLeftBtn">
+        <property name="text"><string>📐 Plan Left</string></property>
+        <property name="enabled"><bool>false</bool></property>
+        <property name="minimumHeight"><number>34</number></property>
+        <property name="styleSheet"><string notr="true">QPushButton { font-size: 13px; font-weight: bold; background-color: #9b59b6; color: white; border-radius: 4px; } QPushButton:hover { background-color: #8e44ad; } QPushButton:disabled { background-color: #bdc3c7; }</string></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="rightArmGroup">
+     <property name="title"><string>🤖 右臂</string></property>
+     <layout class="QVBoxLayout" name="rightArmLayout">
+      <item>
+       <layout class="QHBoxLayout" name="rightArmControlLayout">
+        <item>
+         <widget class="QPushButton" name="rightUpBtn">
+          <property name="text"><string>▲ 抓取</string></property>
+          <property name="enabled"><bool>false</bool></property>
+          <property name="toolTip"><string>设置抓取方向向上</string></property>
+          <property name="minimumHeight"><number>30</number></property>
+          <property name="checkable"><bool>true</bool></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="rightSetBtn">
+          <property name="text"><string>⊙ Set</string></property>
+          <property name="enabled"><bool>false</bool></property>
+          <property name="toolTip"><string>进入右臂选点模式——点击 3D 视口中的能量单元</string></property>
+          <property name="minimumHeight"><number>30</number></property>
+          <property name="checkable"><bool>true</bool></property>
+          <property name="styleSheet"><string notr="true">QPushButton { font-weight: bold; background-color: #e67e22; color: white; border-radius: 4px; } QPushButton:hover { background-color: #d35400; } QPushButton:checked { background-color: #e74c3c; }</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="rightDownBtn">
+          <property name="text"><string>▼ 放置</string></property>
+          <property name="enabled"><bool>false</bool></property>
+          <property name="toolTip"><string>设置抓取方向向下</string></property>
+          <property name="minimumHeight"><number>30</number></property>
+          <property name="checkable"><bool>true</bool></property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="rightTargetLabel">
+        <property name="text"><string>目标: 未分配 · 方向: 向下</string></property>
+        <property name="wordWrap"><bool>true</bool></property>
+        <property name="styleSheet"><string notr="true">QLabel { color: #7f8c8d; font-style: italic; padding: 2px; }</string></property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="planRightBtn">
+        <property name="text"><string>📐 Plan Right</string></property>
+        <property name="enabled"><bool>false</bool></property>
+        <property name="minimumHeight"><number>34</number></property>
+        <property name="styleSheet"><string notr="true">QPushButton { font-size: 13px; font-weight: bold; background-color: #9b59b6; color: white; border-radius: 4px; } QPushButton:hover { background-color: #8e44ad; } QPushButton:disabled { background-color: #bdc3c7; }</string></property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="statusLabel">
+     <property name="text"><string>就绪 · 点击「刷新识别结果」开始</string></property>
+     <property name="wordWrap"><bool>true</bool></property>
+     <property name="minimumHeight"><number>36</number></property>
+     <property name="frameShape"><enum>QFrame::StyledPanel</enum></property>
+     <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
+     <property name="styleSheet"><string notr="true">QLabel { background-color: #ecf0f1; padding: 6px; border-radius: 4px; }</string></property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="bottomSpacer">
+     <property name="orientation"><enum>Qt::Vertical</enum></property>
+     <property name="sizeHint" stdset="0">
+      <size><width>20</width><height>0</height></size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+</ui>

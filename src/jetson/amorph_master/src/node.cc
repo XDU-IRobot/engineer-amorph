@@ -13,8 +13,7 @@ using VM = VarMemory;
 AmorphMasterNode::AmorphMasterNode(const rclcpp::NodeOptions &options)
     : Node("amorph_master_node", options),
       execute_task_client_{rclcpp_action::create_client<ExecuteTaskSolution>(this, "/execute_task_solution")},
-      tf_buffer_{std::make_shared<tf2_ros::Buffer>(this->get_clock())},
-      tf_listener_{std::make_shared<tf2_ros::TransformListener>(*tf_buffer_)} {
+      mtc_tasks_{PickPlaceTask{"pick_place_task"}, PickEnergyUnitTask{this, "pick_energy_unit_task"}} {
   MoveitHelper::GetInstance().Init(std::shared_ptr<rclcpp::Node>{this});
   InitUserInput();
   L::I("node initialized."_green);
@@ -47,25 +46,10 @@ void AmorphMasterNode::InitUserInput() {
                    std::jthread([&]() -> std::optional<const std::shared_ptr<const SolutionBase>> {
                      planning_in_progress_.store(true);
 
-                     // 获取 world->energy_unit_0_smoothed 变换
-                     geometry_msgs::msg::TransformStamped transform_stamped;
-                     try {
-                       transform_stamped =
-                           tf_buffer_->lookupTransform("world", "energy_unit_1_smoothed", tf2::TimePointZero);
-                     } catch (const tf2::TransformException &ex) {
-                       L::E("Failed to get transform world->energy_unit_1_smoothed: %s", ex.what());
+                     if (!mtc_tasks_.pick_energy_unit_task.Setup()) {
                        planning_in_progress_.store(false);
                        return std::nullopt;
                      }
-
-                     // 将 Transform 转换为 Pose
-                     geometry_msgs::msg::Pose object_pose;
-                     object_pose.position.x = transform_stamped.transform.translation.x;
-                     object_pose.position.y = transform_stamped.transform.translation.y;
-                     object_pose.position.z = transform_stamped.transform.translation.z;
-                     object_pose.orientation = transform_stamped.transform.rotation;
-
-                     mtc_tasks_.pick_energy_unit_task.init(this->shared_from_this(), object_pose);
                      const bool success = mtc_tasks_.pick_energy_unit_task.plan(10);
                      const auto &task = mtc_tasks_.pick_energy_unit_task.task();
                      // task->reset();
