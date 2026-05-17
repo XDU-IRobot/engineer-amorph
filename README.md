@@ -174,6 +174,7 @@ sudo apt install -y \
   ros-${ROS_DISTRO}-diagnostic-updater \
   ros-${ROS_DISTRO}-diagnostic-msgs \
   ros-${ROS_DISTRO}-statistics-msgs \
+  ros-${ROS_DISTRO}-tf-transformations \
   libdw-dev \
   ros-${ROS_DISTRO}-foxglove-bridge
 ```

@@ -15,12 +15,12 @@ THIRDPARTY_PACKAGES = [
     "moveit_task_constructor_msgs",
     "moveit_task_constructor_capabilities",
     "moveit_task_constructor_visualization",
-    # rm_referee_ros2
-    "rm_referee",
-    "rm_referee_msgs",
-    # sbus_ros2
-    "sbus_bridge",
-    "sbus_interface",
+    # # rm_referee_ros2
+    # "rm_referee",
+    # "rm_referee_msgs",
+    # # sbus_ros2
+    # "sbus_bridge",
+    # "sbus_interface",
     # easy_handeye2
     "easy_handeye2",
     "easy_handeye2_msgs",

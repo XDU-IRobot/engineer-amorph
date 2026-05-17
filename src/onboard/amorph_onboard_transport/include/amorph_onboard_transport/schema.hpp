@@ -15,5 +15,3 @@ struct __attribute__((packed)) Target {
 
 using TargetArray = Target[10];
 
-inline TargetArray a;
-constexpr static int a = sizeof(TargetArray);

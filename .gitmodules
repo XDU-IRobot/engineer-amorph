@@ -25,3 +25,6 @@
 [submodule "src/stm32/librm"]
 	path = src/stm32/librm
 	url = https://github.com/XDU-IRobot/librm.git
+[submodule "src/onboard/amorph_onboard_transport/libs/librm"]
+	path = src/onboard/amorph_onboard_transport/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
