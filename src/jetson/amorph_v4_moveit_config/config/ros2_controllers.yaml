@@ -1,0 +1,74 @@
+# This config file is used by ros2_control
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    arm_l_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    arm_r_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    gripper_l_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    gripper_r_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+arm_l_controller:
+  ros__parameters:
+    joints:
+      - j1_l
+      - j2_l
+      - j3_l
+      - j4_l
+      - j5_l
+      - j6_l
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_nonzero_velocity_at_trajectory_end: true
+arm_r_controller:
+  ros__parameters:
+    joints:
+      - j1_r
+      - j2_r
+      - j3_r
+      - j4_r
+      - j5_r
+      - j6_r
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_nonzero_velocity_at_trajectory_end: true
+gripper_l_controller:
+  ros__parameters:
+    joints:
+      - gripper_l_l
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_nonzero_velocity_at_trajectory_end: true
+gripper_r_controller:
+  ros__parameters:
+    joints:
+      - gripper_l_r
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_nonzero_velocity_at_trajectory_end: true

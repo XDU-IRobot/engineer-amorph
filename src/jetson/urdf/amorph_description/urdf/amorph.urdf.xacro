@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="amorph">
+  <xacro:arg name="use_mock_hardware" default="false" />
+
+  <!-- 相机（根节点） -->
+  <xacro:include filename="$(find orbbec_description)/urdf/gemini335L_336L.urdf.xacro" />
+  <!-- 云台 -->
+  <!-- <xacro:include filename="$(find amorph_gimbal_description)/urdf/amorph_gimbal_description.urdf.xacro" /> -->
+  <!-- 左臂 -->
+  <xacro:include filename="$(find amorph_arm_v4_description)/urdf/amorph_arm_v4_l_description.urdf.xacro" />
+  <!-- 右臂 -->
+  <xacro:include filename="$(find amorph_arm_v4_description)/urdf/amorph_arm_v4_r_description.urdf.xacro" />
+
+  <!-- 依次对云台、左臂、右臂进行手眼标定，得到的结果填进下面 -->
+
+  <!-- 云台 -> camera_link -->
+  <!-- <joint name="camera_to_gimbal" type="fixed">
+    <parent link="camera_link" />
+    <child link="base_link_gimbal" />
+    <origin xyz="0 0 0.45" rpy="0 0 -1.57" />
+  </joint> -->
+
+  <!-- 左臂 -> camera_link -->
+  <joint name="camera_to_arm_l" type="fixed">
+    <parent link="camera_link" />
+    <child link="base_link_l" />
+    <origin xyz="0 0.25 0.25" rpy="0 0 0" />
+  </joint>
+
+  <!-- 右臂 -> camera_link -->
+  <joint name="camera_to_arm_r" type="fixed">
+    <parent link="camera_link" />
+    <child link="base_link_r" />
+    <origin xyz="0 -0.25 0" rpy="0 0 0" />
+  </joint>
+
+</robot>

@@ -91,7 +91,7 @@ def generate_launch_description():
         DeclareLaunchArgument('enable_color', default_value='true'),
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
-        DeclareLaunchArgument('enable_color_auto_exposure_priority', default_value='true'),
+        DeclareLaunchArgument('enable_color_auto_exposure_priority', default_value='false'),
         DeclareLaunchArgument('color_rotation', default_value='-1'),#color rotation degree : 0, 90, 180, 270
         DeclareLaunchArgument('color_flip', default_value='false'),
         DeclareLaunchArgument('color_mirror', default_value='false'),
@@ -99,11 +99,11 @@ def generate_launch_description():
         DeclareLaunchArgument('color_ae_roi_right', default_value='-1'),
         DeclareLaunchArgument('color_ae_roi_top', default_value='-1'),
         DeclareLaunchArgument('color_ae_roi_bottom', default_value='-1'),
-        DeclareLaunchArgument('color_exposure', default_value='1000'),
-        DeclareLaunchArgument('color_gain', default_value='8'),  # 低增益减少噪声（优化：静态精度优先）
+        DeclareLaunchArgument('color_exposure', default_value='200'),
+        DeclareLaunchArgument('color_gain', default_value='0'),  # 低增益减少噪声（优化：静态精度优先）
         DeclareLaunchArgument('enable_color_auto_white_balance', default_value='true'),
         DeclareLaunchArgument('color_white_balance', default_value='-1'),
-        DeclareLaunchArgument('enable_color_auto_exposure', default_value='true'),
+        DeclareLaunchArgument('enable_color_auto_exposure', default_value='false'),
         DeclareLaunchArgument('color_ae_max_exposure', default_value='-1'),
         DeclareLaunchArgument('color_brightness', default_value='-1'),
         DeclareLaunchArgument('color_sharpness', default_value='-1'),

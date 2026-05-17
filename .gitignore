@@ -19,3 +19,5 @@ Log
 .auto_source
 
 bt_models.xml
+
+*.engine

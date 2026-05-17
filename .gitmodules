@@ -1,6 +1,7 @@
-[submodule "src/jetson/sbus_ros2"]
-	path = src/jetson/sbus_ros2
-	url = https://github.com/eryeden/sbus_ros2.git
+[submodule "src/stm32/amorph_arm_controller/libs/librm"]
+	path = src/stm32/amorph_arm_controller/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git
+	branch = develop
 [submodule "src/stm32/amorph_custom_controller/libs/librm"]
 	path = src/stm32/amorph_custom_controller/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
@@ -20,14 +21,11 @@
 	path = src/jetson/amorph_transport/libs/pfr
 	url = https://github.com/boostorg/pfr.git
 [submodule "src/jetson/OrbbecSDK_ROS2"]
-	path = src/jetson/OrbbecSDK_ROS2
+	path = src/onboard/OrbbecSDK_ROS2
 	url = https://github.com/orbbec/OrbbecSDK_ROS2.git
 [submodule "src/jetson/easy_handeye2"]
 	path = src/jetson/easy_handeye2
 	url = https://github.com/marcoesposito1988/easy_handeye2.git
-[submodule "src/jetson/rm_referee_ros2"]
-	path = src/jetson/rm_referee_ros2
-	url = https://github.com/XDU-IRobot/rm_referee_ros2.git
 [submodule "src/jetson/amorph_master/libs/librm"]
 	path = src/jetson/amorph_master/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git

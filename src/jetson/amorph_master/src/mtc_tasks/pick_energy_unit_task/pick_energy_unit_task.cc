@@ -220,8 +220,8 @@ bool PickEnergyUnitTask::init(const rclcpp::Node::SharedPtr& node, const geometr
 
       // Set upward direction
       geometry_msgs::msg::Vector3Stamped vec;
-      vec.header.frame_id = "energy_unit_0_smoothed";
-      vec.vector.z = 1.0;
+      vec.header.frame_id = "energy_unit_1_smoothed";
+      vec.vector.z = -1.0;
       stage->setDirection(vec);
       grasp->insert(std::move(stage));
     }
