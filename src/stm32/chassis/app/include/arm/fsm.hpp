@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 
 #include <librm.hpp>
@@ -8,7 +8,9 @@
 #include "kinematics.hpp"
 #include "resources.hpp"
 #include "shared_resources.hpp"
-#include "custom_controller_protocol.hpp"
+#include "custom_controller_schema.hpp"
+#include "action_sequencer.hpp"
+#include "harmonics_generator.hpp"
 
 namespace fsm_arm {
 
@@ -21,7 +23,7 @@ struct EventId {
     kHostCommand,                 ///< 上位机下发的命令
     kFaultClear,                  ///< 故障清除命令
     kNextJoint,                   ///< Manual模式下切换到下一个关节
-    kJointPositionSequence,       ///< 关节位置序列命令
+    kActionSequence,              ///< 动作序列命令
   };
 };
 
@@ -37,20 +39,14 @@ struct StateId {
     kLongJointCalibrating,  ///< 夹爪校准位置
     kSequencing,            ///< 正在执行动作序列
     kFault,                 ///< 故障状态
+    kIdent,                 ///< 用于参数辨识，执行固定激励轨迹
+    NUMBER_OF_STATES,
   };
 };
 
 namespace event {
 /*******************************************/
-struct ControlLoop : etl::message<EventId::kControlLoop> {
-  ControlLoop(const std::array<float, 7> &positions,   //
-              const std::array<float, 7> &velocities,  //
-              Eigen::Vector3f imu_acc)
-      : current_positions(positions), current_velocities(velocities), imu_acc(imu_acc) {}
-  std::array<float, 7> current_positions;
-  std::array<float, 7> current_velocities;
-  Eigen::Vector3f imu_acc;  ///< 来自IMU的加速度数据，单位：m/s^2，机械臂坐标系（前左上）下的分量
-};
+struct ControlLoop : etl::message<EventId::kControlLoop> {};
 
 /*******************************************/
 struct ForceModeSwitch : etl::message<EventId::kForceModeSwitch> {
@@ -60,7 +56,6 @@ struct ForceModeSwitch : etl::message<EventId::kForceModeSwitch> {
 
 /*******************************************/
 struct CustomCtrlCommand : etl::message<EventId::kCustomCtrlCommand>, ::CustomControllerCommand {
-  using CustomControllerCommand::CustomControllerCommand;
   CustomCtrlCommand() = default;
   explicit CustomCtrlCommand(const CustomControllerCommand &command) : CustomControllerCommand(command) {}
 };
@@ -68,7 +63,6 @@ struct CustomCtrlCommand : etl::message<EventId::kCustomCtrlCommand>, ::CustomCo
 /*******************************************/
 struct CartesianCustomCtrlCommand : etl::message<EventId::kCartesianCustomCtrlCommand>,
                                     ::CartesianCustomControllerCommand {
-  using CartesianCustomControllerCommand::CartesianCustomControllerCommand;
   CartesianCustomCtrlCommand() = default;
   explicit CartesianCustomCtrlCommand(const CartesianCustomControllerCommand &command)
       : CartesianCustomControllerCommand(command) {}
@@ -88,12 +82,9 @@ struct FaultClear : etl::message<EventId::kFaultClear> {};
 struct NextJoint : etl::message<EventId::kNextJoint> {};
 
 /*******************************************/
-struct JointPositionSequence : etl::message<EventId::kJointPositionSequence> {
-  constexpr static size_t kMaxPoints = 5;  ///< 最多5个点，为了省空间尽量小
-  using Points = std::array<std::array<float, 6>, kMaxPoints>;
-
-  explicit JointPositionSequence(const Points &points) : points{points} {}
-  Points points;
+struct ActionSequence : etl::message<EventId::kActionSequence> {
+  explicit ActionSequence(const ::ActionSequence &seq) : sequence(seq) {}
+  ::ActionSequence sequence;
 };
 }  // namespace event
 
@@ -132,7 +123,24 @@ namespace state {
 struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
                                 event::ForceModeSwitch,           //
                                 event::ControlLoop> {
-  ACCEPT_MODE_SWITCH();
+  // ACCEPT_MODE_SWITCH();
+  REACT(event::ForceModeSwitch) {
+    auto &resources = get_fsm_context().resources();
+
+    if (resources.gripper_calibrated) {
+      return e.target_mode;
+    }
+    if (e.target_mode == StateId::kManual ||               //
+        e.target_mode == StateId::kIdle ||                 //
+        e.target_mode == StateId::kHostControl ||          //
+        e.target_mode == StateId::kCustomCtrl ||           //
+        e.target_mode == StateId::kCartesianCustomCtrl ||  //
+        e.target_mode == StateId::kSequencing) {
+      return StateId::kLongJointCalibrating;
+    }
+
+    return No_State_Change;
+  }
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     auto &shared = SharedResources::GetInstance();
@@ -144,16 +152,14 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    resources.controller.ResetAt(e.current_positions);
-    resources.controller.Update(e.current_positions,                          //
-                                e.current_velocities,                         //
-                                resources.actuator.gripper.feedback().power,  //
-                                e.imu_acc,                                    //
-                                0.002f);
-    resources.actuator.gripper.SendInstruction(
-        rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>::kReadPositionMulti);
+    resources.controller.ResetAt(resources.actuator.GetPositions());
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, 0.002f);
+    resources.actuator.ApplyOutput(ArmController::Output::Zero(), false);
     resources.actuator.SetEnable(false, 1);
     return No_State_Change;
   }
@@ -185,7 +191,7 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     auto &resources = get_fsm_context().resources();
 
     if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(e.current_positions);
+      resources.controller.ResetAt(resources.actuator.GetPositions());
       get_fsm_context().planner_need_reset_ = false;
     }
     // 确保在 ResetAt 之后再初始化 target_positions_，避免位置跳变
@@ -197,14 +203,17 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     target_positions_[ctrl_joint_idx_] =
         std::clamp(target_positions_[ctrl_joint_idx_] + (shared.rc.right_y() * 0.001f),  //
                    joint_limits[ctrl_joint_idx_].first, joint_limits[ctrl_joint_idx_].second);
-    target_positions_[6] = (shared.rc.channel(rc_ch::SF) < 1000) ? 1.f : 0.f;  // sf控制夹爪开关
+    // 控制夹爪开关
+    resources.gripper_controller.Open(shared.rc.channel(resources.config.rc_ch_manual_gripper_switch) < 1000);
     resources.controller.GoTo(target_positions_);
 
-    resources.controller.Update(e.current_positions, e.current_velocities, resources.actuator.gripper.feedback().power,
-                                e.imu_acc, 0.002f);
-
-    auto output = resources.controller.output();
-    resources.actuator.ApplyOutput(output, true);
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, 0.002f);
+    resources.actuator.ApplyOutput(resources.controller.output(), true);
+    resources.actuator.gripper.SetSpeed(resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
+                                                                            resources.actuator.GetGripperVelocity(),
+                                                                            resources.actuator.GetGripperPower()));
     return No_State_Change;
   }
   REACT(event::NextJoint) {
@@ -226,7 +235,7 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
   }
 
  private:
-  std::array<float, 7> target_positions_{};
+  std::array<float, 6> target_positions_{};
   int ctrl_joint_idx_{0};
   bool target_positions_initialized_{false};
 };
@@ -237,7 +246,7 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
                              event::ControlLoop,         //
                              event::HostCommand,         //
                              event::CustomCtrlCommand,   //
-                             event::CartesianCustomCtrlCommand> {
+                             event::CartesianCustomCtrlCommand, event::ActionSequence> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
@@ -250,18 +259,23 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
-    // if (resources.controller.status() == ArmController<7>::kFault) {
+    // if (resources.controller.status() == ArmController::kFault) {
     //   return StateId::kFault;
     // }
     if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(e.current_positions);
+      resources.controller.ResetAt(resources.actuator.GetPositions());
       get_fsm_context().planner_need_reset_ = false;
     }
 
-    resources.controller.Update(e.current_positions, e.current_velocities, resources.actuator.gripper.feedback().power,
-                                e.imu_acc, 0.002f);
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
+    resources.actuator.gripper.SetSpeed(resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
+                                                                            resources.actuator.GetGripperVelocity(),
+                                                                            resources.actuator.GetGripperPower()));
     return No_State_Change;
   }
   REACT(event::HostCommand) {
@@ -271,7 +285,7 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     return No_State_Change;
   }
   REACT(event::CustomCtrlCommand) {
-    if (e.buttons.a) {  // 按下按钮a，自定义控制器接管
+    if (e.buttons.b) {  // 按下按钮b，自定义控制器接管
       return StateId::kCustomCtrl;
     }
     return No_State_Change;
@@ -285,9 +299,15 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,  //
     }
     if (e.btn_b) {  // 没有按A使能自定义控制器的情况下，按B使机械臂归位
       shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
-      resources.controller.GoTo({0.f, 2.8f, -2.74f, 0.f, 0.f, 0.f, 1.f});
+      resources.controller.GoTo({0.f, 2.8f, -2.74f, 0.f, 0.f, 0.f});
+      resources.gripper_controller.Open(true);
     }
     return No_State_Change;
+  }
+  REACT(event::ActionSequence) {
+    auto &resources = get_fsm_context().resources();
+    resources.sequencer.Execute(e.sequence);
+    return StateId::kSequencing;
   }
 };
 
@@ -307,25 +327,30 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
     switch (resources.controller.status()) {
-      // case ArmController<7>::kFault: {
+      // case ArmController::kFault: {
       //   return StateId::kFault;
       // }
-      case ArmController<7>::kMoving:
+      case ArmController::kMoving:
       default: {
         // no state change
         break;
       }
     }
     if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(e.current_positions);
+      resources.controller.ResetAt(resources.actuator.GetPositions());
       get_fsm_context().planner_need_reset_ = false;
     }
-    resources.controller.Update(e.current_positions, e.current_velocities, resources.actuator.gripper.feedback().power,
-                                e.imu_acc, 0.002f);
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
+    resources.actuator.gripper.SetSpeed(resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
+                                                                            resources.actuator.GetGripperVelocity(),
+                                                                            resources.actuator.GetGripperPower()));
     return No_State_Change;
   }
   REACT(event::HostCommand) {
@@ -334,15 +359,15 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
     if (!e.take_control) {
       return StateId::kIdle;
     }
-    std::array<float, 7> target_p = resources.controller.current_positions();
+    std::array<float, 6> target_p = resources.controller.current_positions();
     target_p[0] = e.target_joint_positions[0];
     target_p[1] = e.target_joint_positions[1];
     target_p[2] = e.target_joint_positions[2];
     target_p[3] = e.target_joint_positions[3];
     target_p[4] = e.target_joint_positions[4];
     target_p[5] = e.target_joint_positions[5];
-    target_p[6] = e.gripper_open ? 1.f : 0.f;
     resources.controller.GoTo(target_p);
+    resources.gripper_controller.Open(e.gripper_open);
     return No_State_Change;
   }
 };
@@ -361,52 +386,51 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     get_fsm_context().planner_need_reset_ = true;  // 强制重置规划器，防止位置跳变
     shared.buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
     resources.actuator.SetEnable(true);
-    just_entered_ = true;
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    // if (resources.controller.status() == ArmController<7>::kFault) {
+    // if (resources.controller.status() == ArmController::kFault) {
     //   return StateId::kFault;
     // }
     if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(e.current_positions);
+      resources.controller.ResetAt(resources.actuator.GetPositions());
       get_fsm_context().planner_need_reset_ = false;
     }
-    resources.controller.Update(e.current_positions, e.current_velocities, resources.actuator.gripper.feedback().power,
-                                e.imu_acc, 0.002f);
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
+    resources.actuator.gripper.SetSpeed(resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
+                                                                            resources.actuator.GetGripperVelocity(),
+                                                                            resources.actuator.GetGripperPower()));
     return No_State_Change;
   }
   REACT(event::CustomCtrlCommand) {
     auto &resources = get_fsm_context().resources();
 
-    if (!e.buttons.a) {  // 松开按钮a，退出CustomCtrl模式
+    if (!e.buttons.b) {  // 松开按钮b，退出CustomCtrl模式
       return StateId::kIdle;
     }
     if (!e.ok) {
       return No_State_Change;
     }
-    if (just_entered_) {
-      j6_delta_ = e.joint_positions[5] - resources.controller.current_positions()[5];
-      just_entered_ = false;
-    }
-    std::array<float, 7> target_p = resources.controller.current_positions();
+    using namespace rm::modules::angle_literals;
+    // p[1] = (180_deg).rad() - std::atan2f(84.5f, 415.f) - (15_deg).rad();
+    // p[2] = -(180_deg).rad() + std::atan2f(84.5f, 415.f) + (20_deg).rad();
+    std::array<float, 6> target_p;
     target_p[0] = e.joint_positions[0];
-    target_p[1] = e.joint_positions[1];
-    target_p[2] = e.joint_positions[2];
+    target_p[1] = std::min(e.joint_positions[1], (180_deg).rad() - std::atan2f(84.5f, 415.f) - (15_deg).rad());
+    target_p[2] = std::max(e.joint_positions[2], -(180_deg).rad() + std::atan2f(84.5f, 415.f) + (20_deg).rad());
     target_p[3] = e.joint_positions[3];
     target_p[4] = e.joint_positions[4];
-    target_p[5] = e.joint_positions[5] - j6_delta_;
-    target_p[6] = e.buttons.b ? 0.f : 1.f;
+    target_p[5] = e.joint_positions[5];
     resources.controller.GoTo(target_p);
+    resources.gripper_controller.Open(!e.buttons.d);
     return No_State_Change;
   }
-
- private:
-  bool just_entered_{true};
-  float j6_delta_{0.f};
 };
 
 /*******************************************/
@@ -425,25 +449,30 @@ struct CartesianCustomCtrl : etl::fsm_state<Arm, CartesianCustomCtrl, StateId::k
     resources.actuator.SetEnable(true);
     // 进入笛卡尔空间自定义控制模式时，记录当前末端位置作为初始位置，后续的控制命令都是相对于这个初始位置的增量
     Eigen::Matrix3f dummy;
-    const auto &current_p = resources.actuator.GetPositions();
+    const auto &current_p = resources.controller.current_positions();
     k_.SolveFk({current_p[0], current_p[1], current_p[2], current_p[3], current_p[4], current_p[5]},
                end_eff_initial_pos_, dummy);
     just_entered_ = true;
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    // if (resources.controller.status() == ArmController<7>::kFault) {
+    // if (resources.controller.status() == ArmController::kFault) {
     //   return StateId::kFault;
     // }
     if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(e.current_positions);
+      resources.controller.ResetAt(resources.actuator.GetPositions());
       get_fsm_context().planner_need_reset_ = false;
     }
-    resources.controller.Update(e.current_positions, e.current_velocities, resources.actuator.gripper.feedback().power,
-                                e.imu_acc, 0.002f);
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
+    resources.actuator.gripper.SetSpeed(resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
+                                                                            resources.actuator.GetGripperVelocity(),
+                                                                            resources.actuator.GetGripperPower()));
     return No_State_Change;
   }
   REACT(event::CartesianCustomCtrlCommand) {
@@ -479,8 +508,8 @@ struct CartesianCustomCtrl : etl::fsm_state<Arm, CartesianCustomCtrl, StateId::k
     target_p_[3] = target_p_6.value()[3];
     target_p_[4] = target_p_6.value()[4];
     target_p_[5] = target_p_6.value()[5];
-    target_p_[6] = e.btn_b ? 0.f : 1.f;
     resources.controller.GoTo(target_p_);
+    resources.gripper_controller.Open(!e.btn_b);
     return No_State_Change;
   }
 
@@ -488,7 +517,7 @@ struct CartesianCustomCtrl : etl::fsm_state<Arm, CartesianCustomCtrl, StateId::k
   bool just_entered_{true};
   Eigen::Vector3f end_eff_initial_pos_;
   Eigen::Vector3f cc_initial_pos_;
-  std::array<float, 7> target_p_{};
+  std::array<float, 6> target_p_{};
   Kinematics k_;
 };
 
@@ -536,7 +565,8 @@ struct LongJointCalibrating : etl::fsm_state<Arm, LongJointCalibrating, StateId:
     if (stall_count_ > 20) {  // 连续多次堵转，认为校准完成，更新编码器零点，并进入手动模式
       resources.actuator.gripper_encoder.Reset();
       resources.actuator.gripper_encoder.Update(resources.actuator.gripper.feedback().position_rad);
-      resources.actuator.calibrators[6].UpdateConfig({false, resources.actuator.gripper_encoder.RealPosition()});
+      resources.actuator.calibrators[6].UpdateConfig({false, resources.actuator.gripper.feedback().position_multi_rad});
+      resources.gripper_calibrated = true;
       return StateId::kManual;
     }
     return No_State_Change;
@@ -553,6 +583,12 @@ struct Sequencing : etl::fsm_state<Arm, Sequencing, StateId::kSequencing,  //
   // ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
+    auto &shared = SharedResources::GetInstance();
+    auto &resources = get_fsm_context().resources();
+
+    get_fsm_context().planner_need_reset_ = true;  // 强制重置规划器
+    shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
+    resources.actuator.SetEnable(true);
     return No_State_Change;
   }
   REACT(event::ForceModeSwitch) {
@@ -562,10 +598,34 @@ struct Sequencing : etl::fsm_state<Arm, Sequencing, StateId::kSequencing,  //
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
-    UNUSED(e);
+    auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    resources.actuator.SetEnable(false, 1);
+    if (get_fsm_context().planner_need_reset_) {
+      resources.controller.ResetAt(resources.actuator.GetPositions());
+      get_fsm_context().planner_need_reset_ = false;
+    }
+
+    // Tick sequencer，推进动作序列
+    constexpr float kDt = 0.002f;
+    constexpr uint32_t kDtMs = 2;
+    resources.sequencer.Update(kDtMs);
+
+    // 更新 ArmController 并输出
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, kDt);
+    resources.actuator.ApplyOutput(resources.controller.output(), true);
+
+    // 更新夹爪
+    resources.actuator.gripper.SetSpeed(resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
+                                                                            resources.actuator.GetGripperVelocity(),
+                                                                            resources.actuator.GetGripperPower()));
+
+    // 序列结束 → 回到 Idle
+    if (resources.sequencer.IsFinished()) {
+      return StateId::kIdle;
+    }
     return No_State_Change;
   }
   REACT(event::FaultClear) {
@@ -613,6 +673,61 @@ struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
     resources.controller.FaultClear();
     return StateId::kNoForce;
   }
+};
+
+/*******************************************/
+struct Ident : etl::fsm_state<Arm, Ident, StateId::kIdent,  //
+                              event::ForceModeSwitch,       //
+                              event::ControlLoop> {
+  ACCEPT_MODE_SWITCH();
+  IGNORE_UNINTEREST_EVENT();
+  ENTER {
+    auto &shared = SharedResources::GetInstance();
+    auto &resources = get_fsm_context().resources();
+
+    get_fsm_context().planner_need_reset_ = true;  // 进入Idle时强制重置规划器，防止位置跳变
+    shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
+    resources.actuator.SetEnable(true);
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
+    auto &resources = get_fsm_context().resources();
+    // if (resources.controller.status() == ArmController::kFault) {
+    //   return StateId::kFault;
+    // }
+    if (get_fsm_context().planner_need_reset_) {
+      resources.controller.ResetAt(resources.actuator.GetPositions());
+      get_fsm_context().planner_need_reset_ = false;
+    }
+
+    for (int i = 0; i < 3; ++i) {
+      target_[i] = tg_[i].evaluate(HAL_GetTick() / 1000.f).q;
+    }
+
+    auto current_pos = resources.actuator.GetPositions();
+    current_pos[0] = target_[0];
+    current_pos[1] = target_[1];
+    current_pos[2] = target_[2];
+
+    resources.controller.GoTo(current_pos);
+    resources.controller.Update(
+        resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
+        {shared.onboard_imu.accel_y(), -shared.onboard_imu.accel_x(), -shared.onboard_imu.accel_z()}, 0.002f);
+    resources.actuator.ApplyOutput(resources.controller.output(), true);
+    resources.actuator.gripper.SetSpeed(resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
+                                                                            resources.actuator.GetGripperVelocity(),
+                                                                            resources.actuator.GetGripperPower()));
+    return No_State_Change;
+  }
+
+ private:
+  std::array<float, 6> target_{};
+  FourierTrajectoryGenerator<5> tg_[3]{
+      {0.25f, -0.523599, 0.523599, {0.025f, 0.035f, 0.030f, 0.020f, 0.015f}, {0.030f, 0.025f, 0.020f, 0.025f, 0.015f}},
+      {0.167f, 1.8, 2.7, {0.08f, 0.10f, 0.08f, 0.06f, 0.04f}, {0.06f, 0.08f, 0.10f, 0.06f, 0.04f}},
+      {0.1f, -2.26, -0.6, {0.10f, 0.08f, 0.06f, 0.08f, 0.05f}, {0.06f, 0.10f, 0.08f, 0.05f, 0.05f}},
+  };
 };
 
 #undef IGNORE_UNINTEREST_EVENT

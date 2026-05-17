@@ -5,11 +5,12 @@
 #include "usbd_cdc_if.h"
 
 #include "fsm.hpp"
-#include "arm_ui.hpp"
+// #include "arm_ui.hpp"
 #include "buzzer.hpp"
 #include "globals.hpp"
 #include "packet_builder.hpp"
 #include "timer_task.hpp"
+#include "custom_controller_schema.hpp"
 
 volatile long long g_mainloop_time_us = 0;
 
@@ -33,7 +34,7 @@ void MainLoop() {
     globals->servo.MoveTime(HAL_GetTick() % 1000, 1.f / 25.f);
 
     static PacketBuilder pb;
-    static CustomControllerCmd cc_cmd;
+    static CustomControllerCommand cc_cmd;
     cc_cmd.ok = true;
     const auto joint_pos = globals->actuator.GetPositions();
     std::memcpy(cc_cmd.joint_positions, joint_pos.data(), sizeof(float) * 6);
@@ -41,7 +42,6 @@ void MainLoop() {
     cc_cmd.buttons.b = globals->buttons.b();
     cc_cmd.buttons.c = globals->buttons.c();
     cc_cmd.buttons.d = globals->buttons.d();
-    cc_cmd.buttons.e = globals->buttons.e();
     const auto tx_pack = pb.Build(reinterpret_cast<const uint8_t *>(&cc_cmd), sizeof(cc_cmd));
 
     // 如果这一轮串口忙就跳过这一轮发送

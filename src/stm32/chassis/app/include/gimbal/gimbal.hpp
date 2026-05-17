@@ -14,15 +14,17 @@ struct Gimbal {
   fsm_gimbal::state::Mid fsm_state_mid;
   fsm_gimbal::state::Down fsm_state_down;
   fsm_gimbal::state::ForceDown fsm_state_force_down;
+  fsm_gimbal::state::LongJointCalibrating long_joint_calibrating;
 
  private:
   // 这个数组需与fsm同生命周期，所以放在这里
-  etl::ifsm_state *state_list_[5]{
-      &fsm_state_no_force,  //
-      &fsm_state_up,        //
-      &fsm_state_mid,       //
-      &fsm_state_down,      //
-      &fsm_state_force_down,
+  etl::ifsm_state *state_list_[6]{
+      &fsm_state_no_force,      //
+      &fsm_state_up,            //
+      &fsm_state_mid,           //
+      &fsm_state_down,          //
+      &fsm_state_force_down,    //
+      &long_joint_calibrating,  //
   };
 
  public:
@@ -40,7 +42,7 @@ struct Gimbal {
         return;
       }
       if (new_value > 1300 && new_value < 1700) {  // SA在下，云台无力
-        fsm.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kNoForce});
+        fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kNoForce});
       }
     });
     shared.rc(rc_ch::SE).OnValueChange([&](const int &old_value, const int &new_value) {
@@ -52,29 +54,36 @@ struct Gimbal {
 
       // 调试模式（SA在中间）下可以用SE控制云台模式
       if (new_value > 1300 && new_value < 1700) {  // SE在下
-        fsm.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kDown});
+        fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kDown});
       }
       if (new_value > 0 && new_value < 500) {  // SE在上
-        fsm.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kUp});
+        fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kUp});
       }
       if (new_value > 500 && new_value < 1100) {  // SE在中
-        fsm.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kMid});
+        fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kMid});
       }
     });
 
     // 定义键盘键位
     using RC = rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl;
     shared.kh
-        .OnKeyDown(RC::kF,
+        .OnKeyDown(RC::kZ,
                    [&](const rm::modules::KeyEvent &e) {  // 杆升
-                     fsm.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kUp});
+                     fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kUp});
                    })
-        .OnKeyDown(RC::kC, [&](const rm::modules::KeyEvent &e) {  // 杆降
-          fsm.receive(fsm_gimbal::event::ForceModeSwitch{fsm_gimbal::StateId::kDown});
+        .OnKeyDown(RC::kX, [&](const rm::modules::KeyEvent &e) {  // 杆降
+          fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kDown});
         });
 
     fsm.set_states(state_list_, std::size(state_list_));
     fsm.start();
+
+    resources.device_manager.OnDeviceStatusChange([&](rm::device::Device *dev) {
+      if (dev->name() == "lift_motor" && dev->online_status() != rm::device::Device::kOk) {
+        resources.lift_calibrated = false;
+        fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kNoForce});
+      }
+    });
   }
 
   /**

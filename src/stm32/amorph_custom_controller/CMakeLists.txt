@@ -62,17 +62,15 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 
-# fix float sprintf issue
-add_link_options("-u _printf_float")
-
-add_subdirectory(libs)
+add_compile_definitions(LIBRM_BYPASS_HAL_ASSERT)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../librm" "${CMAKE_BINARY_DIR}/librm_build")
 
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
-    ${PROJECT_NAME}_libs
+    rm
 )
 
 add_subdirectory(app)

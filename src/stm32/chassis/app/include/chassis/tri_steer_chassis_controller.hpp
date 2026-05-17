@@ -50,15 +50,18 @@ class TriSteerChassisController {
 
     float vx_cmd = target_.vx;
     float vy_cmd = target_.vy;
+    float w_cmd = target_.w;
     // 限制加速度，防止轮子打滑
     if (move_gently) {
       static rm::modules::TrajectoryLimiter  //
           vx_limiter{2000.f, 1000000.f},     //
-          vy_limiter{2000.f, 1000000.f};
+          vy_limiter{2000.f, 1000000.f},     //
+          w_limiter{5.f, 1000000.f};
 
       if (!moving_gently_) {
         vx_limiter.ResetAt(0.f);
         vy_limiter.ResetAt(0.f);
+        w_limiter.ResetAt(0.f);
         moving_gently_ = true;
       }
 
@@ -70,21 +73,27 @@ class TriSteerChassisController {
       if (IsNear(target_.vy, 0.f, 1e-6)) {
         vy_limiter.ResetAt(0.f);
       }
+      if (IsNear(target_.w, 0.f, 1e-6)) {
+        w_limiter.ResetAt(0.f);
+      }
       vx_limiter.SetTarget(target_.vx);
       vy_limiter.SetTarget(target_.vy);
+      w_limiter.SetTarget(target_.w);
       vx_limiter.Update(0.002f);
       vy_limiter.Update(0.002f);
+      w_limiter.Update(0.002f);
       vx_cmd = vx_limiter.current_position();
       vy_cmd = vy_limiter.current_position();
+      w_cmd = w_limiter.current_position();
     } else {
       moving_gently_ = false;
     }
 
-    pid_.gyro_z.Update(target_.w, gyro_z, dt);
-    const float w_cmd = pid_.gyro_z.out() * 2000;
+    pid_.gyro_z.Update(w_cmd, gyro_z, dt);
+    const float w_cmd_pid = pid_.gyro_z.out() * 2000;
 
     // 运动学解算
-    const auto fk_result = kinematics_.Forward(vx_cmd, vy_cmd, w_cmd, state_.front_steer_position,
+    const auto fk_result = kinematics_.Forward(vx_cmd, vy_cmd, w_cmd_pid, state_.front_steer_position,
                                                state_.lr_steer_position, state_.rr_steer_position);
 
     // 舵
@@ -168,9 +177,9 @@ class TriSteerChassisController {
     rm::modules::PID f_wheel{75.f, 0.f, 0.f, 15000.f, 0.f};       ///< 前轮速度环
     rm::modules::PID l_wheel{65.f, 0.f, 0.f, 15000.f, 0.f};       ///< 左后轮速度环
     rm::modules::PID r_wheel{65.f, 0.f, 0.f, 15000.f, 0.f};       ///< 右后轮速度环
-    rm::modules::PID f_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
-    rm::modules::PID l_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
-    rm::modules::PID r_steer{22000.f, 0.f, 400.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
+    rm::modules::PID f_steer{17000.f, 0.f, 360.f, 20000.f, 0.f};  ///< 前舵 位置速度并联
+    rm::modules::PID l_steer{17000.f, 0.f, 360.f, 20000.f, 0.f};  ///< 左后舵 位置速度并联
+    rm::modules::PID r_steer{17000.f, 0.f, 360.f, 20000.f, 0.f};  ///< 右后舵 位置速度并联
     rm::modules::PID gyro_z{0.4f, 0.f, 0.f, 100.f, 0.f};          ///<
   } pid_;
 

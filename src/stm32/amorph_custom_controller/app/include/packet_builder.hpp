@@ -21,23 +21,6 @@
 
 #include <librm.hpp>
 
-struct __attribute__((__packed__)) CustomControllerCmd {
-  bool ok;
-  struct __attribute__((__packed__)) {
-    bool a : 1;
-    bool b : 1;
-    bool c : 1;
-    bool d : 1;
-    bool e : 1;
-    bool reserved_1 : 1;
-    bool reserved_2 : 1;
-    bool reserved_3 : 1;
-  } buttons{};
-  float joint_positions[6];
-};
-
-static_assert(sizeof(CustomControllerCmd) <= 30, "Payload struct too large");
-
 class PacketBuilder {
  public:
   auto Build(const uint8_t *data, size_t len) -> std::shared_ptr<std::vector<uint8_t>> {

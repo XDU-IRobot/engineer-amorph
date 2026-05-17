@@ -9,9 +9,9 @@
 
 template <bool UseStdFunction = true>
 class GripperController {
-  constexpr static float kMoveSpeed = 2.f * M_PI * 30.f;  ///< 夹爪开闭时驱动电机的速度，单位 rad/s
-  constexpr static float kClosedEncoder = 0.f;            ///< 夹爪完全闭合时编码器的读数
-  constexpr static float kOpenEncoder = -33.9041214f;     ///< 夹爪完全打开时编码器的读数
+  constexpr static float kMoveSpeed = 2.f * M_PI * 100.f;  ///< 夹爪开闭时驱动电机的速度，单位 rad/s
+  constexpr static float kClosedEncoder = 0.f;             ///< 夹爪完全闭合时编码器的读数
+  constexpr static float kOpenEncoder = -110.f;             ///< 夹爪完全打开时编码器的读数
 
  public:
   using CallbackType = std::conditional_t<UseStdFunction, std::function<void()>, etl::delegate<void()>>;
@@ -128,7 +128,7 @@ class GripperController {
     return motor_stalled_;
   }
 
-  struct {
+  struct MotorStatus {
     float position;
     float speed;
     float power;

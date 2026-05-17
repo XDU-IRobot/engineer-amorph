@@ -64,12 +64,12 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 
 add_compile_definitions(LIBRM_BYPASS_HAL_ASSERT)
-add_subdirectory(libs)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../librm" "${CMAKE_BINARY_DIR}/librm_build")
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
         stm32cubemx
 
         # Add user defined libraries
-        ${PROJECT_NAME}_libs
+        rm
 )
 add_subdirectory(app)

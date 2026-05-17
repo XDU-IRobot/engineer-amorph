@@ -43,24 +43,24 @@ class Actuator {
     }
   }
 
-  void ApplyOutput(const ArmController<7>::Output& output, bool apply_position = false) {
+  void ApplyOutput(const ArmController::Output& output, bool apply_position = false) {
     const auto& pd_config = pd_params_;
     if (apply_position) {
-      j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]),  //
-                       0,                                                  //
-                       0.f,                                                //
-                       pd_config[0].kp,                                    //
+      j1.SetMitCommand(calibrators[0].LogicalToReal(output.positions[0]),                        //
+                       calibrators[0].reverse() ? -output.velocities[0] : output.velocities[0],  //
+                       calibrators[0].reverse() ? -output.efforts[0] : output.efforts[0],        //
+                       pd_config[0].kp,                                                          //
                        pd_config[0].kd);
-      j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]),                  //
-                       0,                                                                  //
-                       calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1],  //
-                       pd_config[1].kp,                                                    //
+      j2.SetMitCommand(calibrators[1].LogicalToReal(output.positions[1]),                        //
+                       calibrators[1].reverse() ? -output.velocities[1] : output.velocities[1],  //
+                       calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1],        //
+                       pd_config[1].kp,                                                          //
                        pd_config[1].kd);
-      j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]),                  //
-                       0,                                                                  //
-                       calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2],  //
-                       pd_config[2].kp,                                                    //
-      pd_config[2].kd);
+      j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]) * 2.f,                  // 1:1.5减速比
+                       calibrators[2].reverse() ? -output.velocities[2] : output.velocities[2],  //
+                       calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2],        //
+                       pd_config[2].kp,                                                          //
+                       pd_config[2].kd);
       j4.SetMitCommand(calibrators[3].LogicalToReal(output.positions[3]),  //
                        0,                                                  //
                        0.f,                                                //
@@ -71,69 +71,77 @@ class Actuator {
                        0.f,                                                //
                        pd_config[4].kp,                                    //
                        pd_config[4].kd);
-      // j6.SetCurrent(calibrators[5].reverse() ? output.efforts[5] : -output.efforts[5]);
-      // gripper.SetSpeed(output.velocities[6]);
+      j6.SetCurrent(calibrators[5].reverse() ? -output.efforts[5] : output.efforts[5]);
     } else {
       j1.SetMitCommand(0, 0, 0, 0, 0);
       j2.SetMitCommand(0, 0, 0, 0, 0);
       j3.SetMitCommand(0, 0, 0, 0, 0);
       j4.SetMitCommand(0, 0, 0, 0, 0);
       j5.SetMitCommand(0, 0, 0, 0, 0);
-      // j6.SetCurrent(0);
-      // gripper.SetPower(0);
+      j6.SetCurrent(0);
     }
     // j1.SetMitCommand(0, 0, 0, 0, 0);
     // j2.SetMitCommand(0, 0, 0, 0, 0);
-    // j3.SetMitCommand(0, 0, 0.f, 0, 0);
+    // j3.SetMitCommand(0, 0, 0, 0, 0);
     // j4.SetMitCommand(0, 0, 0, 0, 0);
     // j5.SetMitCommand(0, 0, 0, 0, 0);
-    j6.SetCurrent(0);
-    gripper.SetPower(0);
+    // j6.SetCurrent(0);
   }
 
-  void UpdateEncoderCounter() { gripper_encoder.Update(gripper.feedback().position_rad); }
+  void QueryGripperEncoder() {
+    gripper.SendInstruction(rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>::kReadPositionMulti);
+    gripper_encoder.Update(gripper.feedback().position_rad);
+  }
 
   /**
    * @brief 给达妙电机设零点
    */
   void DmSetZero() {
-    SetEnable(true);
-    for (int i = 0; i < 10; i++) {
-      j2.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+    SetEnable(true, 2);
+    for (int i = 0; i < 1; i++) {
+      // j1.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j2.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j4.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j5.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
-      HAL_Delay(10);
     }
-    SetEnable(false);
+    SetEnable(false, 2);
   }
 
-  std::array<float, 7> GetPositions() const {
-    std::array<float, 7> positions{
-        j1.pos(),                       //
-        j2.pos(),                       //
-        j3.pos(),                       //
-        j4.pos(),                       //
-        j5.pos(),                       //
-        j6.pos_rad(),                   //
-        gripper_encoder.RealPosition()  //
+  std::array<float, 6> GetPositions() const {
+    std::array<float, 6> positions{
+        j1.pos(),        //
+        j2.pos(),        //
+        j3.pos() / 2.f,  // 1:1.5减速比
+        j4.pos(),        //
+        j5.pos(),        //
+        j6.pos_rad(),    //
     };
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 6; ++i) {
       positions[i] = calibrators[i].RealToLogical(positions[i]);
     }
     return positions;
   }
 
-  std::array<float, 7> GetVelocities() const {
-    std::array<float, 7> velocities{
-        j1.vel(),                        //
-        j2.vel(),                        //
-        j3.vel(),                        //
-        j4.vel(),                        //
-        j5.vel(),                        //
-        j6.rpm() * 2.f * M_PIf / 60.f,   //
-        gripper.feedback().speed_rad_ps  //
+  float GetGripperPosition() const { return calibrators[6].RealToLogical(gripper.feedback().position_multi_rad); }
+
+  float GetGripperVelocity() const {
+    const float vel = gripper.feedback().speed_rad_ps;
+    return calibrators[6].reverse() ? -vel : vel;
+  }
+
+  float GetGripperPower() const { return gripper.feedback().power; }
+
+  std::array<float, 6> GetVelocities() const {
+    std::array<float, 6> velocities{
+        j1.vel(),                       //
+        j2.vel(),                       //
+        j3.vel(),                       //
+        j4.vel(),                       //
+        j5.vel(),                       //
+        j6.rpm() * 2.f * M_PIf / 60.f,  //
     };
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 6; ++i) {
       if (calibrators[i].reverse()) {
         velocities[i] = -velocities[i];
       }
@@ -141,17 +149,16 @@ class Actuator {
     return velocities;
   }
 
-  std::array<float, 7> GetEfforts() const {
-    std::array<float, 7> efforts{
-        j1.tau(),                                     //
-        j2.tau(),                                     //
-        j3.tau(),                                     //
-        j4.tau(),                                     //
-        j5.tau(),                                     //
-        static_cast<float>(j6.current()),             //
-        static_cast<float>(gripper.feedback().power)  //
+  std::array<float, 6> GetEfforts() const {
+    std::array<float, 6> efforts{
+        j1.tau(),                          //
+        j2.tau(),                          //
+        j3.tau(),                          //
+        j4.tau(),                          //
+        j5.tau(),                          //
+        static_cast<float>(j6.current()),  //
     };
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 6; ++i) {
       if (calibrators[i].reverse()) {
         efforts[i] = -efforts[i];
       }
@@ -167,5 +174,5 @@ class Actuator {
   EncoderCounter gripper_encoder{2.f * M_PI};
 
  private:
-  detail::PDParams pd_params_[6]{};  ///< 从 ArmConfig 拷贝的 PD 参数
+  ArmConfig::PDParams pd_params_[6]{};  ///< 从 ArmConfig 拷贝的 PD 参数
 };

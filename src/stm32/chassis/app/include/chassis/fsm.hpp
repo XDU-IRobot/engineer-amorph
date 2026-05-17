@@ -21,6 +21,7 @@ struct StateId {
     kNoForce,  ///< 无力
     kNormal,   ///< 有力
     kFault,    ///< 故障
+    NUMBER_OF_STATES,
   };
 };
 
@@ -121,17 +122,31 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
 
     using RC = rm::device::VT03::KeyboardKey;
     const uint16_t keycode = shared.vt_rc.data().keyboard_key;
-    const bool move_gently = (keycode & RC::kShift) != 0;  // 按住Ctrl键，慢速移动
-    const float slow_mod = move_gently ? 0.3f : 1.f;
+    const bool move_gently = (keycode & RC::kShift) != 0;  // 按住Shift键，慢速移动
+    const float slow_mod = move_gently ? 0.07f : 1.f;
     const float key_w = ((keycode & RC::kW) ? 1.f : 0.f) * slow_mod;
     const float key_s = ((keycode & RC::kS) ? 1.f : 0.f) * slow_mod;
     const float key_a = ((keycode & RC::kA) ? 1.f : 0.f) * slow_mod;
     const float key_d = ((keycode & RC::kD) ? 1.f : 0.f) * slow_mod;
-    const float key_q = ((keycode & RC::kQ) ? 1.f : 0.f) * slow_mod;
-    const float key_e = ((keycode & RC::kE) ? 1.f : 0.f) * slow_mod;
-    const float target_vx = (shared.rc.left_x() + key_d - key_a) * 1000.f;
-    const float target_vy = (shared.rc.left_y() + key_w - key_s) * 1000.f;
-    const float target_w = -(shared.rc.right_x() + key_e - key_q) * 10.f;
+    const float key_q = ((keycode & RC::kC) ? 1.f : 0.f) * slow_mod;
+    const float key_e = ((keycode & RC::kB) ? 1.f : 0.f) * slow_mod;
+
+    // 遥控器
+    const float rc_x = shared.rc.left_x();
+    const float rc_y = shared.rc.left_y();
+    const float rc_w = shared.rc.right_x();
+
+    // 选手端键盘
+    const float kbd_x = key_d - key_a;
+    const float kbd_y = key_w - key_s;
+    const float kbd_w = key_e - key_q;
+
+    // 选手端鼠标
+    const float vt_w = shared.vt_rc.data().mouse_x / 660.f;
+
+    const float target_vx = (rc_x + kbd_x) * 1000.f;
+    const float target_vy = (rc_y + kbd_y) * 1000.f;
+    const float target_w = -(rc_w + kbd_w + vt_w) * 5.f;
     resources.controller.SetTarget(target_vx, target_vy, target_w);
     resources.controller.Update(e.f_steer_pos, e.f_steer_vel,                             //
                                 e.l_steer_pos, e.l_steer_vel,                             //

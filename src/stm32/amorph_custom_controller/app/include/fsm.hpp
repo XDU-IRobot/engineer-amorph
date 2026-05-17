@@ -68,9 +68,20 @@ namespace state {
   etl::fsm_state_id_t on_event_unknown(const etl::imessage &) { return No_State_Change; }
 #define ENTER etl::fsm_state_id_t on_enter_state()
 #define REACT(EventType) etl::fsm_state_id_t on_event(const EventType &e)
-///*********************************
-///*********************************
-///*********************************
+/**
+ * @brief Marker class that explicitly disables a force operation.
+ *
+ * This class provides a type-safe alternative to a boolean \c false passed
+ * to methods or constructors that accept an optional force flag. By using
+ * an instance of NoForce, the intent is made clear and the code becomes
+ * more self-documenting.
+ *
+ * @details When a parameter can accept either a boolean force indicator or
+ * an object like NoForce, passing an instance of this class guarantees that
+ * no forced behaviour will be executed. It prevents accidental misuse of
+ * raw boolean values and improves readability, especially in contexts where
+ * multiple boolean parameters might otherwise be confusing.
+ */
 
 /*******************************************/
 struct NoForce : etl::fsm_state<CcArm, NoForce, StateId::kNoForce,  //
@@ -154,6 +165,7 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
+    j4_center_pid_.Clear();
     globals->actuator.SetEnable(true);
     globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
@@ -183,11 +195,12 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
     globals->actuator.j1.SetCurrent(0);
     // globals->actuator.j2.SetMitCommand(target_pos[1], 0, 0, 20, 0.4);
     // globals->actuator.j3.SetMitCommand(target_pos[2], 0, 0, 15, 2);
-    globals->actuator.j2.SetMitCommand(0, 0, -std::clamp(compensate_torque_(1) + (boost_torque_[1] * 0.4f), -5.f, 5.f),
+    j4_center_pid_.Update(0.f, globals->actuator.GetPositions()[3], 1.f / 250.f);
+    globals->actuator.j2.SetMitCommand(0, 0, -std::clamp(compensate_torque_(1) + (boost_torque_[1] * 1.f), -5.f, 5.f),
                                        0, 0);
     globals->actuator.j3.SetMitCommand(0, 0, std::clamp(compensate_torque_(2) + (boost_torque_[2] * 0.3f), -5.f, 5.f),
                                        0, 0);
-    globals->actuator.j4.SetPower(0);
+    globals->actuator.j4.SetPower(j4_center_pid_.out());
     globals->actuator.j5.SetPower(0);
     globals->actuator.j6.SetPower(0);
     rm::device::DjiMotorBase::SendCommand();
@@ -199,6 +212,7 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
   std::array<float, 6> current_vel_{};
   Eigen::Vector3f current_pos_;
   Eigen::Vector3f compensate_torque_;
+  rm::modules::PID j4_center_pid_{100.f, 0.f, 0.f, 70.f, 0.f};
 };
 
 #undef IGNORE_UNINTEREST_EVENT

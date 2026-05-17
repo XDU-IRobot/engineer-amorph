@@ -5,12 +5,9 @@
 #include <librm.hpp>
 
 #include "dynamics.hpp"
-#include "gripper_controller.hpp"
+#include "full_dynamics.hpp"
 
-template <size_t NJoints>
 class ArmController {
-  constexpr static int kGripperJointIndex = 6;
-
  public:
   struct Output {
     static Output Zero() {
@@ -20,9 +17,9 @@ class ArmController {
       out.efforts.fill(0.f);
       return out;
     }
-    std::array<float, NJoints> positions;   ///< 关节位置输出，单位：rad
-    std::array<float, NJoints> velocities;  ///< 关节速度输出，单位：rad/s
-    std::array<float, NJoints> efforts;     ///< 关节力矩输出，单位：Nm
+    std::array<float, 6> positions;   ///< 关节位置输出，单位：rad
+    std::array<float, 6> velocities;  ///< 关节速度输出，单位：rad/s
+    std::array<float, 6> efforts;     ///< 关节力矩输出，单位：Nm
   };
 
   enum Status {
@@ -32,8 +29,8 @@ class ArmController {
   };
 
   ArmController() = delete;
-  explicit ArmController(std::array<std::pair<float, float>, NJoints> joint_limits,  //
-                         std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiters,
+  explicit ArmController(std::array<std::pair<float, float>, 6> joint_limits,  //
+                         std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiters,
                          ArmDynamics::Params dynamics_params)
       : trajectory_limiter_(std::move(trajectory_limiters)),
         joint_limits_(std::move(joint_limits)),
@@ -44,47 +41,47 @@ class ArmController {
     pid_[2].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[3].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[4].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
-    pid_[5].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(1000.f).SetDiffFirst(true);
-    pid_[6].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
+    pid_[5].SetKp(50000.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10000.f).SetDiffFirst(true).SetCircular(true).SetCircularCycle(2.f * M_PIf);
     // clang-format on
     for (auto &f : acc_lpf_) {
       f.set_cutoff_frequency(500.f, 9.f);
     }
   }
 
-  void GoTo(const std::array<float, NJoints> &target_positions) {
-    gripper_open_cmd_ = target_positions[6] > 0.5f;  // 夹爪位置大于0.5 rad视为打开命令
-    for (size_t i = 0; i < NJoints; ++i) {
+  void GoTo(const std::array<float, 6> &target_positions) {
+    for (size_t i = 0; i < 6; ++i) {
       trajectory_limiter_[i].SetTarget(
           std::clamp(target_positions[i], joint_limits_[i].first, joint_limits_[i].second));
     }
     UpdateStatus();
   }
 
-  void Update(const std::array<float, NJoints> &current_positions, const std::array<float, NJoints> &current_velocities,
-              float gripper_power, Eigen::Vector3f imu_acc, float dt = 1.f) {
+  void Update(const std::array<float, 6> &current_positions, const std::array<float, 6> &current_velocities,
+              Eigen::Vector3f imu_acc, float dt = 1.f) {
     current_positions_ = current_positions;
 
-    for (size_t i = 0; i < NJoints; ++i) {
+    for (size_t i = 0; i < 6; ++i) {
       trajectory_limiter_[i].Update(dt);
       output_.positions[i] = trajectory_limiter_[i].current_position();
-      output_.velocities[i] = 0.f;
+      output_.velocities[i] = trajectory_limiter_[i].current_velocity();
       output_.efforts[i] = 0.f;
     }
 
+    pid_[5].UpdateExtDiff(output_.positions[5], current_positions[5], current_velocities[5], dt);
+    output_.efforts[5] = pid_[5].out();
+
     const float acc_x = acc_lpf_[0].apply(imu_acc[0]);
     const float acc_y = acc_lpf_[1].apply(imu_acc[1]);
+    const float acc_z = acc_lpf_[2].apply(imu_acc[2]);
 
-    // 对j1 j2 j3叠加动力学前馈力矩（使用实例的 b1/b2 参数）
-    const auto acc_comp_efforts = dynamics_.Compensate(
-        {current_positions[0], current_positions[1], current_positions[2]}, {acc_x, acc_y, -9.81f});
+    // 对j1 j2 j3叠加动力学前馈力矩
+    auto acc_comp_efforts =
+        dynamics_.Compensate({current_positions[0], current_positions[1], current_positions[2]}, {acc_x, acc_y, acc_z});
+    acc_comp_efforts[2] /= 2.f;  // j3有1:2减速比
     for (int i = 0; i < 3; ++i) {
       output_.efforts[i] += acc_comp_efforts(i);
+      output_.efforts[i] = std::clamp(output_.efforts[i], -20.f, 20.f);  // 限幅
     }
-
-    // 控制夹爪
-    gripper_controller_.Open(gripper_open_cmd_);
-    output_.velocities[6] = gripper_controller_.Update(current_positions[6], current_velocities[6], gripper_power);
 
     UpdateStatus();
 
@@ -94,9 +91,9 @@ class ArmController {
     }
   }
 
-  void ResetAt(const std::array<float, NJoints> &positions) {
+  void ResetAt(const std::array<float, 6> &positions) {
     current_positions_ = positions;
-    for (size_t i = 0; i < NJoints; ++i) {
+    for (size_t i = 0; i < 6; ++i) {
       trajectory_limiter_[i].ResetAt(positions[i]);
       pid_[i].Clear();
     }
@@ -117,7 +114,6 @@ class ArmController {
   const auto &joint_limits() { return joint_limits_; }
   const auto &current_positions() const { return current_positions_; }
   const auto &output() const { return output_; }
-  const auto &gripper() const { return gripper_controller_; }
   Status status() const { return status_; }
   auto &pid() { return pid_; }
 
@@ -133,8 +129,8 @@ class ArmController {
 
       // 所有 limiter 都已经到达目标，检查机械臂是否真的到位
       const auto position_delta = [&] {
-        std::array<float, NJoints> deltas;
-        for (size_t i = 0; i < NJoints; ++i) {
+        std::array<float, 6> deltas;
+        for (size_t i = 0; i < 6; ++i) {
           deltas[i] = std::abs(trajectory_limiter_[i].target_position() - current_positions_[i]);
         }
         return deltas;
@@ -157,17 +153,13 @@ class ArmController {
     status_ = kMoving;
   }
 
-  bool gripper_open_cmd_{false};
-  std::array<float, NJoints> current_positions_{};
+  std::array<float, 6> current_positions_{};
   Output output_{};
-  GripperController<> gripper_controller_;
-  std::array<rm::modules::TrajectoryLimiter, NJoints> trajectory_limiter_;
-  std::array<rm::modules::PID, NJoints> pid_;
-  std::array<std::pair<float, float>, NJoints> joint_limits_;
+  std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_;
+  std::array<rm::modules::PID, 6> pid_;
+  std::array<std::pair<float, float>, 6> joint_limits_;
+  ArmDynamics dynamics_;
   rm::modules::LowPassFilter2p<float> acc_lpf_[3];
-
   Status status_{kIdle};
   int fault_counter_{0};
-
-  ArmDynamics dynamics_;  ///< 动力学模型（b1/b2 由构造函数传入）
 };

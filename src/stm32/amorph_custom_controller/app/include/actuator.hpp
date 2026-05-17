@@ -42,7 +42,9 @@ struct Actuator {
     SetEnable(true);
     for (int i = 0; i < 5; i++) {
       // j2.SendInstruction(rm::device::Ht04Motor::Instruction::kSetZeroPosition);
-      j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j4.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+      // j6.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
       HAL_Delay(10);
     }
     SetEnable(false);
@@ -104,11 +106,11 @@ struct Actuator {
   rm::device::DmMotorMit j3;
   rm::device::LkMotor<rm::device::LkMotorType::kMS, 15> j4, j5, j6;
   rm::modules::MotorCalibrator calibrators[6]{
-      {false, 5697.f / 8191.f * 2.f * M_PI},  //
-      {true, M_PIf - atan2f(84.5f, 415.f)},   //
-      {false, -atan2f(84.5f, 415.f)},         //
-      {false, 0.f},                           //
-      {false, 0.f},                           //
-      {false, 0.f},                           //
+      {false, 5697.f / 8191.f * 2.f * M_PI},        //
+      {true, M_PIf - atan2f(84.5f, 415.f)},         //
+      {false, M_PIf / 2.f - atan2f(84.5f, 415.f)},  //
+      {false, 0.f},                                 //
+      {true, 0.f},                                  //
+      {false, 0.f},                                 //
   };
 };

@@ -24,7 +24,7 @@
  * } >RAM_D1
  */
 struct SharedResourcesNoDtcm {
-  rm::hal::Serial<25> vt_link_serial_7{huart7, false, true}, vt_link_serial_10{huart10, false, true};
+  rm::hal::Serial<25> vt_link_serial{huart7, true, true}, pm_link_serial{huart10, false, true};
   ///< 图传链路的串口，两路功能完全相同，互做冗余，一路出故障只需要把线接到另一路上即可
   rm::hal::Serial<100> servo_serial{huart1, false, true};      ///< 舵机串口
   rm::hal::Serial<50> sbus_serial{huart5, false, true};        ///< 接收遥控器的串口
@@ -70,8 +70,7 @@ struct SharedResources {
   WflyET16s rc{shared_no_dtcm.sbus_serial};                    ///< 遥控器
   rm::device::Referee<GlobalConfig::kRefereeRev> ref_pm;       ///< 电管模块串口
   rm::device::Referee<GlobalConfig::kRefereeRev> ref_vt_link;  ///< 图传链路
-  rm::device::VirtualDevice custom_ctrl_device;
-  rm::device::DeviceManager<5> device_manager;  ///< 设备管理器，用于监测各个设备的在线状态
+  rm::device::DeviceManager<5> device_manager;                 ///< 设备管理器，用于监测各个设备的在线状态
   rm::modules::KeyboardHandler<> kh{
       rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl::kCtrl |  //
       rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl::kShift   //
@@ -82,17 +81,24 @@ struct SharedResources {
   float vbus;
 
   /**
-   * @brief 获取单例实例
+   * @brief 在指定内存地址构造单例（placement new），必须在首次 GetInstance() 前调用
+   * @param addr 对齐后的内存地址，大小至少为 sizeof(SharedResources)
    */
-  static SharedResources &GetInstance() {
-    static SharedResources *shared_resources_instance{nullptr};
-    if (shared_resources_instance == nullptr) {
-      shared_resources_instance = new SharedResources;
-      shared_resources_instance->Init();
-    }
-    return *shared_resources_instance;
+  static void PlaceAt(void *addr) {
+    instance_ = new (addr) SharedResources;
+    instance_->Init();
   }
 
+  /**
+   * @brief 获取单例实例
+   * @note PlaceAt() 必须先于本函数调用
+   */
+  static SharedResources &GetInstance() { return *instance_; }
+
+ private:
+  inline static SharedResources *instance_{nullptr};
+
+ public:
   /**
    * @brief 初始化所有全局对象
    */
@@ -101,27 +107,21 @@ struct SharedResources {
     vt_rc.SetName("vt_remote");
     device_manager << &rc << &vt_rc;
 
-    // 初始化图传链路串口
-    ref_vt_link.AttachCallback([&](uint16_t cmd_id, uint8_t seq) {
-      UNUSED(seq);
-      switch (cmd_id) {
-        case rm::device::RefereeCmdId<GlobalConfig::kRefereeRev>::kCustomRobotData: {
-          // 从图传链路解包出自定义控制器数据，转发到CAN总线上
-          custom_ctrl_device.ReportStatus(rm::device::Device::kOk);
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-    });  // 注册解包回调
     rm::hal::SerialRxCallbackFunction on_vt_serial_rx = [&](etl::span<const uint8_t> data) {
       for (auto byte : data) {
         ref_vt_link << byte;
         vt_rc << byte;
       }
+      kh.Update(vt_rc.data().keyboard_key);
     };
-    no_dtcm->vt_link_serial_7.AttachRxCallback(on_vt_serial_rx);  // 注册接收回调，把收到的数据传给解码器
+    no_dtcm->vt_link_serial.AttachRxCallback(on_vt_serial_rx);  // 注册接收回调，把收到的数据传给解码器
+
+    rm::hal::SerialRxCallbackFunction on_pm_serial_rx = [&](etl::span<const uint8_t> data) {
+      for (auto byte : data) {
+        ref_pm << byte;
+      }
+    };
+    no_dtcm->pm_link_serial.AttachRxCallback(on_pm_serial_rx);  // 注册接收回调，把收到的数据传给解码器
 
     device_manager.OnDeviceStatusChange([&](rm::device::Device *dev) {
       if (dev->name() == "remote") {
@@ -144,9 +144,10 @@ struct SharedResources {
     comm_can.Begin();
     mcp_can.Begin();
     rc.Begin();
-    no_dtcm->vt_link_serial_7.Start();
+    no_dtcm->vt_link_serial.Start();
+    no_dtcm->pm_link_serial.Start();
     no_dtcm->motor_485_serial.Start();
-    no_dtcm->servo_serial.Start();
+    // no_dtcm->servo_serial.Start();
     no_dtcm->vbus_adc.Begin();
   }
 };
