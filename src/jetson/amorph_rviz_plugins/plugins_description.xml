@@ -1,0 +1,13 @@
+<library path="amorph_rviz_plugins">
+  <class
+    name="amorph::OperatorPanel"
+    type="amorph::OperatorPanel"
+    base_class_type="rviz_common::Panel"
+  >
+    <description>
+      操作员客户端面板。
+      监听能量机关定位 TF，在 3D 视口中显示 interactive marker，
+      操作员可选中能量机关并分配到左右臂目标。
+    </description>
+  </class>
+</library>

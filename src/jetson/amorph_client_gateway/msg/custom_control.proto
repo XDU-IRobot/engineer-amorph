@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package amorph.proto;
+
+/**
+ * @brief 自定义客户端 → 机器人，通过 CustomControl MQTT topic 发送。
+ *        对应 RoboMaster 2026 通信协议 §2.2.2。
+ *        最大 30 字节，频率上限 75 Hz。
+ */
+message CustomControl {
+  bytes data = 1;
+}

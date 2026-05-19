@@ -28,3 +28,6 @@
 [submodule "src/onboard/amorph_onboard_transport/libs/librm"]
 	path = src/onboard/amorph_onboard_transport/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
+[submodule "src/jetson/amorph_client_gateway/libs/paho.mqtt.cpp"]
+	path = src/jetson/amorph_client_gateway/libs/paho.mqtt.cpp
+	url = https://github.com/eclipse-paho/paho.mqtt.cpp.git
