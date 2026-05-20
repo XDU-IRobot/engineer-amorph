@@ -1,0 +1,20 @@
+# Joint names for the amorph dual-arm robot.
+# Order matches the binary RobotFeedBack schema:
+#   left arm (6 joints) → left gripper → right arm (6 joints) → right gripper
+# Total: 14 joints published on /joint_states at 50 Hz.
+
+joint_names:
+  - j1_l
+  - j2_l
+  - j3_l
+  - j4_l
+  - j5_l
+  - j6_l
+  - gripper_joint_l
+  - j1_r
+  - j2_r
+  - j3_r
+  - j4_r
+  - j5_r
+  - j6_r
+  - gripper_joint_r

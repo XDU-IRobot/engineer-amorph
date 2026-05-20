@@ -70,6 +70,8 @@ git lfs pull
    ros-${ROS_DISTRO}-ros2-control \
    ros-${ROS_DISTRO}-moveit-ros-perception \
    ros-${ROS_DISTRO}-apriltag-ros \
+   ros-${ROS_DISTRO}-joint-state-publisher-gui \
+   ros-${ROS_DISTRO}-joy \
    python3-transforms3d \
    libgflags-dev \
    nlohmann-json3-dev \
@@ -78,6 +80,7 @@ git lfs pull
    ros-${ROS_DISTRO}-compressed-image-transport \
    ros-${ROS_DISTRO}-image-publisher \
    ros-${ROS_DISTRO}-camera-info-manager \
+   ros-${ROS_DISTRO}-camera-calibration \
    ros-${ROS_DISTRO}-diagnostic-updater \
    ros-${ROS_DISTRO}-diagnostic-msgs \
    ros-${ROS_DISTRO}-statistics-msgs \
@@ -90,7 +93,8 @@ git lfs pull
    gstreamer1.0-plugins-base-apps \
    gstreamer1.0-plugins-bad \
    gstreamer1.0-plugins-good \
-   gstreamer1.0-libav
+   gstreamer1.0-libav \
+   protobuf-compiler
    ```
 
 4. 安装 Protobuf + MQTT（自定义客户端通信）

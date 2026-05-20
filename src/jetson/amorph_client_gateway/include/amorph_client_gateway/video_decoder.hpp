@@ -24,9 +24,9 @@ using FrameCallback = std::function<void(const cv::Mat& bgr_frame)>;
  *
  * Usage:
  *   VideoDecoder dec([](const cv::Mat& f) { ... });
- *   dec.start();
+ *   dec.Start();
  *   dec.push_frame(data, len);
- *   dec.stop();
+ *   dec.Stop();
  */
 class VideoDecoder {
 public:
@@ -39,10 +39,10 @@ public:
     VideoDecoder& operator=(VideoDecoder&&) = delete;
 
     /// Set pipeline to PLAYING state.
-    void start();
+    void Start();
 
     /// Set pipeline to NULL state (teardown).
-    void stop();
+    void Stop();
 
     /**
      * @brief Push a complete H.265 frame into the pipeline.
@@ -51,16 +51,16 @@ public:
      *
      * Thread-safe: may be called from any thread.
      */
-    void push_frame(const uint8_t* data, size_t len);
+    void PushFrame(const uint8_t* data, size_t len);
 
 private:
     /// Static GStreamer callback; user_data points to the VideoDecoder instance.
-    static GstFlowReturn on_new_sample(GstAppSink* sink, gpointer user_data);
+    static GstFlowReturn OnNewSample(GstAppSink* sink, gpointer user_data);
 
-    FrameCallback _on_frame;
-    GstElement* _pipeline = nullptr;
-    GstElement* _appsrc = nullptr;
-    GstElement* _appsink = nullptr;
+    FrameCallback on_frame_;
+    GstElement* pipeline_ = nullptr;
+    GstElement* appsrc_ = nullptr;
+    GstElement* appsink_ = nullptr;
 };
 
 }  // namespace amorph

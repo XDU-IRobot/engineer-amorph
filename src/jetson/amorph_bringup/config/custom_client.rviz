@@ -4,11 +4,12 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
+        - /Motion Planning Tasks1/Status1
         - /TF1/Frames1
-        - /Camera1
-        - /Camera1/Visibility1
+        - /VT Camera1
       Splitter Ratio: 0.5
-    Tree Height: 727
+    Tree Height: 449
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -36,20 +37,20 @@ Panels:
     Name: Motion Planning Tasks
     Tasks View:
       property_splitter:
-        - 378
-        - 125
+        - 400
+        - 133
       solution_sorting:
         column: 0
         order: 1
       solutions_splitter:
-        - 463
-        - 232
+        - 420
+        - 210
       solutions_view_columns: ~
       tasks_view_columns:
-        - 374
-        - 26
-        - 26
-        - 35
+        - 335
+        - 23
+        - 23
+        - 37
   - Class: amorph::OperatorPanel
     Name: OperatorPanel
 Visualization Manager:
@@ -448,8 +449,6 @@ Visualization Manager:
           Value: true
         camera_depth_frame:
           Value: true
-        camera_depth_optical_frame:
-          Value: true
         camera_left_ir_frame:
           Value: true
         camera_left_ir_optical_frame:
@@ -459,26 +458,6 @@ Visualization Manager:
         camera_right_ir_frame:
           Value: true
         camera_right_ir_optical_frame:
-          Value: true
-        energy_unit_10:
-          Value: true
-        energy_unit_10_smoothed:
-          Value: true
-        energy_unit_11:
-          Value: true
-        energy_unit_11_smoothed:
-          Value: true
-        energy_unit_4:
-          Value: true
-        energy_unit_4_smoothed:
-          Value: true
-        energy_unit_5:
-          Value: true
-        energy_unit_5_smoothed:
-          Value: true
-        energy_unit_8:
-          Value: true
-        energy_unit_8_smoothed:
           Value: true
         l1_l:
           Value: true
@@ -515,6 +494,10 @@ Visualization Manager:
         l_limit_l:
           Value: true
         l_limit_r:
+          Value: true
+        vt_camera_frame:
+          Value: true
+        vt_camera_optical_frame:
           Value: true
         world:
           Value: true
@@ -559,58 +542,18 @@ Visualization Manager:
                 {}
               camera_color_frame:
                 camera_color_optical_frame:
-                  energy_unit_10:
-                    {}
-                  energy_unit_10_smoothed:
-                    {}
-                  energy_unit_11:
-                    {}
-                  energy_unit_11_smoothed:
-                    {}
-                  energy_unit_4:
-                    {}
-                  energy_unit_4_smoothed:
-                    {}
-                  energy_unit_5:
-                    {}
-                  energy_unit_5_smoothed:
-                    {}
-                  energy_unit_8:
-                    {}
-                  energy_unit_8_smoothed:
-                    {}
-              camera_depth_optical_frame:
-                {}
+                  {}
               camera_left_ir_frame:
                 camera_left_ir_optical_frame:
                   {}
               camera_right_ir_frame:
                 camera_right_ir_optical_frame:
                   {}
+          vt_camera_frame:
+            vt_camera_optical_frame:
+              {}
       Update Interval: 0
       Value: true
-    - Class: rviz_default_plugins/Camera
-      Enabled: true
-      Far Plane Distance: 100
-      Image Rendering: background and overlay
-      Name: Camera
-      Overlay Alpha: 0.5
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /camera/color/image_raw/compressed
-      Value: true
-      Visibility:
-        Grid: true
-        InteractiveMarkers: true
-        Motion Planning Tasks: true
-        RobotModel: true
-        RobotState: true
-        TF: false
-        Value: true
-      Zoom Factor: 1
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
@@ -805,6 +748,28 @@ Visualization Manager:
       Show Descriptions: true
       Show Visual Aids: false
       Value: true
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 100
+      Image Rendering: background and overlay
+      Name: VT Camera
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /vt_camera/image_raw/compressed
+      Value: true
+      Visibility:
+        Grid: true
+        InteractiveMarkers: true
+        Motion Planning Tasks: true
+        RobotModel: true
+        RobotState: true
+        TF: true
+        Value: true
+      Zoom Factor: 1
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -851,32 +816,30 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 1.4711084365844727
+      Distance: 0.6430742740631104
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.3967125713825226
-        Y: -0.18890626728534698
-        Z: 0.21953101456165314
+        X: 0.26544487476348877
+        Y: -0.100694440305233
+        Z: -0.09678594768047333
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5503974556922913
+      Pitch: 0.38539767265319824
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.315396785736084
+      Yaw: 3.695392608642578
     Saved: ~
 Window Geometry:
-  Camera:
-    collapsed: false
   Displays:
     collapsed: false
-  Height: 1294
+  Height: 1371
   Hide Left Dock: false
   Hide Right Dock: false
   Motion Planning Tasks:
@@ -885,15 +848,17 @@ Window Geometry:
     collapsed: false
   OperatorPanel:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000002bb0000024bfc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afc0000003b0000024b000000fe0100001afa000000010100000003fb0000000a005600690065007700730100000000ffffffff0000010000fffffffb0000002a004d006f00740069006f006e00200050006c0061006e006e0069006e00670020005400610073006b00730100000000ffffffff000000b800fffffffb000000100044006900730070006c0061007900730100000000000002bb0000015600fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000120020002d00200053006c00690064006500720000000000ffffffff0000000000000000fb0000003c004d006f00740069006f006e00200050006c0061006e006e0069006e00670020005400610073006b00730020002d00200053006c00690064006500720000000000ffffffff0000003f00ffffff0000000100000229000002b2fc0200000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000085500000267fc0100000005fb0000001a004f00700065007200610074006f007200500061006e0065006c010000000000000168000000f900fffffffb0000000c00430061006d006500720061010000016e000006e70000006400fffffffb0000000c00430061006d0065007200610100000000000008550000000000000000fb0000000800540069006d00650000000000000008550000025300fffffffb0000000800540069006d00650100000000000004500000000000000000000005940000024b00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000027a0000026efc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005d00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afc0000003f0000026e0000010b0100001efa000000000100000003fb0000000a005600690065007700730100000000ffffffff0000010000fffffffb000000100044006900730070006c0061007900730100000000ffffffff0000015600fffffffb0000002a004d006f00740069006f006e00200050006c0061006e006e0069006e00670020005400610073006b007301000000000000027a000000cb00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000120020002d00200053006c00690064006500720000000000ffffffff0000000000000000fb0000003c004d006f00740069006f006e00200050006c0061006e006e0069006e00670020005400610073006b00730020002d00200053006c00690064006500720000000000ffffffff0000004400ffffff00000001000003be0000026efc0200000002fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000a0000000289fc0100000006fb0000001a004f00700065007200610074006f007200500061006e0065006c010000000000000471000000fc00fffffffb0000001200560054002000430061006d0065007200610100000477000005890000007e00fffffffb0000000c00430061006d00650072006100000001b60000084a0000000000000000fb0000000c00430061006d0065007200610100000000000008550000000000000000fb0000000800540069006d00650000000000000008550000026f00fffffffb0000000800540069006d00650100000000000004500000000000000000000007800000026e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
     collapsed: false
   Tool Properties:
     collapsed: false
+  VT Camera:
+    collapsed: false
   Views:
     collapsed: false
-  Width: 2133
-  X: 75
-  Y: 26
+  Width: 2560
+  X: 0
+  Y: 32

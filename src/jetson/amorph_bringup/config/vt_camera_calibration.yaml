@@ -1,0 +1,26 @@
+image_width: 1920
+image_height: 1080
+camera_name: vt_camera
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [733.377861, 0.000000, 952.243204,
+         0.000000, 733.593996, 535.657486,
+         0.0, 0.0, 1.0]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.123707, 0.012917, 0.000477, 0.000184, 0.000000]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.0, 0.0, 0.0,
+         0.0, 1.0, 0.0,
+         0.0, 0.0, 1.0]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [542.870667, 0.000000, 949.207219, 0.000000,
+         0.000000, 679.526489, 535.194280, 0.000000,
+         0.0, 0.0, 1.0, 0.0]

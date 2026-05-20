@@ -15,19 +15,15 @@
 [submodule "src/jetson/easy_handeye2"]
 	path = src/jetson/easy_handeye2
 	url = https://github.com/marcoesposito1988/easy_handeye2.git
-[submodule "src/jetson/amorph_master/libs/librm"]
-	path = src/jetson/amorph_master/libs/librm
-	url = https://github.com/XDU-IRobot/librm.git
-	branch = develop
 [submodule "src/jetson/amorph_transport/libs/libInterpolate"]
 	path = src/jetson/amorph_transport_legacy/libs/libInterpolate
 	url = https://github.com/CD3/libInterpolate.git
 [submodule "src/stm32/librm"]
 	path = src/stm32/librm
 	url = https://github.com/XDU-IRobot/librm.git
-[submodule "src/onboard/amorph_onboard_transport/libs/librm"]
-	path = src/onboard/amorph_onboard_transport/libs/librm
-	url = https://github.com/XDU-IRobot/librm.git
 [submodule "src/jetson/amorph_client_gateway/libs/paho.mqtt.cpp"]
 	path = src/jetson/amorph_client_gateway/libs/paho.mqtt.cpp
 	url = https://github.com/eclipse-paho/paho.mqtt.cpp.git
+[submodule "src/jetson/amorph_client_gateway/libs/librm"]
+	path = src/jetson/amorph_client_gateway/libs/librm
+	url = https://github.com/XDU-IRobot/librm.git

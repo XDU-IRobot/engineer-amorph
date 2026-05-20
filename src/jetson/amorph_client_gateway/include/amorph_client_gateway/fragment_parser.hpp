@@ -31,7 +31,7 @@ struct PendingFrame {
  *   uint16 frag_seq   — fragment sequence within this frame
  *   uint32 total_size — total byte size of the complete frame
  *
- * Thread-safe: designed to be called from a timer thread (get_next_frame)
+ * Thread-safe: designed to be called from a timer thread (GetNextFrame)
  * while the internal I/O thread handles socket reads.
  */
 class FragmentParser {
@@ -45,10 +45,10 @@ public:
     FragmentParser& operator=(FragmentParser&&) = delete;
 
     /// Bind socket & start reader thread.
-    void start();
+    void Start();
 
     /// Stop reader thread & close socket.
-    void stop();
+    void Stop();
 
     /**
      * @brief Non-blocking: return the oldest complete frame if available.
@@ -57,22 +57,22 @@ public:
      *
      * Also performs garbage collection of stale (>5 s) incomplete frames.
      */
-    std::optional<std::vector<uint8_t>> get_next_frame();
+    std::optional<std::vector<uint8_t>> GetNextFrame();
 
 private:
-    void reader_loop();
-    void process_packet(const uint8_t* data, size_t len);
+    void ReaderLoop();
+    void ProcessPacket(const uint8_t* data, size_t len);
 
     static constexpr double kMaxFrameAgeSec = 5.0;
     static constexpr size_t kHeaderSize = 8;
 
-    int _port;
-    int _sock_fd = -1;
-    std::atomic<bool> _running{false};
-    std::thread _thread;
+    int port_;
+    int sock_fd_ = -1;
+    std::atomic<bool> running_{false};
+    std::thread thread_;
 
-    std::mutex _mutex;
-    std::unordered_map<uint16_t, PendingFrame> _pending;
+    std::mutex mutex_;
+    std::unordered_map<uint16_t, PendingFrame> pending_;
 };
 
 }  // namespace amorph
