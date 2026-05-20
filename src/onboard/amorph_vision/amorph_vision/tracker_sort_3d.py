@@ -133,8 +133,8 @@ class Sort3DTracker:
         self.process_var = process_var
         self.measurement_var = measurement_var
 
-        # LRU ID pool: 0-15, 最多同时跟踪 16 个目标
-        self._max_tracks = 16
+        # LRU ID pool: 0-7, 最多同时跟踪 8 个目标
+        self._max_tracks = 8
         self._available_ids: List[int] = list(range(self._max_tracks))
         self._lru_order: List[int] = []  # 最近使用顺序: 队首 = LRU, 队尾 = MRU
         self._tracks: Dict[int, _KalmanTrack3D] = {}
@@ -241,7 +241,7 @@ class Sort3DTracker:
         """创建新轨迹，返回 (track, evicted_id)。
 
         若 ID 池耗尽，淘汰 LRU 轨迹并复用其 ID。
-        若所有 16 个 ID 均在本帧被匹配，则拒绝创建（返回 None, None）。
+        若所有 ID 均在本帧被匹配，则拒绝创建（返回 None, None）。
         evicted_id 为被淘汰的 track_id，调用方应清理该 ID 的相关状态。
         """
         evicted_id: Optional[int] = None
@@ -256,7 +256,7 @@ class Sort3DTracker:
                     evict_idx = i
                     break
             if evict_idx is None:
-                # 所有 16 个 ID 都在活跃跟踪中，拒绝创建
+                # 所有 8 个 ID 都在活跃跟踪中，拒绝创建
                 return None, None
             lru_id = self._lru_order.pop(evict_idx)
             if lru_id in self._tracks:
