@@ -1,32 +1,32 @@
 [submodule "src/jetson/amorph_transport/libs/librm"]
-	path = src/jetson/amorph_transport_legacy/libs/librm
+	path = src/client/amorph_transport_legacy/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 	branch = develop
 [submodule "src/jetson/moveit_task_constructor"]
-	path = src/jetson/moveit_task_constructor
+	path = src/client/moveit_task_constructor
 	url = https://github.com/moveit/moveit_task_constructor.git
 	branch = jazzy
 [submodule "src/jetson/amorph_transport/libs/pfr"]
-	path = src/jetson/amorph_transport_legacy/libs/pfr
+	path = src/client/amorph_transport_legacy/libs/pfr
 	url = https://github.com/boostorg/pfr.git
 [submodule "src/jetson/OrbbecSDK_ROS2"]
-	path = src/onboard/OrbbecSDK_ROS2
+	path = src/jetson/OrbbecSDK_ROS2
 	url = https://github.com/orbbec/OrbbecSDK_ROS2.git
 [submodule "src/jetson/easy_handeye2"]
-	path = src/jetson/easy_handeye2
+	path = src/client/easy_handeye2
 	url = https://github.com/marcoesposito1988/easy_handeye2.git
 [submodule "src/jetson/amorph_transport/libs/libInterpolate"]
-	path = src/jetson/amorph_transport_legacy/libs/libInterpolate
+	path = src/client/amorph_transport_legacy/libs/libInterpolate
 	url = https://github.com/CD3/libInterpolate.git
 [submodule "src/stm32/librm"]
 	path = src/stm32/librm
 	url = https://github.com/XDU-IRobot/librm.git
 [submodule "src/jetson/amorph_client_gateway/libs/paho.mqtt.cpp"]
-	path = src/jetson/amorph_client_gateway/libs/paho.mqtt.cpp
+	path = src/client/amorph_client_gateway/libs/paho.mqtt.cpp
 	url = https://github.com/eclipse-paho/paho.mqtt.cpp.git
 [submodule "src/jetson/amorph_client_gateway/libs/librm"]
-	path = src/jetson/amorph_client_gateway/libs/librm
+	path = src/client/amorph_client_gateway/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
 [submodule "src/jetson/FDILink_ROS2/serial"]
-	path = src/jetson/FDILink_ROS2/serial
+	path = src/client/FDILink_ROS2/serial
 	url = https://github.com/lunarifish/serial.git
