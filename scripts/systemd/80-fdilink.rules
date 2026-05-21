@@ -1,0 +1,5 @@
+# Deploy to: /etc/udev/rules.d/80-fdilink.rules
+# FDILink CP210x USB-UART bridge: VID 10c4, PID ea60
+# Auto-set permissions and create symlink /dev/fdilink
+
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE="0777", SYMLINK+="fdilink"

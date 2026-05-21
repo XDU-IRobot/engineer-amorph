@@ -1,5 +1,6 @@
-"""Launch amorph_client_gateway nodes."""
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch.actions import EmitEvent, RegisterEventHandler
 from launch.events import matches_action
 from launch_ros.actions import LifecycleNode, Node
@@ -9,6 +10,12 @@ from lifecycle_msgs.msg import Transition
 
 
 def generate_launch_description():
+    enable_respawn_arg = DeclareLaunchArgument(
+        'enable_respawn',
+        default_value='true',
+        description='Enable automatic respawn on failure (for production use)'
+    )
+
     mqtt_gateway = LifecycleNode(
         package='amorph_client_gateway',
         executable='mqtt_gateway_node',
@@ -25,6 +32,8 @@ def generate_launch_description():
             ],
         }],
         output='screen',
+        respawn=LaunchConfiguration('enable_respawn'),
+        respawn_delay=2.0
     )
 
     # Configure node
@@ -53,7 +62,9 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        # -- Video receiver (standalone) ----------------------------------
+        enable_respawn_arg,
+        
+        # vt camera receiver node
         Node(
             package='amorph_client_gateway',
             executable='vt_receiver_node',
@@ -70,12 +81,12 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # -- MQTT Gateway (lifecycle) -------------------------------------
+        # MQTT Gateway lifecycle
         mqtt_gateway,
         configure_event,
         activate_event,
 
-        # -- Static transforms ---------------------------------------------
+        # static tfs for camera
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -86,6 +97,8 @@ def generate_launch_description():
                 '--frame-id', 'world',
                 '--child-frame-id', 'vt_camera_frame',
             ],
+            respawn=LaunchConfiguration('enable_respawn'),
+            respawn_delay=2.0
         ),
         Node(
             package='tf2_ros',
@@ -97,10 +110,37 @@ def generate_launch_description():
                 '--frame-id', 'vt_camera_frame',
                 '--child-frame-id', 'vt_camera_optical_frame',
             ],
+            respawn=LaunchConfiguration('enable_respawn'),
+            respawn_delay=2.0
         ),
+
+        # xbox controller driver
         Node(
             package='joy',
             executable='game_controller_node',
             name='game_controller_node',
+            respawn=LaunchConfiguration('enable_respawn'),
+            respawn_delay=2.0
+        ),
+
+        # imu driver
+        Node(
+            package="fdilink_ahrs",
+            executable="ahrs_driver_node",
+            parameters=[{'if_debug_': False,
+                         'serial_port_': '/dev/fdilink',
+                         'serial_baud_': 921600,
+                         'imu_topic': '/imu',
+                         'imu_frame_id_': 'gyro_link',
+                         'mag_pose_2d_topic': '/mag_pose_2d',
+                         'Magnetic_topic': '/magnetic',
+                         'Euler_angles_topic': '/euler_angles',
+                         'gps_topic': '/gps/fix',
+                         'twist_topic': '/system_speed',
+                         'NED_odom_topic': '/NED_odometry',
+                         'device_type_': 1}],
+            output="screen",
+            respawn=True,
+            respawn_delay=2.0
         ),
     ])

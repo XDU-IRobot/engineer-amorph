@@ -27,3 +27,6 @@
 [submodule "src/jetson/amorph_client_gateway/libs/librm"]
 	path = src/jetson/amorph_client_gateway/libs/librm
 	url = https://github.com/XDU-IRobot/librm.git
+[submodule "src/jetson/FDILink_ROS2/serial"]
+	path = src/jetson/FDILink_ROS2/serial
+	url = https://github.com/lunarifish/serial.git

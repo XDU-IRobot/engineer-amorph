@@ -14,8 +14,9 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent.resolve()
 
 FILES = [
-    (SCRIPT_DIR / "80-can0.rules", Path("/etc/udev/rules.d/80-can0.rules")),
-    (SCRIPT_DIR / "can.conf",      Path("/etc/modules-load.d/can.conf")),
+    (SCRIPT_DIR / "80-can0.rules",    Path("/etc/udev/rules.d/80-can0.rules")),
+    (SCRIPT_DIR / "80-fdilink.rules", Path("/etc/udev/rules.d/80-fdilink.rules")),
+    (SCRIPT_DIR / "can.conf",         Path("/etc/modules-load.d/can.conf")),
 ]
 
 

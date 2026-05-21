@@ -28,6 +28,7 @@ THIRDPARTY_PACKAGES = [
     "orbbec_camera",
     "orbbec_camera_msgs",
     "orbbec_description",
+    "fdilink_ahrs",
 ]
 
 CMAKE_ARGS = [
