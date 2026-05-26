@@ -1,7 +1,7 @@
 """
 CAN FD EnergyUnitDetection Broadcaster.
 
-LifecycleNode that polls 8 TF frames (source_frame → energy_unit_0_smoothed ~
+Node that polls 8 TF frames (source_frame → energy_unit_0_smoothed ~
 energy_unit_7_smoothed) and broadcasts each detection as a 29-byte packed
 EnergyUnitDetection frame over CAN FD.  Always sends 8 frames per cycle;
 undetected slots have detected=False and zero/identity pose.
@@ -14,7 +14,8 @@ import can
 import rclpy
 from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
+from rclpy.node import Node
+from rclpy.clock import ClockType
 from rclpy.time import Time
 from tf2_ros import (
     Buffer,
@@ -34,42 +35,20 @@ _EUD_STRUCT = struct.Struct('=?3f4f')
 assert _EUD_STRUCT.size == 29, f'EnergyUnitDetection struct size mismatch: {_EUD_STRUCT.size} != 29'
 
 
-class CanEuBroadcaster(LifecycleNode):
+class CanEuBroadcaster(Node):
     """Polls 8 energy_unit TF frames and broadcasts them over CAN FD."""
 
     def __init__(self):
         super().__init__('can_eu_broadcaster')
 
-        # -- parameter declarations (read in on_configure) --
+        # -- parameter declarations --
         self.declare_parameter('source_frame', 'camera_link')
         self.declare_parameter('base_can_id', 0x200)
         self.declare_parameter('can_interface', 'can0')
         self.declare_parameter('is_extended_id', False)
         self.declare_parameter('publish_rate', 20.0)
         self.declare_parameter('tf_timeout', 0.01)
-
-        # -- runtime resources (created in on_configure, destroyed in on_cleanup) --
-        self._tf_buffer: Buffer | None = None
-        self._tf_listener: TransformListener | None = None
-        self._bus: can.BusABC | None = None
-        self._timer = None
-
-        # -- cached parameters --
-        self._source_frame = ''
-        self._base_can_id = 0
-        self._can_interface = ''
-        self._is_extended_id = False
-        self._publish_rate = 20.0
-        self._tf_timeout = Duration(seconds=0.01)
-
-        self._active = False
-
-        self.get_logger().info('node created (unconfigured)')
-
-    # ── Lifecycle callbacks ────────────────────────────────────────────────
-
-    def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
-        self.get_logger().info('configuring...')
+        self.declare_parameter('detection_timeout', 0.75)
 
         # read parameters
         self._source_frame = (
@@ -91,83 +70,35 @@ class CanEuBroadcaster(LifecycleNode):
             self.get_parameter('tf_timeout').get_parameter_value().double_value
         )
         self._tf_timeout = Duration(seconds=tf_timeout_s)
+        self._detection_timeout = Duration(seconds=
+            self.get_parameter('detection_timeout').get_parameter_value().double_value
+        )
 
         # create TF buffer + listener
         self._tf_buffer = Buffer(cache_time=Duration(seconds=1.0))
-        self._tf_listener = TransformListener(self, self._tf_buffer)
+        self._tf_listener = TransformListener(self._tf_buffer, self)
 
         # open CAN bus (socketcan, FD mode)
-        try:
-            self._bus = can.interface.Bus(
-                channel=self._can_interface,
-                interface='socketcan',
-                fd=True,
-            )
-        except (ValueError, OSError) as e:
-            self.get_logger().error(f'Failed to open CAN bus {self._can_interface}: {e}')
-            return TransitionCallbackReturn.FAILURE
+        self._bus = can.interface.Bus(
+            channel=self._can_interface,
+            interface='socketcan',
+            fd=True,
+        )
+
+        # create timer
+        period_s = 1.0 / max(1.0, self._publish_rate)
+        self._timer = self.create_timer(period_s, self._publish_callback)
 
         self.get_logger().info(
-            f'configured: source_frame={self._source_frame}, '
+            f'node started: source_frame={self._source_frame}, '
             f'base_can_id=0x{self._base_can_id:X}, '
             f'can_interface={self._can_interface}, '
             f'is_extended_id={self._is_extended_id}, '
             f'publish_rate={self._publish_rate} Hz, '
-            f'tf_timeout={tf_timeout_s}s'
+            f'tf_timeout={tf_timeout_s}s, '
+            f'detection_timeout={self._detection_timeout.nanoseconds / 1e9:.3f}s, '
+            f'timer period={period_s:.3f}s'
         )
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_activate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        self.get_logger().info('activating...')
-        period_s = 1.0 / max(1.0, self._publish_rate)
-        self._timer = self.create_timer(period_s, self._publish_callback)
-        self._active = True
-        self.get_logger().info(f'activated, timer period={period_s:.3f}s')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_deactivate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        self.get_logger().info('deactivating...')
-        self._active = False
-        if self._timer is not None:
-            self.destroy_timer(self._timer)
-            self._timer = None
-        if self._bus is not None:
-            try:
-                self._bus.shutdown()
-            except can.CanError:
-                pass
-            # Bus will be re-created in on_configure
-        self.get_logger().info('deactivated')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_cleanup(self, state: LifecycleState) -> TransitionCallbackReturn:
-        self.get_logger().info('cleaning up...')
-
-        self._active = False
-
-        if self._timer is not None:
-            self.destroy_timer(self._timer)
-            self._timer = None
-
-        if self._bus is not None:
-            try:
-                self._bus.shutdown()
-            except can.CanError:
-                pass
-            self._bus = None
-
-        if self._tf_listener is not None:
-            # Detach the listener from the node (implicitly via destruction)
-            self._tf_listener = None
-
-        self._tf_buffer = None
-
-        self.get_logger().info('cleanup complete')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_shutdown(self, state: LifecycleState) -> TransitionCallbackReturn:
-        self.get_logger().info('shutting down...')
-        return self.on_cleanup(state)
 
     # ── Timer callback ─────────────────────────────────────────────────────
 
@@ -179,7 +110,9 @@ class CanEuBroadcaster(LifecycleNode):
         self._bus: can.BusABC  # type narrowing hint
         self._tf_buffer: Buffer
 
-        now = Time()
+        # lookup_time = ROS_TIME zero → TF2 interprets as "latest available"
+        lookup_time = Time(clock_type=ClockType.ROS_TIME)
+        now = self.get_clock().now()
         source_frame = self._source_frame
         base_id = self._base_can_id
         is_ext = self._is_extended_id
@@ -206,9 +139,14 @@ class CanEuBroadcaster(LifecycleNode):
                 tf = self._tf_buffer.lookup_transform(
                     source_frame,
                     child_frame,
-                    now,
+                    lookup_time,
                     timeout,
                 )
+                # 检查 TF 时间戳是否在 detection_timeout 窗口内
+                tf_stamp_ns = tf.header.stamp.sec * int(1e9) + tf.header.stamp.nanosec
+                age_ns = now.nanoseconds - tf_stamp_ns
+                if age_ns > self._detection_timeout.nanoseconds:
+                    raise LookupException(f'TF {child_frame} too old: {age_ns * 1e-9:.3f}s')
                 detected = True
                 t = tf.transform.translation
                 r = tf.transform.rotation

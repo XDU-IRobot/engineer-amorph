@@ -18,7 +18,7 @@ from ultralytics import YOLO  # type: ignore
 
 # ros
 import rclpy
-from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
+from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.qos import QoSProfile, QoSHistoryPolicy, QoSReliabilityPolicy, QoSDurabilityPolicy
 from cv_bridge import CvBridge
@@ -41,7 +41,7 @@ from .tracker_sort_3d import Sort3DTracker
 # from viztracer import trace_and_save
 
 
-class EnergyUnitLocator(LifecycleNode):
+class EnergyUnitLocator(Node):
     def __init__(self):
         super().__init__('energy_unit_locator')
 
@@ -53,50 +53,10 @@ class EnergyUnitLocator(LifecycleNode):
         self.declare_parameter('publish_masked_pointcloud', False)
         self.declare_parameter('publish_annotated_image', False)
         self.declare_parameter('smoothing_alpha', 0.3)
-        self.declare_parameter('tracker_max_age', 8)
-        self.declare_parameter('tracker_min_hits', 3)
-        self.declare_parameter('tracker_mahalanobis_thresh', 9.0)
-        self.declare_parameter('tracker_iou_weight', 0.2)
-
-        # 这些将在 configure 阶段初始化
-        self.model = None
-        self.conf_thresh = None
-        self.erosion_kernel_size = None
-        self.erosion_iterations = None
-        self.publish_masked_pointcloud_enabled = None
-        self.publish_annotated_image_enabled = None
-        self.pose_smoother = None
-        self.locator_backend = None
-        self.tracker = None
-        self.tf_broadcaster = None
-        self.publisher_pool = None
-        self.bridge = None
-        self.intrinsics = None
-        self.sub_info = None
-        self.sub_rgb = None
-        self.sub_depth = None
-        self.ts = None
-
-        # 节点激活状态标志
-        self.is_active = False
-
-        # 统计 timer
-        self.stats_timer = None
-
-        # 性能统计
-        self.frame_count = 0
-        self.last_frame_detections_count = 0  # 前一帧检测到的目标数
-        self.last_fps_time = time.time()
-        self.last_frame_time = None
-        self.total_inference_time = 0.0
-        self.total_backend_time = 0.0
-        self.processed_frames = 0
-
-        self.get_logger().info('node created (unconfigured)')
-
-    def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """配置阶段：加载模型、创建资源"""
-        self.get_logger().info('configuring...')
+        self.declare_parameter('tracker_max_age', 15)
+        self.declare_parameter('tracker_min_hits', 1)
+        self.declare_parameter('tracker_mahalanobis_thresh', 15.0)
+        self.declare_parameter('tracker_iou_weight', 0.4)
 
         # 获取参数
         model_path = self.get_parameter(
@@ -129,12 +89,8 @@ class EnergyUnitLocator(LifecycleNode):
 
         # 加载yolo模型
         self.get_logger().info(f'Loading YOLO model from: {model_path}')
-        try:
-            self.model = YOLO(model_path, task='segment')
-            self.get_logger().info('YOLO model loaded successfully')
-        except Exception as e:
-            self.get_logger().error(f'Failed to load YOLO model: {e}')
-            return TransitionCallbackReturn.FAILURE
+        self.model = YOLO(model_path, task='segment')
+        self.get_logger().info('YOLO model loaded successfully')
 
         self.pose_smoother = PoseSmoother(alpha=smoothing_alpha)
         self.tracker = Sort3DTracker(
@@ -149,6 +105,7 @@ class EnergyUnitLocator(LifecycleNode):
 
         # 创建订阅者
         self.intrinsics = None
+        self.locator_backend = None
         self.sub_info = self.create_subscription(
             CameraInfo,
             '/camera/depth/camera_info',
@@ -162,7 +119,7 @@ class EnergyUnitLocator(LifecycleNode):
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
             durability=QoSDurabilityPolicy.VOLATILE
         )
-        
+
         self.sub_rgb = message_filters.Subscriber(
             self, Image, '/camera/color/image_raw', qos_profile=image_qos)
         self.sub_depth = message_filters.Subscriber(
@@ -176,99 +133,19 @@ class EnergyUnitLocator(LifecycleNode):
         )
         self.ts.registerCallback(self.image_callback)
 
-        self.get_logger().info('Configuration complete')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_activate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """激活阶段：开始处理"""
-        self.get_logger().info('activating...')
-
         # 创建统计 timer（每 1 秒运行一次）
         self.stats_timer = self.create_timer(1.0, self.stats_callback)
 
-        if self.tracker:
-            self.tracker.reset()
-        if self.pose_smoother:
-            self.pose_smoother.reset()
-        self.last_frame_time = None
-
-        self.is_active = True
-        self.get_logger().info('node activated')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_deactivate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """停用阶段：停止处理"""
-        self.get_logger().info('deactivating...')
-
-        # 销毁统计 timer
-        if self.stats_timer:
-            self.destroy_timer(self.stats_timer)
-            self.stats_timer = None
-
-        self.is_active = False
-        self.get_logger().info('node deactivated')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_cleanup(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """清理阶段：释放资源"""
-        self.get_logger().info('cleaning up...')
-
-        # 确保 timer 已销毁
-        if self.stats_timer:
-            self.destroy_timer(self.stats_timer)
-            self.stats_timer = None
-
-        # 清理订阅者
-        if self.ts:
-            destroy = getattr(self.ts, 'destroy', None)
-            if callable(destroy):
-                destroy()
-            self.ts = None
-        if self.sub_rgb:
-            self.sub_rgb.unregister()
-            self.sub_rgb = None
-        if self.sub_depth:
-            self.sub_depth.unregister()
-            self.sub_depth = None
-        if self.sub_info:
-            self.destroy_subscription(self.sub_info)
-            self.sub_info = None
-
-        # 清理其他资源
-        self.model = None
-        if self.pose_smoother:
-            self.pose_smoother.reset()
-        self.pose_smoother = None
-        self.locator_backend = None
-        if self.tracker:
-            self.tracker.reset()
-        self.tracker = None
-        self.tf_broadcaster = None
-        self.publisher_pool = None
-        self.bridge = None
-        self.intrinsics = None
-
-        # 重置统计数据
+        # 性能统计
         self.frame_count = 0
-        self.last_frame_detections_count = 0
+        self.last_frame_detections_count = 0  # 前一帧检测到的目标数
+        self.last_fps_time = time.time()
+        self.last_frame_time = None
         self.total_inference_time = 0.0
         self.total_backend_time = 0.0
         self.processed_frames = 0
-        self.last_frame_time = None
 
-        self.get_logger().info('cleanup complete')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_shutdown(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """关闭阶段：最后的清理"""
-        self.get_logger().info('shutting down...')
-
-        # 再次确保所有资源都被释放
-        if self.stats_timer:
-            self.destroy_timer(self.stats_timer)
-            self.stats_timer = None
-
-        return TransitionCallbackReturn.SUCCESS
+        self.get_logger().info('node started')
 
     def info_callback(self, msg):
         if self.intrinsics is None:
@@ -293,10 +170,6 @@ class EnergyUnitLocator(LifecycleNode):
 
     # @trace_and_save
     def image_callback(self, rgb_msg, depth_msg):
-        # 只在 active 状态下处理图像
-        if not self.is_active:
-            return
-
         if self.locator_backend is None:
             self.get_logger().warn('Waiting for camera intrinsics...', throttle_duration_sec=2.0)
             return

@@ -119,12 +119,12 @@ class Sort3DTracker:
 
     def __init__(
         self,
-        max_age: int = 8,
-        min_hits: int = 3,
-        mahalanobis_thresh: float = 9.0,
-        iou_weight: float = 0.2,
+        max_age: int = 15,
+        min_hits: int = 1,
+        mahalanobis_thresh: float = 15.0,
+        iou_weight: float = 0.4,
         process_var: float = 0.5,
-        measurement_var: float = 0.0025,
+        measurement_var: float = 0.01,
     ) -> None:
         self.max_age = max_age
         self.min_hits = min_hits

@@ -1,12 +1,7 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import LifecycleNode
-from launch_ros.events.lifecycle import ChangeState
-from launch.actions import EmitEvent, RegisterEventHandler
-from launch_ros.event_handlers import OnStateTransition
-from launch.events import matches_action
-from lifecycle_msgs.msg import Transition
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -15,8 +10,8 @@ def generate_launch_description():
         default_value='false',
         description='Enable automatic respawn on failure (for production use)'
     )
-    
-    locator_node = LifecycleNode(
+
+    locator_node = Node(
         package="amorph_vision",
         executable="locator_v2",
         name="energy_unit_locator_node",
@@ -29,42 +24,18 @@ def generate_launch_description():
             "publish_masked_pointcloud": False,
             "publish_annotated_image": True,
             "smoothing_alpha": 0.3,
+            "tracker_max_age": 15,
+            "tracker_min_hits": 1,
+            "tracker_mahalanobis_thresh": 15.0,
+            "tracker_iou_weight": 0.4,
         }],
         # arguments=['--ros-args', '--log-level', 'DEBUG'],
         output="screen",
         respawn=LaunchConfiguration('enable_respawn'),
         respawn_delay=2.0
     )
-    
-    # 配置节点
-    configure_event = EmitEvent(
-        event=ChangeState(
-            lifecycle_node_matcher=matches_action(locator_node),
-            transition_id=Transition.TRANSITION_CONFIGURE,
-        )
-    )
-    
-    # 配置成功后激活节点
-    activate_event = RegisterEventHandler(
-        OnStateTransition(
-            target_lifecycle_node=locator_node,
-            start_state='configuring',
-            goal_state='inactive',
-            entities=[
-                EmitEvent(
-                    event=ChangeState(
-                        lifecycle_node_matcher=matches_action(locator_node),
-                        transition_id=Transition.TRANSITION_ACTIVATE,
-                    )
-                ),
-            ],
-        )
-    )
 
-    
     return LaunchDescription([
         enable_respawn_arg,
         locator_node,
-        configure_event,
-        activate_event,
     ])
