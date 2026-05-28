@@ -31,6 +31,7 @@ setup(
             'yolo_test = amorph_vision.yolo_test_node:main',
             'export_engine = amorph_vision.engine_exporter:main',
             'fake_eu_marker = amorph_vision.fake_eu_marker:main',
+            'two_point_range = amorph_vision.2point:main',
         ],
     },
 )

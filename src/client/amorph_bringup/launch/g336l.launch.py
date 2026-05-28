@@ -80,14 +80,14 @@ def generate_launch_description():
         DeclareLaunchArgument('export_config_json_file_path', default_value=''),
         DeclareLaunchArgument('uvc_backend', default_value='libuvc'),#libuvc or v4l2
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
-        DeclareLaunchArgument('enable_point_cloud', default_value='true'),
-        DeclareLaunchArgument('enable_colored_point_cloud', default_value='true'),
+        DeclareLaunchArgument('enable_point_cloud', default_value='false'),
+        DeclareLaunchArgument('enable_colored_point_cloud', default_value='false'),
         DeclareLaunchArgument('cloud_frame_id', default_value=''),
-        DeclareLaunchArgument('connection_delay', default_value='10'),
+        DeclareLaunchArgument('connection_delay', default_value='30'),  # 延长连接等待时间，确保不稳定 USB 链路稳定建立
         DeclareLaunchArgument('color_width', default_value='1280'),
         DeclareLaunchArgument('color_height', default_value='800'),
-        DeclareLaunchArgument('color_fps', default_value='15'),  # 降低帧率提高静态精度（优化：静态精度优先）
-        DeclareLaunchArgument('color_format', default_value='RGB'),
+        DeclareLaunchArgument('color_fps', default_value='10'),  # 保持帧率不变；若仍不稳定可降至 5
+        DeclareLaunchArgument('color_format', default_value='MJPG'),  # MJPG 硬件压缩大幅降低 USB 带宽（应对劣化线缆）
         DeclareLaunchArgument('enable_color', default_value='true'),
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
@@ -120,7 +120,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument('depth_width', default_value='1280'),
         DeclareLaunchArgument('depth_height', default_value='800'),
-        DeclareLaunchArgument('depth_fps', default_value='15'),  # 降低帧率提高深度精度（优化：静态精度优先）
+        DeclareLaunchArgument('depth_fps', default_value='10'),  # 保持帧率不变；若仍不稳定可降至 5
         DeclareLaunchArgument('depth_format', default_value='ANY'),
         DeclareLaunchArgument('enable_depth', default_value='true'),
         DeclareLaunchArgument('depth_qos', default_value='default'),
@@ -245,9 +245,9 @@ def generate_launch_description():
         DeclareLaunchArgument('diagnostic_period', default_value='1.0'), # seconds
         DeclareLaunchArgument('enable_laser', default_value='true'),  # 启用激光（优化：静态精度优先）
         DeclareLaunchArgument('device_preset', default_value='High Accuracy'),
-        DeclareLaunchArgument('retry_on_usb3_detection_failure', default_value='false'),
+        DeclareLaunchArgument('retry_on_usb3_detection_failure', default_value='true'),  # USB3 检测失败时重试（应对劣化线缆）
         DeclareLaunchArgument('laser_energy_level', default_value='6'),  # 最大激光功率提高深度信号强度（优化：静态精度优先）
-        DeclareLaunchArgument('enable_sync_host_time', default_value='true'),
+        DeclareLaunchArgument('enable_sync_host_time', default_value='false'),  # 关闭主机时间同步减少 USB 控制传输开销
         DeclareLaunchArgument('time_sync_period', default_value='6.0'), # seconds
         DeclareLaunchArgument('time_domain', default_value='global'),# global, device, system
         DeclareLaunchArgument('enable_color_undistortion', default_value='false'),
@@ -260,7 +260,7 @@ def generate_launch_description():
         DeclareLaunchArgument('disparity_offset_config', default_value='false'),
         DeclareLaunchArgument('offset_index0', default_value='-1'),
         DeclareLaunchArgument('offset_index1', default_value='-1'),
-        DeclareLaunchArgument('frame_aggregate_mode', default_value='ANY'), # full_frame, color_frame, ANY or disable
+        DeclareLaunchArgument('frame_aggregate_mode', default_value='disable'),  # 禁用帧聚合降低 USB 带宽占用
         DeclareLaunchArgument('interleave_ae_mode', default_value='laser'), # 'hdr' or 'laser'
         DeclareLaunchArgument('interleave_frame_enable', default_value='false'),
         DeclareLaunchArgument('interleave_skip_enable', default_value='false'),
@@ -306,7 +306,7 @@ def generate_launch_description():
         DeclareLaunchArgument("force_ip_gateway", default_value="192.168.1.1"),  # Gateway address used for static IP
 
         DeclareLaunchArgument('intra_camera_sync_reference', default_value='Middle'),#Start, Middle or End        
-        DeclareLaunchArgument('enable_respawn', default_value='false', description='Enable automatic respawn on failure (for production use)'),
+        DeclareLaunchArgument('enable_respawn', default_value='true', description='Enable automatic respawn on failure (for production use)'),  # 断流后自动重启节点
     ]
 
     def get_params(context, args):

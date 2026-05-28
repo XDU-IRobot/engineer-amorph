@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'can_eu_broadcaster = amorph_onboard_transport.can_eu_broadcaster:main',
+            'two_point_range_broadcaster = amorph_onboard_transport.2point_range_broadcaster:main',
         ],
     },
 )
