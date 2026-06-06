@@ -9,6 +9,8 @@
 #include "buzzer.hpp"
 #include "buttons.hpp"
 #include "actuator.hpp"
+#include "master_slave.hpp"
+#include "master_slave_can.hpp"
 
 struct Globals {
   rm::modules::MahonyAhrs ahrs;  //
@@ -16,6 +18,7 @@ struct Globals {
   // rm::hal::Serial dbus{huart1, 36, rm::hal::stm32::UartMode::kNormal, rm::hal::stm32::UartMode::kDma};  //
   // rm::device::DR16 rc{dbus};  ///< 遥控器，调试用的，自定义控制器就别给他整个遥控器了
   rm::hal::ThrottledCan<128> motor_can{3000, hcan1};
+  // rm::hal::Can comm_can{hcan2};
   rm::hal::Serial<128> servo_serial{huart2, false, false};
 
   rm::hal::Pin g_pin{LED_G_GPIO_Port, LED_G_Pin}, r_pin{LED_R_GPIO_Port, LED_R_Pin};
@@ -35,10 +38,15 @@ struct Globals {
   Actuator actuator{motor_can};
   Buttons buttons;
 
+  MasterSlave ms;
+  // MasterSlaveCan ms{comm_can};
+
   void Init() {
     // rc.Begin();
     motor_can.SetFilter(0, 0);
     motor_can.Begin();
+    // comm_can.SetFilter(0, 0);
+    // comm_can.Begin();
     led.Init();
     led_controller.SetPattern<rm::modules::led_pattern::RgbFlow>();
     buzzer.Init();

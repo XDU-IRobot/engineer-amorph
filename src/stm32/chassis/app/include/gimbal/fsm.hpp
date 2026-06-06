@@ -73,6 +73,7 @@ namespace state {
 ///*********************************
 
 /*******************************************/
+/// @brief 所有电机无力
 struct NoForce : etl::fsm_state<Gimbal, NoForce, StateId::kNoForce,  //
                                 event::ModeSwitch,                   //
                                 event::ControlLoop> {
@@ -110,6 +111,7 @@ struct NoForce : etl::fsm_state<Gimbal, NoForce, StateId::kNoForce,  //
 };
 
 /*******************************************/
+/// @brief 图传杆升起
 struct Up : etl::fsm_state<Gimbal, Up, StateId::kUp,  //
                            event::ModeSwitch,         //
                            event::ControlLoop> {
@@ -121,7 +123,7 @@ struct Up : etl::fsm_state<Gimbal, Up, StateId::kUp,  //
     const float current_yaw = resources.yaw_calib.RealToLogical(resources.yaw_motor.pos_rad());
     resources.encoder_yaw_pid.Clear();
     resources.yaw_tl.ResetAt(current_yaw);
-    resources.yaw_tl.SetTarget(0.f);  // 回中
+    target_yaw_ = 0.f;
     resources.lift_motor.SendInstruction(rm::device::Ht04Motor::Instruction::kEnable);
     resources.pitch_servo.MoveTime(resources.config.servo_mid_angle, resources.config.servo_move_time_ms);
     resources.lift_tl.ResetAt(resources.camera_lift_calib.RealToLogical(resources.lift_motor.pos()));
@@ -133,6 +135,7 @@ struct Up : etl::fsm_state<Gimbal, Up, StateId::kUp,  //
   REACT(event::ControlLoop) {
     auto &resources = get_fsm_context().resources();
     const float current_yaw = resources.yaw_calib.RealToLogical(resources.yaw_motor.pos_rad());
+    resources.yaw_tl.SetTarget(target_yaw_);
     resources.yaw_tl.Update(resources.config.control_loop_dt);
     resources.encoder_yaw_pid.UpdateExtDiff(resources.yaw_tl.current_position(), current_yaw,
                                             resources.yaw_motor.rpm() * 2.f * M_PI / 60.f,  // to rad/s
@@ -140,7 +143,9 @@ struct Up : etl::fsm_state<Gimbal, Up, StateId::kUp,  //
     resources.yaw_motor.SetCurrent(-resources.encoder_yaw_pid.out());
     resources.lift_tl.Update(0.004f);
     if (resources.lift_tl.IsAtTarget()) {
-      resources.lift_motor.SetMitCommand(0, 0, -10.f, 0, 10);
+      resources.lift_motor.SetMitCommand(
+          resources.camera_lift_calib.LogicalToReal(resources.lift_tl.current_position()), 0, -10.f,
+          resources.config.lift_pd_param.kp, resources.config.lift_pd_param.kd);
     } else {
       resources.lift_motor.SetMitCommand(
           resources.camera_lift_calib.LogicalToReal(resources.lift_tl.current_position()), 0, 0.f,
@@ -148,9 +153,15 @@ struct Up : etl::fsm_state<Gimbal, Up, StateId::kUp,  //
     }
     return No_State_Change;
   }
+
+  void SetTargetYaw(float yaw) { target_yaw_ = yaw; }
+
+ private:
+  float target_yaw_{0.f};
 };
 
 /*******************************************/
+/// @brief 图传杆保持在中位，并且使云台YAW轴自稳
 struct Mid : etl::fsm_state<Gimbal, Mid, StateId::kMid,  //
                             event::ModeSwitch,           //
                             event::ControlLoop> {
@@ -163,7 +174,7 @@ struct Mid : etl::fsm_state<Gimbal, Mid, StateId::kMid,  //
     resources.lift_motor.SendInstruction(rm::device::Ht04Motor::Instruction::kEnable);
     resources.pitch_servo.MoveTime(resources.config.servo_mid_angle, resources.config.servo_move_time_ms);
     resources.lift_tl.ResetAt(resources.camera_lift_calib.RealToLogical(resources.lift_motor.pos()));
-    resources.lift_tl.SetTarget(0.324966431f);
+    resources.lift_tl.SetTarget(0.331613f);
     SharedResources::GetInstance()
         .buzzer_controller.Play<rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kD6>>();
     return No_State_Change;
@@ -179,11 +190,14 @@ struct Mid : etl::fsm_state<Gimbal, Mid, StateId::kMid,  //
     return No_State_Change;
   }
 
+  void Control(float yaw_delta) { target_yaw_ += yaw_delta; }
+
  private:
   float target_yaw_{0.f};
 };
 
 /*******************************************/
+/// @brief 图传杆根据底盘姿态自适应降到低处（TODO: 待实现自适应）
 struct Down : etl::fsm_state<Gimbal, Down, StateId::kDown,  //
                              event::ModeSwitch,             //
                              event::ControlLoop> {
@@ -225,6 +239,7 @@ struct Down : etl::fsm_state<Gimbal, Down, StateId::kDown,  //
 };
 
 /*******************************************/
+/// @brief 图传杆强制降到最低处
 struct ForceDown : etl::fsm_state<Gimbal, ForceDown, StateId::kForceDown,  //
                                   event::ModeSwitch,                       //
                                   event::ControlLoop> {
@@ -238,6 +253,7 @@ struct ForceDown : etl::fsm_state<Gimbal, ForceDown, StateId::kForceDown,  //
 };
 
 /*******************************************/
+/// @brief 图传杆关节电机校准编码器
 struct LongJointCalibrating : etl::fsm_state<Gimbal, LongJointCalibrating, StateId::kLongJointCalibrating,  //
                                              event::ModeSwitch,                                             //
                                              event::ControlLoop> {

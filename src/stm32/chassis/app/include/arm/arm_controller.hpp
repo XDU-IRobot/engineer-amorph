@@ -4,8 +4,8 @@
 
 #include <librm.hpp>
 
+#include "cartesian_limit.hpp"
 #include "dynamics.hpp"
-#include "full_dynamics.hpp"
 
 class ArmController {
  public:
@@ -41,14 +41,20 @@ class ArmController {
     pid_[2].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[3].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
     pid_[4].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
-    pid_[5].SetKp(50000.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10000.f).SetDiffFirst(true).SetCircular(true).SetCircularCycle(2.f * M_PIf);
+    pid_[5].SetKp(50000.f).SetKi(0.f).SetKd(0.f).SetMaxOut(10000.f).SetDiffFirst(true);
     // clang-format on
     for (auto &f : acc_lpf_) {
       f.set_cutoff_frequency(500.f, 9.f);
     }
   }
 
-  void GoTo(const std::array<float, 6> &target_positions) {
+  void GoTo(std::array<float, 6> target_positions) {
+    const auto x_limited = cartesian_limiter_.Limit(target_positions[1], target_positions[2]);
+    if (!x_limited.has_value()) {
+      return;  // 位置不可达
+    }
+    target_positions[1] = x_limited.value()[0];
+    target_positions[2] = x_limited.value()[1];
     for (size_t i = 0; i < 6; ++i) {
       trajectory_limiter_[i].SetTarget(
           std::clamp(target_positions[i], joint_limits_[i].first, joint_limits_[i].second));
@@ -158,6 +164,7 @@ class ArmController {
   std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_;
   std::array<rm::modules::PID, 6> pid_;
   std::array<std::pair<float, float>, 6> joint_limits_;
+  CartesianLimit cartesian_limiter_{0.4235f, 0.587f, 0.5f};
   ArmDynamics dynamics_;
   rm::modules::LowPassFilter2p<float> acc_lpf_[3];
   Status status_{kIdle};

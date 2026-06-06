@@ -2,6 +2,8 @@
 
 #include <librm.hpp>
 
+#include "m_pi_f.hpp"
+
 struct GimbalConfig {
   struct PDParams {
     float kp;
@@ -20,7 +22,7 @@ struct GimbalConfig {
     return {.control_loop_dt = 1.f / 250.f,
             .imu_node_id = 8,
             .yaw_motor_id = 7,
-            .yaw_calib = {.reverse = true, .zero_offset = 2303.f / 8191.f * M_PIf * 2.f},
+            .yaw_calib = {.reverse = true, .zero_offset = 4936.f / 8191.f * M_PIf * 2.f},
             .servo_mid_angle = 600,
             .servo_move_time_ms = 350,
             .lift_pd_param = {300.f, 15.f}};

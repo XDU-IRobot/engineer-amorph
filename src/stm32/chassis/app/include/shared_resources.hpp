@@ -7,11 +7,18 @@
 #include "usart.h"
 #include "spi.h"
 
+#include "bsp/ahrs.hpp"
 #include "bsp/buzzer.hpp"
 #include "bsp/led.hpp"
 #include "bsp/vbus_adc.hpp"
 #include "et16s.hpp"
 #include "global_config.hpp"
+#include "client/broker.hpp"
+#include "client/xbox_controller.hpp"
+#include "custom_controller.hpp"
+#include "client/jetson.hpp"
+#include "client/jetson_2point.hpp"
+#include "ui/TaskScheduler.hpp"
 
 /**
  * STM32H7的DTCM区域只能被CPU访问，不能被DMA访问，所以需要开一块在DTCM之外的全局数据区域，专门放一些需要被DMA访问的对象
@@ -24,7 +31,7 @@
  * } >RAM_D1
  */
 struct SharedResourcesNoDtcm {
-  rm::hal::Serial<25> vt_link_serial{huart7, true, true}, pm_link_serial{huart10, false, true};
+  rm::hal::Serial<25> vt_link_serial{huart7, false, true}, pm_link_serial{huart10, false, true};
   ///< 图传链路的串口，两路功能完全相同，互做冗余，一路出故障只需要把线接到另一路上即可
   rm::hal::Serial<100> servo_serial{huart1, false, true};      ///< 舵机串口
   rm::hal::Serial<50> sbus_serial{huart5, false, true};        ///< 接收遥控器的串口
@@ -53,7 +60,7 @@ struct SharedResources {
       rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kE6>,
       rm::modules::buzzer_melody::Tone<rm::modules::NoteFreqStandard::kF6>, buzzer_melody::EnterManualMode,
       buzzer_melody::HiBeeps<1>, buzzer_melody::HiBeeps<2>, buzzer_melody::HiBeeps<3>, buzzer_melody::HiBeeps<4>,
-      buzzer_melody::HiBeeps<5>, buzzer_melody::HiBeeps<6>>
+      buzzer_melody::HiBeeps<5>, buzzer_melody::HiBeeps<6>, rm::modules::buzzer_melody::TheLick>
       buzzer_controller;
   WS2812Led led{hspi6};                                                 ///< WS2812 LED灯
   rm::modules::RgbLedController<rm::modules::led_pattern::Off,          //
@@ -63,18 +70,22 @@ struct SharedResources {
                                 rm::modules::led_pattern::RgbFlow>
       led_controller;  ///< LED控制器
 
-  rm::device::BMI088 onboard_imu{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};
-  rm::modules::MahonyAhrs mahony_ahrs{1000.f};  ///< AHRS算法
+  Ahrs ahrs{Ahrs::PYPXNZ};
 
   rm::device::VT03 vt_rc;                                      ///< 图传遥控器
   WflyET16s rc{shared_no_dtcm.sbus_serial};                    ///< 遥控器
   rm::device::Referee<GlobalConfig::kRefereeRev> ref_pm;       ///< 电管模块串口
   rm::device::Referee<GlobalConfig::kRefereeRev> ref_vt_link;  ///< 图传链路
-  rm::device::DeviceManager<5> device_manager;                 ///< 设备管理器，用于监测各个设备的在线状态
-  rm::modules::KeyboardHandler<> kh{
-      rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl::kCtrl |  //
-      rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl::kShift   //
-  };  ///< 键盘处理器，用于处理客户端的键盘输入
+  CustomClientBroker client_broker{ref_vt_link};               ///< 自定义客户端Broker
+  XboxController xbox_controller{client_broker};
+  CustomController custom_controller{ref_vt_link};
+  rm::device::DeviceManager<5> device_manager;  ///< 设备管理器，用于监测各个设备的在线状态
+  rm::modules::KeyboardHandler<> kh{rm::device::VT03::kCtrl |
+                                    rm::device::VT03::kShift};  ///< 键盘处理器，用于处理客户端的键盘输入
+  Jetson vision_jetson{comm_can};
+  Jetson2Point jetson{comm_can};
+
+  rm::device::UITaskScheduler ui_ts{28.f};
 
   etl::string<512> system_status;  ///< 系统状态摘要字符串
 
@@ -105,7 +116,8 @@ struct SharedResources {
   void Init() {
     rc.SetName("remote");
     vt_rc.SetName("vt_remote");
-    device_manager << &rc << &vt_rc;
+    client_broker.SetName("client_broker");
+    device_manager << &rc << &vt_rc << &client_broker;
 
     rm::hal::SerialRxCallbackFunction on_vt_serial_rx = [&](etl::span<const uint8_t> data) {
       for (auto byte : data) {
@@ -132,6 +144,8 @@ struct SharedResources {
           buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
           led_controller.SetPattern<rm::modules::led_pattern::RedFlash>();
         }
+      } else if (dev->name() == "client_broker") {
+        client_broker.ResetData();
       }
     });
 

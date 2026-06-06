@@ -104,6 +104,11 @@ struct NoForce : etl::fsm_state<CcArm, NoForce, StateId::kNoForce,  //
   }
   REACT(event::ControlLoop) {
     globals->actuator.SetEnable(false);
+    globals->actuator.j2.SetMitCommand(0, 0, 0, 0, 0);
+    globals->actuator.j3.SetMitCommand(0, 0, 0, 0, 0);
+    globals->actuator.j4.SetPower(0);
+    globals->actuator.j5.SetPower(0);
+    globals->actuator.j6.SetPower(0);
     return No_State_Change;
   }
 };
@@ -143,8 +148,10 @@ struct LockPosition : etl::fsm_state<CcArm, LockPosition, StateId::kLockPosition
     globals->actuator.j1.SetCurrent(0);
     // globals->actuator.j2.SetMitCommand(target_pos[1], 0, 0, 20, 0.4);
     // globals->actuator.j3.SetMitCommand(target_pos[2], 0, 0, 15, 2);
-    globals->actuator.j2.SetMitCommand(target_pos_[1], 0, -std::clamp(compensate_t_(1), -5.f, 5.f), 2, 0.5);
-    globals->actuator.j3.SetMitCommand(target_pos_[2], 0, std::clamp(compensate_t_(2), -5.f, 5.f), 7, 2);
+    const float j2_rev = globals->actuator.calibrators[1].reverse() ? -1.f : 1.f;
+    const float j3_rev = globals->actuator.calibrators[2].reverse() ? -1.f : 1.f;
+    globals->actuator.j2.SetMitCommand(target_pos_[1], 0, j2_rev * std::clamp(compensate_t_(1), -5.f, 5.f), 2, 0.5);
+    globals->actuator.j3.SetMitCommand(target_pos_[2], 0, j3_rev * std::clamp(compensate_t_(2), -5.f, 5.f), 7, 2);
     globals->actuator.j4.SetSpeed(0);
     globals->actuator.j5.SetSpeed(0);
     globals->actuator.j6.SetSpeed(0);
@@ -162,6 +169,13 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
                                 event::ButtonEvent,                 //
                                 event::ForceModeSwitch,             //
                                 event::ControlLoop> {
+  Enabled() {
+    btn_a_svw_.OnValueChange([this](const bool &old_value, const bool &new_value) {
+      if (!old_value && new_value) {
+        globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+      }
+    });
+  }
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
@@ -185,6 +199,8 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
       return StateId::kLockPosition;
     }
 
+    btn_a_svw_.Update(globals->buttons.a());
+
     current_vel_ = globals->actuator.GetVelocities();
     boost_torque_[1] = std::tanhf(current_vel_[1]);
     boost_torque_[2] = std::tanhf(0.6f * current_vel_[2]);
@@ -196,10 +212,12 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
     // globals->actuator.j2.SetMitCommand(target_pos[1], 0, 0, 20, 0.4);
     // globals->actuator.j3.SetMitCommand(target_pos[2], 0, 0, 15, 2);
     j4_center_pid_.Update(0.f, globals->actuator.GetPositions()[3], 1.f / 250.f);
-    globals->actuator.j2.SetMitCommand(0, 0, -std::clamp(compensate_torque_(1) + (boost_torque_[1] * 1.f), -5.f, 5.f),
-                                       0, 0);
-    globals->actuator.j3.SetMitCommand(0, 0, std::clamp(compensate_torque_(2) + (boost_torque_[2] * 0.3f), -5.f, 5.f),
-                                       0, 0);
+    const float j2_rev = globals->actuator.calibrators[1].reverse() ? -1.f : 1.f;
+    const float j3_rev = globals->actuator.calibrators[2].reverse() ? -1.f : 1.f;
+    globals->actuator.j2.SetMitCommand(
+        0, 0, j2_rev * std::clamp(compensate_torque_(1) + (boost_torque_[1] * 1.f), -5.f, 5.f), 0, 0);
+    globals->actuator.j3.SetMitCommand(
+        0, 0, j3_rev * std::clamp(compensate_torque_(2) + (boost_torque_[2] * 0.3f), -5.f, 5.f), 0, 0);
     globals->actuator.j4.SetPower(j4_center_pid_.out());
     globals->actuator.j5.SetPower(0);
     globals->actuator.j6.SetPower(0);
@@ -213,6 +231,7 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
   Eigen::Vector3f current_pos_;
   Eigen::Vector3f compensate_torque_;
   rm::modules::PID j4_center_pid_{100.f, 0.f, 0.f, 70.f, 0.f};
+  rm::modules::SparseValueWatcher<bool, true> btn_a_svw_;
 };
 
 #undef IGNORE_UNINTEREST_EVENT

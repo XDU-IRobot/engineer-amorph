@@ -18,6 +18,7 @@ struct Chassis {
   // 状态机
   fsm_chassis::Chassis fsm{resources};
   fsm_chassis::state::NoForce fsm_state_no_force;
+  fsm_chassis::state::Debug fsm_state_debug;
   fsm_chassis::state::Normal fsm_state_normal;
   fsm_chassis::state::Fault fsm_state_idle;
 
@@ -25,8 +26,9 @@ struct Chassis {
 
  private:
   // 这个数组需与fsm同生命周期，所以放在这里
-  etl::ifsm_state *state_list_[3]{
+  etl::ifsm_state *state_list_[4]{
       &fsm_state_no_force,
+      &fsm_state_debug,
       &fsm_state_normal,
       &fsm_state_idle,
   };
@@ -54,13 +56,7 @@ struct Chassis {
         fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kNormal});
       }
       if (new_value > 500 && new_value < 1100) {  // SD在中
-        fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kNoForce});
-      }
-    });
-
-    shared.device_manager.OnDeviceStatusChange([&](rm::device::Device *dev) {
-      if (dev->name() == "remote" && dev->online_status() != rm::device::Device::kOk) {  // 遥控器离线，无力
-        fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kNoForce});
+        fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kDebug});
       }
     });
 
@@ -98,6 +94,9 @@ struct Chassis {
       ret.f_wheel_current = -resources.f_wheel.current();
       ret.l_wheel_current = -resources.l_wheel.current();
       ret.r_wheel_current = -resources.r_wheel.current();
+      ret.f_steer_current = -resources.f_steer.current();
+      ret.l_steer_current = -resources.l_steer.current();
+      ret.r_steer_current = -resources.r_steer.current();
       return ret;
     }();
     fsm.receive(control_loop_event);

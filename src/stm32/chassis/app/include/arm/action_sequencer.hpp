@@ -120,9 +120,8 @@ class ActionSequencer {
         step_complete = (step_elapsed_ms_ >= s.delay_ms);
         break;
       case ActionSequence::kGripperOpen:
-        // 夹爪物理开合动作未完成时不算完成
-        step_complete =
-            (gripper_->state() != GripperController<>::kClosing && gripper_->state() != GripperController<>::kOpening);
+        // 夹爪正在执行动作（含校准）时不算完成
+        step_complete = !gripper_->IsBusy();
         break;
     }
 

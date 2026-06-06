@@ -18,7 +18,15 @@ struct Actuator {
             .kd_range = {0, 50}}},
         j4{can, 1},
         j5{can, 2},
-        j6{can, 3} {}
+        j6{can, 3} {
+    j1.SetName("j1");
+    j2.SetName("j2");
+    j3.SetName("j3");
+    j4.SetName("j4");
+    j5.SetName("j5");
+    j6.SetName("j6");
+    dev_manager_ << &j1 << &j2 << &j3 << &j4 << &j5 << &j6;
+  }
 
   void SetEnable(bool enable, int repeats = 2) {
     const auto ht_cmd =
@@ -36,16 +44,17 @@ struct Actuator {
   }
 
   /**
-   * @brief 给达妙电机设零点
+   * @brief 给电机设零点
    */
   void SetZero() {
     SetEnable(true);
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 1; i++) {
       // j2.SendInstruction(rm::device::Ht04Motor::Instruction::kSetZeroPosition);
-      // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j4.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+      // j5.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
       // j6.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
-      HAL_Delay(10);
+      // HAL_Delay(10);
     }
     SetEnable(false);
   }
@@ -106,11 +115,21 @@ struct Actuator {
   rm::device::DmMotorMit j3;
   rm::device::LkMotor<rm::device::LkMotorType::kMS, 15> j4, j5, j6;
   rm::modules::MotorCalibrator calibrators[6]{
+#if defined(I_AM_LEFT_CC)
+      {false, 4125.f / 8191.f * 2.f * M_PI},                    //
+      {false, -(M_PIf - 0.129692078f) + atan2f(84.5f, 415.f)},  //
+      {true, -M_PIf / 2.f + atan2f(84.5f, 415.f)},              //
+      {false, 0.f},                                             //
+      {false, 0.f},                                             //
+      {false, 0.f},                                             //
+#else defined(I_AM_RIGHT_CC)
       {false, 5697.f / 8191.f * 2.f * M_PI},        //
       {true, M_PIf - atan2f(84.5f, 415.f)},         //
       {false, M_PIf / 2.f - atan2f(84.5f, 415.f)},  //
       {false, 0.f},                                 //
       {true, 0.f},                                  //
       {false, 0.f},                                 //
+#endif
   };
+  rm::device::DeviceManager<6> dev_manager_;
 };

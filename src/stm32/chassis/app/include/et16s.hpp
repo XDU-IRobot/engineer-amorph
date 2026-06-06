@@ -31,6 +31,26 @@ constexpr int SH = 15;
  */
 class WflyET16s : public rm::device::Sbus {
  public:
+  enum SwitchPosition {
+    kDown,
+    kMid,
+    kUp,
+    kIllegal,
+  };
+  static SwitchPosition SwitchPos(int16_t ch_val) {
+    // 353-up, 1024-mid, 1695-down
+    if (ch_val > 1300 && ch_val < 1700) {  // SD在下
+      return kDown;
+    }
+    if (ch_val > 0 && ch_val < 500) {  // SD在上
+      return kUp;
+    }
+    if (ch_val > 500 && ch_val < 1100) {  // SD在中
+      return kMid;
+    }
+    return kIllegal;
+  }
+
   WflyET16s(rm::hal::AsyncReadable &serial) : Sbus(serial) {}
 
   void Update() {

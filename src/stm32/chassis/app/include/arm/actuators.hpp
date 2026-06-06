@@ -20,8 +20,8 @@ class Actuator {
         j3{*config.can, config.dm_settings[2]},
         j4{*config.can, config.dm_settings[3]},
         j5{*config.can, config.dm_settings[4]},
-        j6{*config.can, config.j6_motor_id},
-        gripper{*config.can, config.gripper_motor_id} {
+        gripper{*config.can, config.dm_settings[5]},
+        j6{*config.can, config.j6_motor_id} {
     for (int i = 0; i < 7; ++i) {
       calibrators[i].UpdateConfig(config.calibrators[i]);
     }
@@ -38,9 +38,19 @@ class Actuator {
       j3.SendInstruction(dm_cmd);
       j4.SendInstruction(dm_cmd);
       j5.SendInstruction(dm_cmd);
+      gripper.SendInstruction(dm_cmd);
       j6.SetCurrent(0);
-      gripper.SetPower(0);
     }
+  }
+
+  void ClearError() {
+    const auto dm_cmd = rm::device::DmMotorInstructions::kClearError;
+    j1.SendInstruction(dm_cmd);
+    j2.SendInstruction(dm_cmd);
+    j3.SendInstruction(dm_cmd);
+    j4.SendInstruction(dm_cmd);
+    j5.SendInstruction(dm_cmd);
+    gripper.SendInstruction(dm_cmd);
   }
 
   void ApplyOutput(const ArmController::Output& output, bool apply_position = false) {
@@ -88,11 +98,6 @@ class Actuator {
     // j6.SetCurrent(0);
   }
 
-  void QueryGripperEncoder() {
-    gripper.SendInstruction(rm::device::LkMotor<rm::device::LkMotorType::kMS, 15>::kReadPositionMulti);
-    gripper_encoder.Update(gripper.feedback().position_rad);
-  }
-
   /**
    * @brief 给达妙电机设零点
    */
@@ -110,12 +115,12 @@ class Actuator {
 
   std::array<float, 6> GetPositions() const {
     std::array<float, 6> positions{
-        j1.pos(),        //
-        j2.pos(),        //
-        j3.pos() / 2.f,  // 1:1.5减速比
-        j4.pos(),        //
-        j5.pos(),        //
-        j6.pos_rad(),    //
+        j1.pos(),                                           //
+        j2.pos(),                                           //
+        (j3.pos() / 2.f) + GetEfforts()[2] * j3_spring_k_,  // 1:1.5减速比
+        j4.pos(),                                           //
+        j5.pos(),                                           //
+        j6.pos_rad(),                                       //
     };
     for (int i = 0; i < 6; ++i) {
       positions[i] = calibrators[i].RealToLogical(positions[i]);
@@ -123,14 +128,14 @@ class Actuator {
     return positions;
   }
 
-  float GetGripperPosition() const { return calibrators[6].RealToLogical(gripper.feedback().position_multi_rad); }
+  float GetGripperPosition() const { return calibrators[6].RealToLogical(gripper.pos()); }
 
   float GetGripperVelocity() const {
-    const float vel = gripper.feedback().speed_rad_ps;
+    const float vel = gripper.vel();
     return calibrators[6].reverse() ? -vel : vel;
   }
 
-  float GetGripperPower() const { return gripper.feedback().power; }
+  float GetGripperPower() const { return gripper.tau(); }
 
   std::array<float, 6> GetVelocities() const {
     std::array<float, 6> velocities{
@@ -166,13 +171,12 @@ class Actuator {
     return efforts;
   }
 
-  // 校准器保持 public，供 FSM LongJointCalibrating 状态在校准完成后更新零点
+  // 校准器保持 public，供 GripperController 校准完成回调中更新零点
   rm::modules::MotorCalibrator calibrators[7];
-  rm::device::DmMotorMit j1, j2, j3, j4, j5;
+  rm::device::DmMotorMit j1, j2, j3, j4, j5, gripper;
   rm::device::GM6020 j6;
-  rm::device::LkMotorMS<15> gripper;
-  EncoderCounter gripper_encoder{2.f * M_PI};
 
  private:
   ArmConfig::PDParams pd_params_[6]{};  ///< 从 ArmConfig 拷贝的 PD 参数
+  float j3_spring_k_{0.01f};
 };

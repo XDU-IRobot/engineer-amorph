@@ -64,16 +64,16 @@ struct Gimbal {
       }
     });
 
-    // 定义键盘键位
-    using RC = rm::device::RefereeProtocol<GlobalConfig::kRefereeRev>::RemoteControl;
-    shared.kh
-        .OnKeyDown(RC::kZ,
-                   [&](const rm::modules::KeyEvent &e) {  // 杆升
-                     fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kUp});
-                   })
-        .OnKeyDown(RC::kX, [&](const rm::modules::KeyEvent &e) {  // 杆降
-          fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kDown});
-        });
+    // // 定义键盘键位
+    // using RC = rm::device::VT03::KeyboardKey;
+    // shared.kh
+    //     .OnKeyDown(RC::kZ,
+    //                [&](const rm::modules::KeyEvent &e) {  // 杆升
+    //                  fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kUp});
+    //                })
+    //     .OnKeyDown(RC::kX, [&](const rm::modules::KeyEvent &e) {  // 杆降
+    //       fsm.receive(fsm_gimbal::event::ModeSwitch{fsm_gimbal::StateId::kDown});
+    //     });
 
     fsm.set_states(state_list_, std::size(state_list_));
     fsm.start();

@@ -12,6 +12,7 @@ struct EventId {
   enum {
     kControlLoop,      ///< 控制循环时钟事件
     kForceModeSwitch,  ///< 切换模式命令
+    kVelocityCommand,  ///< 底盘速度命令
     kFaultClear,       ///< 故障清除命令
   };
 };
@@ -19,7 +20,8 @@ struct EventId {
 struct StateId {
   enum : etl::fsm_state_id_t {
     kNoForce,  ///< 无力
-    kNormal,   ///< 有力
+    kDebug,    ///< 有力，调试模式
+    kNormal,   ///< 有力，比赛模式
     kFault,    ///< 故障
     NUMBER_OF_STATES,
   };
@@ -40,12 +42,26 @@ struct ControlLoop : etl::message<EventId::kControlLoop> {
   float f_wheel_current;
   float l_wheel_current;
   float r_wheel_current;
+  float f_steer_current;
+  float l_steer_current;
+  float r_steer_current;
 };
 
 /*******************************************/
 struct ForceModeSwitch : etl::message<EventId::kForceModeSwitch> {
   explicit ForceModeSwitch(etl::fsm_state_id_t target) : target_mode(target) {}
   etl::fsm_state_id_t target_mode;
+};
+
+/*******************************************/
+struct VelocityCommand : etl::message<EventId::kVelocityCommand> {
+  VelocityCommand() : timestamp(HAL_GetTick()) {}
+  VelocityCommand(float vx, float vy, float w) : timestamp(HAL_GetTick()), vx(vx), vy(vy), w(w) {}
+  uint32_t timestamp;
+  float vx{};
+  float vy{};
+  float w{};
+  bool move_gently{false};
 };
 
 /*******************************************/
@@ -90,6 +106,7 @@ struct NoForce : etl::fsm_state<Chassis, NoForce, StateId::kNoForce,  //
   ENTER {
     auto &shared = SharedResources::GetInstance();
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
+    // shared.buzzer_controller.Play<rm::modules::buzzer_melody::SuperMario>();
     get_fsm_context().resources().controller.Enable(false);
     return No_State_Change;
   }
@@ -106,12 +123,13 @@ struct NoForce : etl::fsm_state<Chassis, NoForce, StateId::kNoForce,  //
 };
 
 /*******************************************/
-struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
-                               event::ForceModeSwitch,             //
-                               event::ControlLoop> {
+struct Debug : etl::fsm_state<Chassis, Debug, StateId::kDebug,  //
+                              event::ForceModeSwitch,           //
+                              event::ControlLoop> {
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
+    auto &shared = SharedResources::GetInstance();
     SharedResources::GetInstance().buzzer_controller.Play<buzzer_melody::EnterManualMode>();
     get_fsm_context().resources().controller.Enable(true);
     return No_State_Change;
@@ -139,21 +157,28 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     // 选手端键盘
     const float kbd_x = key_d - key_a;
     const float kbd_y = key_w - key_s;
-    const float kbd_w = key_e - key_q;
+    const float kbd_w = 0.f;
 
     // 选手端鼠标
     const float vt_w = shared.vt_rc.data().mouse_x / 660.f;
 
-    const float target_vx = (rc_x + kbd_x) * 1000.f;
-    const float target_vy = (rc_y + kbd_y) * 1000.f;
-    const float target_w = -(rc_w + kbd_w + vt_w) * 5.f;
+    // 自定义客户端 xbox手柄
+    const auto &client_data = shared.xbox_controller.data();
+    const float client_x = client_data.left_x;
+    const float client_y = client_data.left_y;
+    const float client_w = client_data.right_x + client_data.lt - client_data.rt;
+
+    const float target_vx = (rc_x + kbd_x + client_x) * 1000.f;
+    const float target_vy = (rc_y + kbd_y + client_y) * 1000.f;
+    const float target_w = -(rc_w + kbd_w + client_w + vt_w) * 5.f;
     resources.controller.SetTarget(target_vx, target_vy, target_w);
     resources.controller.Update(e.f_steer_pos, e.f_steer_vel,                             //
                                 e.l_steer_pos, e.l_steer_vel,                             //
                                 e.r_steer_pos, e.r_steer_vel,                             //
                                 e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
                                 e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
-                                shared.onboard_imu.gyro_z(),                              //
+                                e.f_steer_current, e.l_steer_current, e.r_steer_current,  //
+                                shared.ahrs.imu_data().gz,                                //
                                 move_gently);
     const auto &control = resources.controller.output();
     resources.f_steer.SetCurrent(-control.front_steer);
@@ -164,6 +189,56 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
     resources.r_wheel.SetCurrent(-control.rr_wheel);
     return No_State_Change;
   }
+};
+
+/*******************************************/
+struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
+                               event::ForceModeSwitch,             //
+                               event::VelocityCommand,             //
+                               event::ControlLoop> {
+  ACCEPT_MODE_SWITCH();
+  IGNORE_UNINTEREST_EVENT();
+  ENTER {
+    auto &shared = SharedResources::GetInstance();
+    shared.buzzer_controller.Play<buzzer_melody::EnterManualMode>();
+    get_fsm_context().resources().controller.Enable(true);
+    return No_State_Change;
+  }
+  REACT(event::VelocityCommand) {
+    velocity_cmd_ = e;
+    return No_State_Change;
+  }
+  REACT(event::ControlLoop) {
+    auto &shared = SharedResources::GetInstance();
+    auto &resources = get_fsm_context().resources();
+
+    constexpr uint32_t kCommandStaleTimeThresh = 500;  // ms
+
+    if (HAL_GetTick() - velocity_cmd_.timestamp > kCommandStaleTimeThresh) {
+      velocity_cmd_ = event::VelocityCommand{0, 0, 0};
+    }
+
+    resources.controller.SetTarget(velocity_cmd_.vx, velocity_cmd_.vy, velocity_cmd_.w);
+    resources.controller.Update(e.f_steer_pos, e.f_steer_vel,                             //
+                                e.l_steer_pos, e.l_steer_vel,                             //
+                                e.r_steer_pos, e.r_steer_vel,                             //
+                                e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
+                                e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
+                                e.f_steer_current, e.l_steer_current, e.r_steer_current,  //
+                                shared.ahrs.imu_data().gz,                                //
+                                velocity_cmd_.move_gently);
+    const auto &control = resources.controller.output();
+    resources.f_steer.SetCurrent(-control.front_steer);
+    resources.l_steer.SetCurrent(-control.lr_steer);
+    resources.r_steer.SetCurrent(-control.rr_steer);
+    resources.f_wheel.SetCurrent(-control.front_wheel);
+    resources.l_wheel.SetCurrent(-control.lr_wheel);
+    resources.r_wheel.SetCurrent(-control.rr_wheel);
+    return No_State_Change;
+  }
+
+ private:
+  event::VelocityCommand velocity_cmd_;
 };
 
 /*******************************************/

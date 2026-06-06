@@ -17,7 +17,7 @@ struct GimbalResources {
     imu.SetName("imu");
     yaw_motor.SetName("yaw_motor");
     lift_motor.SetName("lift_motor");
-    device_manager << &pitch_servo << &imu << &yaw_motor << &lift_motor;
+    device_manager << &imu << &yaw_motor << &lift_motor;
 
     imu_yaw_pid.SetDiffFirst(true).SetDiffLpfAlpha(1.f).SetCircular(true).SetCircularCycle(2.f * M_PI);
     encoder_yaw_pid.SetDiffFirst(true).SetDiffLpfAlpha(0.9f).SetCircular(true).SetCircularCycle(2.f * M_PI);
