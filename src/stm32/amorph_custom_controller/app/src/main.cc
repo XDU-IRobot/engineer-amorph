@@ -43,7 +43,7 @@ void MainLoop() {
     }
     globals->ms.ReportToMaster(fb_data);
 #elif defined(I_AM_RIGHT_CC)  // master
-    // globals->servo.MoveTime(HAL_GetTick() % 1000, 1.f / 25.f);s
+    // globals->servo.MoveTime(HAL_GetTick() % 1000, 1.f / 25.f);
 
     static PacketBuilder pb;
     static CustomControllerCommand cc_cmd;
@@ -83,6 +83,7 @@ void MainLoop() {
   // 更新按钮状态、更新设备状态
   globals->buttons.Update();
   globals->actuator.dev_manager_.Update();
+  globals->actuator.UpdateQDD();
 
   // 触发控制循环
   fsm::cc_arm.receive(fsm::event::ControlLoop{});
@@ -125,7 +126,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   // /* Create the arm visualization UI */
   // arm_ui::create();
 
-  // // 设零点
+  // 设零点
   // HAL_Delay(3000);  // 电机开机需要时间
   // globals->actuator.SetZero();
 

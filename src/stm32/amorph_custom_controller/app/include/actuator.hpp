@@ -43,6 +43,15 @@ struct Actuator {
     }
   }
 
+  void UpdateQDD() {
+    const auto qd = GetVelocities();
+    // d_filter_.update(qd[1], std::chrono::duration_cast<std::chrono::microseconds>(
+    //                             std::chrono::steady_clock::now().time_since_epoch())
+    //                             .count());
+    d_filter_.update(qd[2], HAL_GetTick() * 1000.f);
+    qdd_ = d_filter_.slope() * 1e6;
+  }
+
   /**
    * @brief 给电机设零点
    */
@@ -50,7 +59,7 @@ struct Actuator {
     SetEnable(true);
     for (int i = 0; i < 1; i++) {
       // j2.SendInstruction(rm::device::Ht04Motor::Instruction::kSetZeroPosition);
-      j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
+      // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j4.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
       // j5.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
       // j6.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
@@ -123,7 +132,7 @@ struct Actuator {
       {false, 0.f},                                             //
       {false, 0.f},                                             //
 #else defined(I_AM_RIGHT_CC)
-      {false, 5697.f / 8191.f * 2.f * M_PI},        //
+      {false, 5690.f / 8191.f * 2.f * M_PI},        //
       {true, M_PIf - atan2f(84.5f, 415.f)},         //
       {false, M_PIf / 2.f - atan2f(84.5f, 415.f)},  //
       {false, 0.f},                                 //
@@ -131,5 +140,8 @@ struct Actuator {
       {false, 0.f},                                 //
 #endif
   };
+
+  float qdd_;
+  rm::modules::DerivativeFilterFloat_Size7 d_filter_;
   rm::device::DeviceManager<6> dev_manager_;
 };

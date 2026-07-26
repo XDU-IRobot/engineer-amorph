@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "crc.h"
 #include "dma.h"
 #include "fdcan.h"
 #include "i2c.h"
@@ -26,7 +27,6 @@
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -123,7 +123,7 @@ int main(void)
   MX_I2C1_Init();
   MX_UART8_Init();
   MX_UART9_Init();
-  MX_USB_DEVICE_Init();
+  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
   AppMain();
   /* USER CODE END 2 */

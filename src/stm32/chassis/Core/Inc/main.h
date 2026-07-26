@@ -72,10 +72,10 @@ void Error_Handler(void);
 #define GPIO1_PE13_EXTI_IRQn EXTI15_10_IRQn
 #define MCP_CS_Pin GPIO_PIN_15
 #define MCP_CS_GPIO_Port GPIOE
-#define SERVO_TX_EN_Pin GPIO_PIN_10
-#define SERVO_TX_EN_GPIO_Port GPIOB
-#define SERVO_RX_EN_Pin GPIO_PIN_11
-#define SERVO_RX_EN_GPIO_Port GPIOB
+#define STORAGE_1_Pin GPIO_PIN_10
+#define STORAGE_1_GPIO_Port GPIOB
+#define STORAGE_2_Pin GPIO_PIN_11
+#define STORAGE_2_GPIO_Port GPIOB
 #define MCP_INT_Pin GPIO_PIN_10
 #define MCP_INT_GPIO_Port GPIOD
 #define MCP_INT_EXTI_IRQn EXTI15_10_IRQn

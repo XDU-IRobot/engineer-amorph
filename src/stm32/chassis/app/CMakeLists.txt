@@ -1,10 +1,8 @@
 
 add_executable(app_main)
 file(GLOB_RECURSE ARM_CONTROLLER_SOURCES
-        ./include/*.c
-        ./include/*.cc
-        ./src/*.c
-        ./src/*.cc
+        ${CMAKE_CURRENT_LIST_DIR}/*.c
+        ${CMAKE_CURRENT_LIST_DIR}/*.cc
 )
 
 target_sources(app_main PRIVATE
@@ -12,7 +10,7 @@ target_sources(app_main PRIVATE
         $<TARGET_PROPERTY:${CMAKE_PROJECT_NAME},SOURCES>
 )
 target_include_directories(app_main PRIVATE
-        ./include
+        ${CMAKE_CURRENT_LIST_DIR}
         $<TARGET_PROPERTY:${CMAKE_PROJECT_NAME},INCLUDE_DIRECTORIES>
 )
 target_link_libraries(app_main PRIVATE

@@ -53,7 +53,7 @@ class CcArm : public etl::fsm {
  public:
   explicit CcArm() : fsm(kMessageRouterId) {}
 
-  ArmDynamics dynamic_model{{.b1 = 0.255138f, .b2 = 0.140616f}};
+  ArmDynamics dynamic_model{{.b1 = 0.2646f, .b2 = 0.1094f}};
 };
 extern CcArm cc_arm;
 
