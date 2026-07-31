@@ -1,8 +1,8 @@
 [submodule "src/jetson/OrbbecSDK_ROS2"]
-	path = src/client/OrbbecSDK_ROS2
+	path = src/jetson/OrbbecSDK_ROS2
 	url = https://github.com/orbbec/OrbbecSDK_ROS2.git
 [submodule "src/jetson/easy_handeye2"]
-	path = src/client/easy_handeye2
+	path = src/jetson/easy_handeye2
 	url = https://github.com/marcoesposito1988/easy_handeye2.git
 [submodule "src/stm32/librm"]
 	path = src/stm32/librm
