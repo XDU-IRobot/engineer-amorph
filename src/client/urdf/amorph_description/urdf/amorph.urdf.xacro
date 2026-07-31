@@ -7,9 +7,9 @@
   <!-- 云台 -->
   <!-- <xacro:include filename="$(find amorph_gimbal_description)/urdf/amorph_gimbal_description.urdf.xacro" /> -->
   <!-- 左臂 -->
-  <xacro:include filename="$(find amorph_arm_v4_description)/urdf/amorph_arm_v4_l_description.urdf.xacro" />
+  <xacro:include filename="$(find amorph_arm_v5_left_description)/urdf/amorph_arm_v5_left_description.urdf.xacro" />
   <!-- 右臂 -->
-  <xacro:include filename="$(find amorph_arm_v4_description)/urdf/amorph_arm_v4_r_description.urdf.xacro" />
+  <xacro:include filename="$(find amorph_arm_v5_right_description)/urdf/amorph_arm_v5_right_description.urdf.xacro" />
 
   <!-- 依次对云台、左臂、右臂进行手眼标定，得到的结果填进下面 -->
 
@@ -24,7 +24,7 @@
   <joint name="camera_to_arm_l" type="fixed">
     <parent link="camera_link" />
     <child link="base_link_l" />
-    <origin xyz="0 0.25 0.25" rpy="0 0 0" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
   </joint>
 
   <!-- 右臂 -> camera_link -->

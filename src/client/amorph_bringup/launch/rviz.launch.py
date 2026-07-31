@@ -12,7 +12,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "jsp_gui",
-            default_value="true",
+            default_value="false",
             description="Start jsp gui",
         )
     )
