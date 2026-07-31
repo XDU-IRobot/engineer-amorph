@@ -24,14 +24,14 @@
   <joint name="camera_to_arm_l" type="fixed">
     <parent link="camera_link" />
     <child link="base_link_l" />
-    <origin xyz="0 0 0" rpy="0 0 0" />
+    <origin xyz="0 0.25 -0.35" rpy="0 0 0" />
   </joint>
 
   <!-- 右臂 -> camera_link -->
   <joint name="camera_to_arm_r" type="fixed">
     <parent link="camera_link" />
     <child link="base_link_r" />
-    <origin xyz="0 -0.25 0" rpy="0 0 0" />
+    <origin xyz="0 -0.25 -0.35" rpy="0 0 0" />
   </joint>
 
 </robot>

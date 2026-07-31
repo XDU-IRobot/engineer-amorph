@@ -1,5 +1,3 @@
-import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
@@ -12,18 +10,36 @@ def generate_launch_description():
         default_value='false',
         description='Enable automatic respawn on failure (for production use)'
     )
-    package = "amorph_transport"
-    package_shared_path = get_package_share_directory(package)
-    node = Node(
-        package=package,
-        executable="amorph_transport_node",
-        name="amorph_transport",
-        output="screen",
-        parameters=[
-            os.path.join(package_shared_path, "config", "settings.yaml"),
-        ],
-        respawn=LaunchConfiguration('enable_respawn'),
-        respawn_delay=2.0
+
+    can_dev_arg = DeclareLaunchArgument(
+        'can_dev',
+        default_value='can0',
+        description='SocketCAN device name'
     )
 
-    return LaunchDescription([enable_respawn_arg, node])
+    publish_rate_arg = DeclareLaunchArgument(
+        'publish_rate',
+        default_value='100.0',
+        description='/joint_states publish rate (Hz)'
+    )
+
+    node = Node(
+        package='amorph_transport',
+        executable='amorph_transport_node',
+        name='amorph_transport',
+        output='screen',
+        parameters=[{
+            'can_dev': LaunchConfiguration('can_dev'),
+            'publish_rate': LaunchConfiguration('publish_rate'),
+        }],
+        respawn=LaunchConfiguration('enable_respawn'),
+        respawn_delay=2.0,
+    )
+
+    return LaunchDescription([
+        enable_respawn_arg,
+        can_dev_arg,
+        publish_rate_arg,
+        node,
+    ])
+

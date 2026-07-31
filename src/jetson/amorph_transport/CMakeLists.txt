@@ -1,26 +1,39 @@
 cmake_minimum_required(VERSION 3.8)
 project(amorph_transport)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
+set(CMAKE_CXX_STANDARD 20)
+add_definitions(-std=c++20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# find dependencies
-find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+find_package(backward_ros REQUIRED)
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
+
+add_subdirectory(librm)
+
+include_directories(include/amorph_transport)
+
+file(GLOB_RECURSE ${PROJECT_NAME}_SOURCES src/*.cc)
+
+# 创建组件库
+ament_auto_add_library(${PROJECT_NAME}_component SHARED ${${PROJECT_NAME}_SOURCES})
+target_link_libraries(${PROJECT_NAME}_component
+  rm
+)
+
+# 注册组件
+rclcpp_components_register_node(${PROJECT_NAME}_component
+  PLUGIN "amorph::TransportNode"
+  EXECUTABLE ${PROJECT_NAME}_node
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
   set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_package()
+ament_auto_package(USE_SCOPED_HEADER_INSTALL_DIR)

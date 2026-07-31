@@ -213,7 +213,7 @@
     <child link="l1_l" />
     <origin xyz="0.1225 -0.06 0.01" rpy="0 0 -1.5707963" />
     <axis xyz="0 0 1" />
-    <limit lower="-1" upper="1" effort="1" velocity="1" />
+    <limit lower="-0.6283185307179586" upper="1.0471975511965976" effort="1" velocity="1" />
   </joint>
 
   <joint name="j2_l" type="revolute">
@@ -221,7 +221,7 @@
     <child link="l2_l" />
     <origin xyz="0.05775 0.00025 0.0675" rpy="1.5707963 0 1.5707963" />
     <axis xyz="0 0 1" />
-    <limit lower="-1" upper="1" effort="1" velocity="1" />
+    <limit lower="1.4216661071941423" upper="2.96453716595713" effort="1" velocity="1" />
   </joint>
 
   <joint name="j3_l" type="revolute">
@@ -229,7 +229,7 @@
     <child link="l3_l" />
     <origin xyz="0.48 0 -0.0343" rpy="0 0 0" />
     <axis xyz="0 0 1" />
-    <limit lower="-1" upper="1" effort="1" velocity="1" />
+    <limit lower="-2.96453716595713" upper="0.17705548763266332" effort="1" velocity="1" />
   </joint>
 
   <joint name="j4_l" type="revolute">
@@ -237,7 +237,7 @@
     <child link="l4_l" />
     <origin xyz="0.152 0 -0.02345" rpy="3.1415927 -1.5707963 0" />
     <axis xyz="0 0 1" />
-    <limit lower="-1" upper="1" effort="1" velocity="1" />
+    <limit lower="-2.6179938779914944" upper="2.6179938779914944" effort="1" velocity="1" />
   </joint>
 
   <joint name="j5_l" type="revolute">
@@ -245,7 +245,7 @@
     <child link="l5_l" />
     <origin xyz="0.046 0 0.298" rpy="0 -1.5707963 3.1415927" />
     <axis xyz="0 0 1" />
-    <limit lower="-1" upper="1" effort="1" velocity="1" />
+    <limit lower="-1.7453292519943295" upper="1.7453292519943295" effort="1" velocity="1" />
   </joint>
 
   <joint name="j6_l" type="continuous">

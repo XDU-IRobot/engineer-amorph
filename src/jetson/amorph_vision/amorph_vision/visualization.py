@@ -8,10 +8,11 @@ from builtin_interfaces.msg import Time
 
 
 def publish_masked_pointcloud(publisher_pool, mask: np.ndarray, cv_rgb: np.ndarray,
-                              cv_depth: np.ndarray, intrinsics: dict, header):
+                              cv_depth: np.ndarray, intrinsics: dict, header,
+                              child_frame_id: str = ''):
     """
     发布mask后的点云
-    
+
     Args:
         publisher_pool: PublisherPool 实例，用于发布消息
         mask: 二值掩膜 (H, W)，尺寸可能与 cv_rgb/cv_depth 不一致
@@ -19,6 +20,7 @@ def publish_masked_pointcloud(publisher_pool, mask: np.ndarray, cv_rgb: np.ndarr
         cv_depth: 深度图 (H, W) 毫米单位
         intrinsics: 相机内参 {'fx': float, 'fy': float, 'cx': float, 'cy': float}
         header: ROS2 消息头 (包含时间戳和frame_id)
+        child_frame_id: 用于区分不同目标的 topic 后缀，如 'l'/'r'
     """
     h, w = cv_depth.shape[:2]
     if mask.shape[:2] != (h, w):
@@ -99,7 +101,8 @@ def publish_masked_pointcloud(publisher_pool, mask: np.ndarray, cv_rgb: np.ndarr
     cloud_msg.data = cloud_data
     
     # 发布点云
-    publisher_pool.publish('masked_pointcloud', PointCloud2, cloud_msg)
+    topic = f'masked_pointcloud_{child_frame_id}' if child_frame_id else 'masked_pointcloud'
+    publisher_pool.publish(topic, PointCloud2, cloud_msg)
 
 
 def publish_image(publisher_pool, image: np.ndarray, quality: int = 80):

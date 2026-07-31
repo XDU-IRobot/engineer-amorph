@@ -52,7 +52,8 @@ class EuLocatorNode(Node):
             [self.rgb_sub, self.depth_sub], queue_size=5, slop=0.05)
         self.sync.registerCallback(self.frame_callback)
 
-        self.pose_pub = self.create_publisher(PoseStamped, '~/pose', 10)
+        self.pose_l_pub = self.create_publisher(PoseStamped, '~/pose_l', 10)
+        self.pose_r_pub = self.create_publisher(PoseStamped, '~/pose_r', 10)
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
         self.publisher_pool = PublisherPool(self)
 
@@ -113,47 +114,53 @@ class EuLocatorNode(Node):
         if not detections:
             return
 
-        # 按底边 y 从大到小排序: 从下到上, 选最下面的目标
+        # 按底边 y 从大到小排序: 从下到上, 取前两个目标
         detections.sort(key=lambda d: d[0], reverse=True)
-        _, cls_id, raw_mask, box = detections[0]
+        top_two = detections[:2]
 
-        # 发布选中目标的 mask 点云
-        publish_masked_pointcloud(
-            self.publisher_pool, raw_mask, color, depth,
-            self.intrinsics, header)
+        # 按 bbox 中心 x 坐标确定左右: x 小的为 l, x 大的为 r
+        top_two.sort(key=lambda d: (d[3][0] + d[3][2]) / 2.0)
 
-        pose = self.estimator.estimate(color, depth, raw_mask, box)
-        if pose is not None:
-            # PoseStamped
-            ps = PoseStamped()
-            ps.header.stamp = stamp
-            ps.header.frame_id = frame_id
-            ps.pose.position.x = pose['position'][0]
-            ps.pose.position.y = pose['position'][1]
-            ps.pose.position.z = pose['position'][2]
-            ps.pose.orientation.x = pose['orientation'][0]
-            ps.pose.orientation.y = pose['orientation'][1]
-            ps.pose.orientation.z = pose['orientation'][2]
-            ps.pose.orientation.w = pose['orientation'][3]
-            self.pose_pub.publish(ps)
+        for side, (_, cls_id, raw_mask, box) in zip(['l', 'r'], top_two):
+            child_frame_id = f'energy_unit_{side}'
 
-            # TF
-            t = TransformStamped()
-            t.header.stamp = stamp
-            t.header.frame_id = frame_id
-            t.child_frame_id = f'energy_unit_{cls_id}'
-            t.transform.translation.x = pose['position'][0]
-            t.transform.translation.y = pose['position'][1]
-            t.transform.translation.z = pose['position'][2]
-            t.transform.rotation.x = pose['orientation'][0]
-            t.transform.rotation.y = pose['orientation'][1]
-            t.transform.rotation.z = pose['orientation'][2]
-            t.transform.rotation.w = pose['orientation'][3]
-            self.tf_broadcaster.sendTransform(t)
+            # 发布选中目标的 mask 点云
+            publish_masked_pointcloud(
+                self.publisher_pool, raw_mask, color, depth,
+                self.intrinsics, header, child_frame_id)
+
+            pose = self.estimator.estimate(color, depth, raw_mask, box)
+            if pose is not None:
+                # PoseStamped
+                ps = PoseStamped()
+                ps.header.stamp = stamp
+                ps.header.frame_id = frame_id
+                ps.pose.position.x = pose['position'][0]
+                ps.pose.position.y = pose['position'][1]
+                ps.pose.position.z = pose['position'][2]
+                ps.pose.orientation.x = pose['orientation'][0]
+                ps.pose.orientation.y = pose['orientation'][1]
+                ps.pose.orientation.z = pose['orientation'][2]
+                ps.pose.orientation.w = pose['orientation'][3]
+                self.pose_l_pub.publish(ps) if side == 'l' else self.pose_r_pub.publish(ps)
+
+                # TF
+                t = TransformStamped()
+                t.header.stamp = stamp
+                t.header.frame_id = frame_id
+                t.child_frame_id = child_frame_id
+                t.transform.translation.x = pose['position'][0]
+                t.transform.translation.y = pose['position'][1]
+                t.transform.translation.z = pose['position'][2]
+                t.transform.rotation.x = pose['orientation'][0]
+                t.transform.rotation.y = pose['orientation'][1]
+                t.transform.rotation.z = pose['orientation'][2]
+                t.transform.rotation.w = pose['orientation'][3]
+                self.tf_broadcaster.sendTransform(t)
 
         self.get_logger().debug(
             f'Frame processed: {len(detections)} detections, '
-            f'selected bottommost cls={detections[0][1]}',
+            f'selected {len(top_two)} targets',
             throttle_duration_sec=1)
 
 

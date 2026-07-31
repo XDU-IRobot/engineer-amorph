@@ -7,3 +7,6 @@
 [submodule "src/stm32/librm"]
 	path = src/stm32/librm
 	url = https://github.com/XDU-IRobot/librm.git
+[submodule "src/jetson/amorph_transport/librm"]
+	path = src/jetson/amorph_transport/librm
+	url = https://github.com/XDU-IRobot/librm.git

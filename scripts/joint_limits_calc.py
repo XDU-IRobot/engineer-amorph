@@ -3,15 +3,15 @@ from math import (pi, sin, cos, atan2,
                   degrees as deg)
 
 a = {
-    "j1_left" : [-rad(45), rad(30)],
-    "j1_right" : [-rad(30), rad(45)],
+    "j1_left" : [-rad(36), rad(60)],
+    "j1_right" : [-rad(60), rad(36)],
     "j2" : [0, 0],
     "j3" : [0, 0],
     "j4" : [0, 0],
     "j5" : [0, 0],
 }
 
-parallel_shit = atan2(84.5, 415)
+parallel_shit = atan2(84.5, 472.254)
 
 a["j2"][1] = pi - parallel_shit
 a["j2"][0] = a["j2"][1] - rad(90-1.6)
