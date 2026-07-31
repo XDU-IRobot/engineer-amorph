@@ -14,12 +14,16 @@ def publish_masked_pointcloud(publisher_pool, mask: np.ndarray, cv_rgb: np.ndarr
     
     Args:
         publisher_pool: PublisherPool 实例，用于发布消息
-        mask: 二值掩膜 (H, W)
+        mask: 二值掩膜 (H, W)，尺寸可能与 cv_rgb/cv_depth 不一致
         cv_rgb: RGB图像 (H, W, 3)
         cv_depth: 深度图 (H, W) 毫米单位
         intrinsics: 相机内参 {'fx': float, 'fy': float, 'cx': float, 'cy': float}
         header: ROS2 消息头 (包含时间戳和frame_id)
     """
+    h, w = cv_depth.shape[:2]
+    if mask.shape[:2] != (h, w):
+        mask = cv2.resize(mask.astype(np.uint8), (w, h), interpolation=cv2.INTER_NEAREST).astype(bool)
+
     # 获取掩膜的像素坐标
     ys, xs = np.where(mask)
     depths = cv_depth[ys, xs]

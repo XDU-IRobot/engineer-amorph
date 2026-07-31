@@ -10,12 +10,14 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name, [
+            'resource/best.pt',
+            'resource/energy_unit.ply',
+        ]),
     ],
-    install_requires=[
-        'setuptools',
-    ],
+    install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='s',
+    maintainer='lunarifish',
     maintainer_email='messenger@lunariio.work',
     description='TODO: Package description',
     license='TODO: License declaration',
@@ -26,12 +28,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'locator = amorph_vision.locator_node:main',
-            'locator_v2 = amorph_vision.locator_node_v2:main',
-            'yolo_test = amorph_vision.yolo_test_node:main',
-            'export_engine = amorph_vision.engine_exporter:main',
-            'fake_eu_marker = amorph_vision.fake_eu_marker:main',
-            'two_point_range = amorph_vision.2point:main',
+            'eu_locator_v3_node = amorph_vision.eu_locator_v3_node:main',
         ],
     },
 )

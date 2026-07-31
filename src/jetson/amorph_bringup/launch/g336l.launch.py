@@ -70,7 +70,7 @@ def load_parameters(context, args):
 def generate_launch_description():
     args = [
         DeclareLaunchArgument('camera_name', default_value='camera'),
-        DeclareLaunchArgument('depth_registration', default_value='false'),
+        DeclareLaunchArgument('depth_registration', default_value='true'),
         DeclareLaunchArgument('serial_number', default_value=''),
         DeclareLaunchArgument('usb_port', default_value=''),
         DeclareLaunchArgument('device_num', default_value='1'),
@@ -91,7 +91,7 @@ def generate_launch_description():
         DeclareLaunchArgument('enable_color', default_value='true'),
         DeclareLaunchArgument('color_qos', default_value='default'),
         DeclareLaunchArgument('color_camera_info_qos', default_value='default'),
-        DeclareLaunchArgument('enable_color_auto_exposure_priority', default_value='false'),
+        DeclareLaunchArgument('enable_color_auto_exposure_priority', default_value='true'),
         DeclareLaunchArgument('color_rotation', default_value='-1'),#color rotation degree : 0, 90, 180, 270
         DeclareLaunchArgument('color_flip', default_value='false'),
         DeclareLaunchArgument('color_mirror', default_value='false'),
@@ -103,7 +103,7 @@ def generate_launch_description():
         DeclareLaunchArgument('color_gain', default_value='0'),  # 低增益减少噪声（优化：静态精度优先）
         DeclareLaunchArgument('enable_color_auto_white_balance', default_value='true'),
         DeclareLaunchArgument('color_white_balance', default_value='-1'),
-        DeclareLaunchArgument('enable_color_auto_exposure', default_value='false'),
+        DeclareLaunchArgument('enable_color_auto_exposure', default_value='true'),
         DeclareLaunchArgument('color_ae_max_exposure', default_value='-1'),
         DeclareLaunchArgument('color_brightness', default_value='-1'),
         DeclareLaunchArgument('color_sharpness', default_value='-1'),

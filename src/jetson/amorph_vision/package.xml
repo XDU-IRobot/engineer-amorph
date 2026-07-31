@@ -4,21 +4,15 @@
   <name>amorph_vision</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="messenger@lunariio.work">s</maintainer>
+  <maintainer email="messenger@lunariio.work">lunarifish</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>tf2_ros</depend>
   <depend>cv_bridge</depend>
-  <depend>tf_transformations</depend>
+  <depend>tf2_ros</depend>
   <depend>message_filters</depend>
-  <depend>std_srvs</depend>
-  <depend>visualization_msgs</depend>
-  <depend>interactive_markers</depend>
-  <depend>ament_index_python</depend>
-  
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
