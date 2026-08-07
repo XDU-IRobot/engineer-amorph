@@ -117,49 +117,51 @@ void ClientLoop45hz() {
   }
   rf.js.left_gripper_open = left_gripper_open;
   rf.js.right_gripper_open = right_gripper_open;
-  const auto is_dev_online = [](rm::device::Device &dev) -> bool {
-    return dev.online_status() == rm::device::Device::kOk;
-  };
-  rf.ss.left_j1 = is_dev_online(left_arm->resources.actuator.j1);
-  rf.ss.left_j2 = is_dev_online(left_arm->resources.actuator.j2);
-  rf.ss.left_j3 = is_dev_online(left_arm->resources.actuator.j3);
-  rf.ss.left_j4 = is_dev_online(left_arm->resources.actuator.j4);
-  rf.ss.left_j5 = is_dev_online(left_arm->resources.actuator.j5);
-  rf.ss.left_j6 = is_dev_online(left_arm->resources.actuator.j6);
-  rf.ss.left_gripper = is_dev_online(left_arm->resources.actuator.gripper);
-  rf.ss.right_j1 = is_dev_online(right_arm->resources.actuator.j1);
-  rf.ss.right_j2 = is_dev_online(right_arm->resources.actuator.j2);
-  rf.ss.right_j3 = is_dev_online(right_arm->resources.actuator.j3);
-  rf.ss.right_j4 = is_dev_online(right_arm->resources.actuator.j4);
-  rf.ss.right_j5 = is_dev_online(right_arm->resources.actuator.j5);
-  rf.ss.right_j6 = is_dev_online(right_arm->resources.actuator.j6);
-  rf.ss.right_gripper = is_dev_online(right_arm->resources.actuator.gripper);
-  rf.ss.front_steer = is_dev_online(chassis->resources.f_steer);
-  rf.ss.front_wheel = is_dev_online(chassis->resources.f_wheel);
-  rf.ss.left_steer = is_dev_online(chassis->resources.l_steer);
-  rf.ss.left_wheel = is_dev_online(chassis->resources.l_wheel);
-  rf.ss.right_steer = is_dev_online(chassis->resources.r_steer);
-  rf.ss.right_wheel = is_dev_online(chassis->resources.r_wheel);
-  // rf.ss.gimbal_yaw = is_dev_online(gimbal->resources.yaw_motor);
-  rf.ss.camera_lift = is_dev_online(gimbal->resources.lift_motor);
-  rf.ss.left_j3_temp = left_arm->resources.actuator.j3.coil_temperature();
-  rf.ss.right_j3_temp = right_arm->resources.actuator.j3.coil_temperature();
-  rf.ss.left_gripper_temp = left_arm->resources.actuator.gripper.coil_temperature();
-  rf.ss.right_gripper_temp = right_arm->resources.actuator.gripper.coil_temperature();
-  rf.ss.vehicle_config = orch->fsm.get_state_id();
-  rf.ss.left_arm_fsm_state = left_arm->fsm.get_state_id();
-  rf.ss.right_arm_fsm_state = right_arm->fsm.get_state_id();
-  std::memset(&rf.eud, 0, sizeof(rf.eud));
-  if (is_dev_online(shared.vision_jetson)) {
-    for (int i = 0; i < 8; i++) {
-      rf.eud[i] = shared.vision_jetson.data()[i];
-    }
-  } else {
-    std::memset(&rf.eud, 0, sizeof(rf.eud));
-  }
-  static PacketBuilder::Packet client_packet = PacketBuilder::Build(rf);
-  client_packet = PacketBuilder::Build(rf);
-  shared.no_dtcm->vt_link_serial.WriteAsync((uint8_t *)&client_packet, sizeof(client_packet), [] {});
+  shared.jetson.FeedbackJs(rf.js);
+
+  // const auto is_dev_online = [](rm::device::Device &dev) -> bool {
+  //   return dev.online_status() == rm::device::Device::kOk;
+  // };
+  // rf.ss.left_j1 = is_dev_online(left_arm->resources.actuator.j1);
+  // rf.ss.left_j2 = is_dev_online(left_arm->resources.actuator.j2);
+  // rf.ss.left_j3 = is_dev_online(left_arm->resources.actuator.j3);
+  // rf.ss.left_j4 = is_dev_online(left_arm->resources.actuator.j4);
+  // rf.ss.left_j5 = is_dev_online(left_arm->resources.actuator.j5);
+  // rf.ss.left_j6 = is_dev_online(left_arm->resources.actuator.j6);
+  // rf.ss.left_gripper = is_dev_online(left_arm->resources.actuator.gripper);
+  // rf.ss.right_j1 = is_dev_online(right_arm->resources.actuator.j1);
+  // rf.ss.right_j2 = is_dev_online(right_arm->resources.actuator.j2);
+  // rf.ss.right_j3 = is_dev_online(right_arm->resources.actuator.j3);
+  // rf.ss.right_j4 = is_dev_online(right_arm->resources.actuator.j4);
+  // rf.ss.right_j5 = is_dev_online(right_arm->resources.actuator.j5);
+  // rf.ss.right_j6 = is_dev_online(right_arm->resources.actuator.j6);
+  // rf.ss.right_gripper = is_dev_online(right_arm->resources.actuator.gripper);
+  // rf.ss.front_steer = is_dev_online(chassis->resources.f_steer);
+  // rf.ss.front_wheel = is_dev_online(chassis->resources.f_wheel);
+  // rf.ss.left_steer = is_dev_online(chassis->resources.l_steer);
+  // rf.ss.left_wheel = is_dev_online(chassis->resources.l_wheel);
+  // rf.ss.right_steer = is_dev_online(chassis->resources.r_steer);
+  // rf.ss.right_wheel = is_dev_online(chassis->resources.r_wheel);
+  // // rf.ss.gimbal_yaw = is_dev_online(gimbal->resources.yaw_motor);
+  // rf.ss.camera_lift = is_dev_online(gimbal->resources.lift_motor);
+  // rf.ss.left_j3_temp = left_arm->resources.actuator.j3.coil_temperature();
+  // rf.ss.right_j3_temp = right_arm->resources.actuator.j3.coil_temperature();
+  // rf.ss.left_gripper_temp = left_arm->resources.actuator.gripper.coil_temperature();
+  // rf.ss.right_gripper_temp = right_arm->resources.actuator.gripper.coil_temperature();
+  // rf.ss.vehicle_config = orch->fsm.get_state_id();
+  // rf.ss.left_arm_fsm_state = left_arm->fsm.get_state_id();
+  // rf.ss.right_arm_fsm_state = right_arm->fsm.get_state_id();
+  // std::memset(&rf.eud, 0, sizeof(rf.eud));
+  // if (is_dev_online(shared.vision_jetson)) {
+  //   for (int i = 0; i < 8; i++) {
+  //     rf.eud[i] = shared.vision_jetson.data()[i];
+  //   }
+  // } else {
+  //   std::memset(&rf.eud, 0, sizeof(rf.eud));
+  // }
+  // static PacketBuilder::Packet client_packet = PacketBuilder::Build(rf);
+  // client_packet = PacketBuilder::Build(rf);
+  // shared.no_dtcm->vt_link_serial.WriteAsync((uint8_t *)&client_packet, sizeof(client_packet), [] {});
 }
 
 void UiLoop28hz() {

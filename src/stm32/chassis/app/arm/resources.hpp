@@ -8,12 +8,13 @@
 #include "action_sequencer.hpp"
 #include "actuators.hpp"
 #include "actuators_legacy.hpp"
+#include "kinematics.hpp"
 
 struct ArmResources {
   explicit ArmResources(const ArmConfig &config)
       : config{config},
         actuator{config},
-        controller{config.joint_limits, config.trajectory_limiters, config.dynamics_params} {
+        controller{config.joint_limits, config.trajectory_limiters, config.dynamics_params, config.cartesian_limit} {
     actuator.j1.SetName("j1");
     actuator.j2.SetName("j2");
     actuator.j3.SetName("j3");
@@ -29,7 +30,9 @@ struct ArmResources {
   ArmConfig config;
 
   Actuator actuator;
-  ArmController controller;                                   ///< 轨迹规划 + 控制输出计算（6轴关节）
+  ArmController controller;  ///< 轨迹规划 + 控制输出计算（6轴关节）
+  ArmKinematics kinematics;
+
   GripperController<> gripper_controller;                     ///< 夹爪控制器（独立于6轴控制器，内置校准）
   ActionSequencer sequencer{controller, gripper_controller};  ///< 动作序列执行器
 

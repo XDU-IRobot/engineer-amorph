@@ -99,6 +99,12 @@ extern "C" {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if (GPIO_Pin == ONBOARD_KEY_Pin) {
+    static uint32_t last_trigger = 0;
+    const uint32_t now = HAL_GetTick();
+    if (now - last_trigger < 500) {
+      return;
+    }
+    last_trigger = now;
     fsm::cc_arm.receive(fsm::event::ButtonEvent{Buttons::kOnBoardKey});
   }
 }
@@ -126,7 +132,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   // /* Create the arm visualization UI */
   // arm_ui::create();
 
-  // 设零点
+  // // 设零点
   // HAL_Delay(3000);  // 电机开机需要时间
   // globals->actuator.SetZero();
 

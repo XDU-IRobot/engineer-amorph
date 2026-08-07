@@ -118,11 +118,14 @@ struct LockPosition : etl::fsm_state<CcArm, LockPosition, StateId::kLockPosition
                                      event::ButtonEvent,                           //
                                      event::ForceModeSwitch,                       //
                                      event::ControlLoop> {
+  LockPosition() { j1_pid_hard_.SetCircular(true).SetCircularCycle(2.f * M_PI); }
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
+    j1_pid_hard_.Clear();
     globals->actuator.SetEnable(true);
     target_pos_ = globals->actuator.GetRawPositions();
+    target_pos_[0] = globals->actuator.GetPositions()[0];
     globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
     globals->buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     return No_State_Change;
@@ -145,7 +148,9 @@ struct LockPosition : etl::fsm_state<CcArm, LockPosition, StateId::kLockPosition
                     globals->actuator.GetPositions()[1],  //
                     globals->actuator.GetPositions()[2]};
     compensate_t_ = get_fsm_context().dynamic_model.Compensate(current_pos_, {0.f, 0.f, -9.81f});
-    globals->actuator.j1.SetCurrent(0);
+    j1_pid_hard_.Update(target_pos_[0], current_pos_[0]);
+    const float j1_rev = globals->actuator.calibrators[0].reverse() ? -1.f : 1.f;
+    globals->actuator.j1.SetCurrent(j1_pid_hard_.out() * j1_rev);
     // globals->actuator.j2.SetMitCommand(target_pos[1], 0, 0, 20, 0.4);
     // globals->actuator.j3.SetMitCommand(target_pos[2], 0, 0, 15, 2);
     const float j2_rev = globals->actuator.calibrators[1].reverse() ? -1.f : 1.f;
@@ -159,6 +164,7 @@ struct LockPosition : etl::fsm_state<CcArm, LockPosition, StateId::kLockPosition
     return No_State_Change;
   }
 
+  rm::modules::PID j1_pid_hard_{12000.f, 0.f, 0.f, 5000.f, 0.f};
   std::array<float, 6> target_pos_{};
   Eigen::Vector3f current_pos_;
   Eigen::Vector3f compensate_t_;
@@ -179,6 +185,7 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
   ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
+    j1_center_pid_.Clear();
     j4_center_pid_.Clear();
     globals->actuator.SetEnable(true);
     globals->led_controller.SetPattern<rm::modules::led_pattern::GreenBreath>();
@@ -208,7 +215,9 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
                     globals->actuator.GetPositions()[1],  //
                     globals->actuator.GetPositions()[2]};
     compensate_torque_ = get_fsm_context().dynamic_model.Compensate(current_pos_, {0.f, 0.f, -9.81f});
-    globals->actuator.j1.SetCurrent(0);
+    j1_center_pid_.Update(0.f, current_pos_[0]);
+    const float j1_rev = globals->actuator.calibrators[0].reverse() ? -1.f : 1.f;
+    globals->actuator.j1.SetCurrent(j1_center_pid_.out() * j1_rev);
     // globals->actuator.j2.SetMitCommand(target_pos[1], 0, 0, 20, 0.4);
     // globals->actuator.j3.SetMitCommand(target_pos[2], 0, 0, 15, 2);
     j4_center_pid_.Update(0.f, globals->actuator.GetPositions()[3], 1.f / 250.f);
@@ -230,6 +239,7 @@ struct Enabled : etl::fsm_state<CcArm, Enabled, StateId::kEnabled,  //
   std::array<float, 6> current_vel_{};
   Eigen::Vector3f current_pos_;
   Eigen::Vector3f compensate_torque_;
+  rm::modules::PID j1_center_pid_{6000.f, 0.f, 0.f, 2800.f, 0.f};
   rm::modules::PID j4_center_pid_{100.f, 0.f, 0.f, 70.f, 0.f};
   rm::modules::SparseValueWatcher<bool, true> btn_a_svw_;
 };

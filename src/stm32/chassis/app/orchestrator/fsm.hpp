@@ -318,6 +318,48 @@ struct Normal : etl::fsm_state<OrchestratorFsm, Normal, StateId::kNormal,  //
     //   }
     // }
 
+    // 存矿取矿
+    using RC = rm::device::VT03::KeyboardKey;
+    static std::atomic<bool> ongoing_pick_or_place{false};
+    if (ongoing_pick_or_place.load()) {
+      gimbal->fsm.receive(fsm_gimbal::event::PitchCommand{false});
+    } else {
+      gimbal->fsm.receive(fsm_gimbal::event::PitchCommand{true});
+    }
+    if (left_arm->resources.sequencer.IsFinished() && right_arm->resources.sequencer.IsFinished()) {
+      ongoing_pick_or_place.store(false);
+    }
+    const uint16_t ctrl_x = RC::kX | RC::kCtrl;
+    const uint16_t ctrl_c = RC::kC | RC::kCtrl;
+    if (((shared.vt_rc.data().keyboard_key & ctrl_x) == ctrl_x) &&  // CTRL+X
+        (!shared.eu_storage.slot_2())) {                            // 左边没有存矿
+      const bool ret = left_arm->TryExec(arm_sequence::LeftStore(left_arm->resources.actuator.GetPositions()));
+      if (ret) {
+        ongoing_pick_or_place.store(true);
+      }
+    }
+    if ((shared.vt_rc.data().keyboard_key & ctrl_c) == ctrl_c) {
+      const bool ret = left_arm->TryExec(arm_sequence::LeftTake(left_arm->resources.actuator.GetPositions()));
+      if (ret) {
+        ongoing_pick_or_place.store(true);
+      }
+    }
+    const uint16_t shift_x = RC::kX | RC::kShift;
+    const uint16_t shift_c = RC::kC | RC::kShift;
+    if (((shared.vt_rc.data().keyboard_key & shift_x) == shift_x) &&  // SHIFT+X
+        (!shared.eu_storage.slot_1())) {                              // 右边没有存矿
+      const bool ret = right_arm->TryExec(arm_sequence::RightStore(right_arm->resources.actuator.GetPositions()));
+      if (ret) {
+        ongoing_pick_or_place.store(true);
+      }
+    }
+    if ((shared.vt_rc.data().keyboard_key & shift_c) == shift_c) {
+      const bool ret = right_arm->TryExec(arm_sequence::RightTake(right_arm->resources.actuator.GetPositions()));
+      if (ret) {
+        ongoing_pick_or_place.store(true);
+      }
+    }
+
     if (shared.client_broker.online_status() == rm::device::Device::kOk) {
       if (shared.xbox_controller.GetButton(xbox_btn::BTN_LS)) {  // 收左臂
         left_arm->fsm.receive(

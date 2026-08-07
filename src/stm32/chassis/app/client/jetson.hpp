@@ -18,15 +18,12 @@ class Jetson : public rm::device::CanDevice {
                   base_frame_id + 7},
         base_frame_id_(base_frame_id) {}
 
-  const auto &data() const { return eud_; }
-
- private:
-  void RxCallback(const rm::hal::CanFrame *msg) override {
-    ReportStatus(kOk);
-    const int detection_id = msg->rx_std_id - base_frame_id_;
-    std::memcpy(&eud_[detection_id], msg->data.data(), sizeof(amorph::schema::EnergyUnitDetection));
+  void FeedbackJs(const amorph::schema::JointState &js) const {
+    can_->Write(0x100, reinterpret_cast<const uint8_t *>(&js), sizeof(js));
   }
 
+ private:
+  void RxCallback(const rm::hal::CanFrame *msg) override { ReportStatus(kOk); }
+
   uint16_t base_frame_id_;
-  amorph::schema::EnergyUnitDetection eud_[8]{};
 };

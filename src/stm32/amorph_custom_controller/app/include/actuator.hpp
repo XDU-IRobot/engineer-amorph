@@ -62,7 +62,7 @@ struct Actuator {
       // j3.SendInstruction(rm::device::DmMotorInstructions::kSetZeroPosition);
       // j4.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
       // j5.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
-      // j6.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
+      j6.SendInstruction(rm::device::LkMotorMS<15>::Instruction::kSetCurrentAsEncoderZero);
       // HAL_Delay(10);
     }
     SetEnable(false);

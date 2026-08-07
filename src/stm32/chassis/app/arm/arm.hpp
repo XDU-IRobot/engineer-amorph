@@ -82,36 +82,16 @@ struct Arm {
 
     // 定义键盘键位
     using RC = rm::device::VT03::KeyboardKey;
-    const auto register_sequence_hotkey = [&](uint16_t modifier) {
-      shared.kh.OnKeyDown(RC::kX, modifier, [&](const rm::modules::KeyEvent &e) {
-        UNUSED(e);
-        if (fsm.get_state_id() != fsm_arm::StateId::kIdle) {  // 非手动模式禁用
-          return;
-        }
-        shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
-        fsm.receive(fsm_arm::event::ActionSequence{arm_sequence::LeftTake2(resources.actuator.GetPositions())});
-      });
-      shared.kh.OnKeyDown(RC::kC, modifier, [&](const rm::modules::KeyEvent &e) {
-        UNUSED(e);
-        if (fsm.get_state_id() != fsm_arm::StateId::kIdle) {  // 非手动模式禁用
-          return;
-        }
-        shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
-        fsm.receive(fsm_arm::event::ActionSequence{arm_sequence::RightTake3(resources.actuator.GetPositions())});
-      });
-    };
     if (resources.config.arm_id == ArmConfig::kLeft) {
       shared.kh.OnKeyDown(RC::kQ, [&](const rm::modules::KeyEvent &e) {
         UNUSED(e);
         resources.gripper_controller.SetNeedsCalibration(true);
       });
-      register_sequence_hotkey(RC::kCtrl);
     } else if (resources.config.arm_id == ArmConfig::kRight) {
       shared.kh.OnKeyDown(RC::kE, [&](const rm::modules::KeyEvent &e) {
         UNUSED(e);
         resources.gripper_controller.SetNeedsCalibration(true);
       });
-      register_sequence_hotkey(RC::kShift);
     }
     fsm.set_states(state_list_, std::size(state_list_));
     fsm.start();
@@ -122,9 +102,36 @@ struct Arm {
    * @note  调用前须已调用 SharedResources::imu.Update()
    */
   void Tick() {
+    const auto start = std::chrono::steady_clock::now();
+    // Eigen::Matrix<float, 6, 1> q;
+    // for (int i = 0; i < 6; ++i) {
+    //   q(i) = resources.actuator.GetPositions()[i];
+    // }
+    // Eigen::Matrix4f T = resources.kinematics.SolveFk(q);
+    // resources.fk_pos = T.block<3, 1>(0, 3).cast<float>();
+    // resources.fk_rot = T.block<3, 3>(0, 0).cast<float>();
+    // auto fk_duration = std::chrono::steady_clock::now() - start;
+    // fk_time_micros = std::chrono::duration_cast<std::chrono::microseconds>(fk_duration).count();
+    // // // IK: end-effector pose → model angles → URDF joint angles
+    // const auto ik_r = resources.kinematics.SolveIk(T, q);
+    //
+    // if (ik_r.has_value()) {
+    //   for (int i = 0; i < 6; ++i) {
+    //     resources.ik_result[i] = ik_r.value()(i);
+    //   }
+    // }
+
     resources.device_manager.Update();
     resources.actuator.QueryEncoders();
     fsm.receive(fsm_arm::event::ControlLoop{});
     rm::device::DjiMotorBase::SendCommand(*resources.config.can);
+  }
+
+  bool TryExec(const ActionSequence &seq) {
+    if (fsm.get_state_id() != fsm_arm::StateId::kIdle) {
+      return false;
+    }
+    fsm.receive(fsm_arm::event::ActionSequence{seq});
+    return true;
   }
 };

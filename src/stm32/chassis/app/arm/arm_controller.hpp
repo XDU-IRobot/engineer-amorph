@@ -6,6 +6,7 @@
 
 #include "cartesian_limit.hpp"
 #include "dynamics.hpp"
+#include "kinematics.hpp"
 
 class ArmController {
  public:
@@ -31,9 +32,10 @@ class ArmController {
   ArmController() = delete;
   explicit ArmController(std::array<std::pair<float, float>, 6> joint_limits,  //
                          std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiters,
-                         ArmDynamics::Params dynamics_params)
-      : trajectory_limiter_(std::move(trajectory_limiters)),
+                         ArmDynamics::Params dynamics_params, CartesianLimit::BBox cartesian_limit)
+      : trajectory_interp_(std::move(trajectory_limiters)),
         joint_limits_(std::move(joint_limits)),
+        cartesian_limiter_{0.479754f, 0.45f, cartesian_limit},
         dynamics_(dynamics_params) {
     // clang-format off
     pid_[0].SetKp(0.f).SetKi(0.f).SetKd(0.f).SetMaxOut(0.f).SetDiffFirst(true);
@@ -56,8 +58,7 @@ class ArmController {
     target_positions[1] = x_limited.value()[0];
     target_positions[2] = x_limited.value()[1];
     for (size_t i = 0; i < 6; ++i) {
-      trajectory_limiter_[i].SetTarget(
-          std::clamp(target_positions[i], joint_limits_[i].first, joint_limits_[i].second));
+      trajectory_interp_[i].SetTarget(std::clamp(target_positions[i], joint_limits_[i].first, joint_limits_[i].second));
     }
     UpdateStatus();
   }
@@ -67,9 +68,9 @@ class ArmController {
     current_positions_ = current_positions;
 
     for (size_t i = 0; i < 6; ++i) {
-      trajectory_limiter_[i].Update(dt);
-      output_.positions[i] = trajectory_limiter_[i].current_position();
-      output_.velocities[i] = trajectory_limiter_[i].current_velocity();
+      trajectory_interp_[i].Update(dt);
+      output_.positions[i] = trajectory_interp_[i].current_position();
+      output_.velocities[i] = trajectory_interp_[i].current_velocity();
       output_.efforts[i] = 0.f;
     }
 
@@ -99,7 +100,7 @@ class ArmController {
   void ResetAt(const std::array<float, 6> &positions) {
     current_positions_ = positions;
     for (size_t i = 0; i < 6; ++i) {
-      trajectory_limiter_[i].ResetAt(positions[i]);
+      trajectory_interp_[i].ResetAt(positions[i]);
       pid_[i].Clear();
     }
   }
@@ -125,7 +126,7 @@ class ArmController {
  private:
   void UpdateStatus() {
     const bool all_limiters_converged = std::ranges::all_of(
-        trajectory_limiter_, [](const rm::modules::TrajectoryLimiter &limiter) { return limiter.IsAtTarget(); });
+        trajectory_interp_, [](const rm::modules::TrajectoryLimiter &limiter) { return limiter.IsAtTarget(); });
 
     if (all_limiters_converged) {
       // 方便调试先禁用下面的判断逻辑
@@ -136,7 +137,7 @@ class ArmController {
       const auto position_delta = [&] {
         std::array<float, 6> deltas;
         for (size_t i = 0; i < 6; ++i) {
-          deltas[i] = std::abs(trajectory_limiter_[i].target_position() - current_positions_[i]);
+          deltas[i] = std::abs(trajectory_interp_[i].target_position() - current_positions_[i]);
         }
         return deltas;
       }();
@@ -160,10 +161,10 @@ class ArmController {
 
   std::array<float, 6> current_positions_{};
   Output output_{};
-  std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiter_;
+  std::array<rm::modules::TrajectoryLimiter, 6> trajectory_interp_;
   std::array<rm::modules::PID, 6> pid_;
   std::array<std::pair<float, float>, 6> joint_limits_;
-  CartesianLimit cartesian_limiter_{0.479754f, 0.45f};
+  CartesianLimit cartesian_limiter_;
   ArmDynamics dynamics_;
   rm::modules::LowPassFilter2p<float> acc_lpf_[3];
   Status status_{kIdle};

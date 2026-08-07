@@ -28,10 +28,10 @@ class Ahrs {
       case PYPXPZ: {
         imu_data_ = {
           .gx = -onboard_imu_.gyro_y(),
-          .gy = -onboard_imu_.gyro_x(),
+          .gy = onboard_imu_.gyro_x(),
           .gz = -onboard_imu_.gyro_z(),
           .ax = -onboard_imu_.accel_y(),
-          .ay = -onboard_imu_.accel_x(),
+          .ay = onboard_imu_.accel_x(),
           .az = -onboard_imu_.accel_z(),
       };
         break;

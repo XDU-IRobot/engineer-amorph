@@ -4,7 +4,6 @@
 #include <librm.hpp>
 #include <etl/fsm.h>
 
-#include "kinematics.hpp"
 #include "resources.hpp"
 #include "shared_resources.hpp"
 #include "custom_controller.hpp"
@@ -131,6 +130,7 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
     get_fsm_context().planner_need_reset_ = true;
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     resources.actuator.SetEnable(false);
+    resources.actuator.ClearError();
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
@@ -414,7 +414,7 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     // p[2] = -(180_deg).rad() + std::atan2f(84.5f, 415.f) + (20_deg).rad();
     std::array<float, 6> target_p;
     target_p[0] = e.q[0];
-    target_p[1] = std::min(e.q[1], (180_deg).rad() - std::atan2f(84.5f, 415.f) - (15_deg).rad());
+    target_p[1] = std::min(e.q[1], (180_deg).rad() - std::atan2f(84.5f, 415.f) - (35_deg).rad());
     target_p[2] = std::max(e.q[2], -(180_deg).rad() + std::atan2f(84.5f, 415.f) + (20_deg).rad());
     target_p[3] = e.q[3];
     target_p[4] = e.q[4];

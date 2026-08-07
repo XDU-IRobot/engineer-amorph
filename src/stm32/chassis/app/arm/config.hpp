@@ -7,6 +7,7 @@
 #include "dynamics.hpp"
 #include "m_pi_f.hpp"
 #include "shared_resources.hpp"
+#include "cartesian_limit.hpp"
 
 using namespace rm::modules::angle_literals;
 
@@ -35,6 +36,7 @@ struct ArmConfig {
   // 运动学 / 动力学
   std::array<std::pair<float, float>, 6> joint_limits;  ///< {min, max}（逻辑坐标，rad）
   ArmDynamics::Params dynamics_params;                  ///< 动力学参数
+  CartesianLimit::BBox cartesian_limit;
 
   std::array<rm::modules::TrajectoryLimiter, 6> trajectory_limiters;
 
@@ -132,20 +134,21 @@ struct ArmConfig {
                 // {.kp = 0.f, .kd = 0.f},
             },
         .joint_limits = {{
-            {-(45_deg).rad(), (30_deg).rad()},    // j1 yaw
-            {-M_PIf * 2.f, M_PIf * 2.f},          // j2 pitch1
-            {-M_PIf * 2.f, M_PIf * 2.f},          // j3 pitch2
+            {-(36_deg).rad(), (216_deg).rad()},   // j1 yaw
+            {0.f, M_PIf},                         // j2 pitch1
+            {-M_PIf, 0.f},                        // j3 pitch2
             {-M_PIf, M_PIf},                      // j4 roll1
             {-(100_deg).rad(), (100_deg).rad()},  // j5 pitch3
             {-M_PIf * 2.f, M_PIf * 2.f},          // j6, roll2, continuous joint (+-2π soft limit)
         }},
         .dynamics_params = {.b1 = 1.623f, .b2 = 0.721f},
-        .trajectory_limiters = {{{3.775f, 5.75f},  //
-                                 {3.575f, 6.5f},   //
-                                 {3.575f, 3.5f},   //
-                                 {10.f, 50.f},     //
-                                 {10.f, 50.f},     //
-                                 {17.f, 50.f}}},
+        .cartesian_limit = {0.178f - 0.08f, 0.178f, 0.5195f - 0.05f, 0.3255f - 0.02f},
+        .trajectory_limiters = {{{60.f, 20.f},  //
+                                 {6.5f, 6.5f},  //
+                                 {6.5f, 5.5f},  //
+                                 {40.f, 50.f},  //
+                                 {40.f, 50.f},  //
+                                 {40.f, 50.f}}},
         .rc_ch_manual_gripper_switch = rc_ch::LS,
         .rc_ch_mode_switch = rc_ch::SB,
         .fsm_msg_router_id = GlobalConfig::kLeftArmMessageRouterId,
@@ -231,12 +234,13 @@ struct ArmConfig {
             {-M_PIf * 2.f, M_PIf * 2.f},          // j6, roll2, continuous joint (+-2π soft limit)
         }},
         .dynamics_params = {.b1 = 1.623f, .b2 = 0.721f},
-        .trajectory_limiters = {{{3.775f, 5.75f},  //
-                                 {3.575f, 6.5f},   //
-                                 {3.575f, 3.5f},   //
-                                 {10.f, 50.f},     //
-                                 {10.f, 50.f},     //
-                                 {17.f, 50.f}}},
+        .cartesian_limit = {0.178f, 0.178f - 0.08f, 0.5195f - 0.05f, 0.3255f - 0.02f},
+        .trajectory_limiters = {{{60.f, 20.f},  //
+                                 {6.5f, 6.5f},  //
+                                 {6.5f, 5.5f},  //
+                                 {40.f, 50.f},  //
+                                 {40.f, 50.f},  //
+                                 {40.f, 50.f}}},
         .rc_ch_manual_gripper_switch = rc_ch::RS,
         .rc_ch_mode_switch = rc_ch::SC,
         .fsm_msg_router_id = GlobalConfig::kRightArmMessageRouterId,
