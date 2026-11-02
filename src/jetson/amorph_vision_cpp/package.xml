@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>amorph_vision_cpp</name>
+  <version>0.0.0</version>
+  <description>能量单元 3D 定位：TensorRT-YOLO 实例分割 + PCA 粗定位 + 降自由度 ICP + 3D SORT 跟踪。</description>
+  <maintainer email="messenger@lunariio.work">lunarifish</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>message_filters</depend>
+  <depend>cv_bridge</depend>
+  <depend>foxglove_msgs</depend>
+  <depend>vision_msgs</depend>
+  <depend>ament_index_cpp</depend>
+  <depend>eigen3_cmake_module</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

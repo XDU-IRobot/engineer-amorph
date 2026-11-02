@@ -10,3 +10,9 @@
 [submodule "src/jetson/amorph_transport/librm"]
 	path = src/jetson/amorph_transport/librm
 	url = https://github.com/XDU-IRobot/librm.git
+[submodule "src/jetson/amorph_vision_cpp/libs/TensorRT-YOLO"]
+	path = src/jetson/amorph_vision_cpp/libs/TensorRT-YOLO
+	url = https://github.com/laugh12321/TensorRT-YOLO
+[submodule "src/jetson/amorph_vision_cpp/libs/pfr"]
+	path = src/jetson/amorph_vision_cpp/libs/pfr
+	url = https://github.com/boostorg/pfr.git

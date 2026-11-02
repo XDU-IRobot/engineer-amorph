@@ -86,7 +86,7 @@ def generate_launch_description():
         DeclareLaunchArgument('connection_delay', default_value='30'),  # 延长连接等待时间，确保不稳定 USB 链路稳定建立
         DeclareLaunchArgument('color_width', default_value='1280'),
         DeclareLaunchArgument('color_height', default_value='800'),
-        DeclareLaunchArgument('color_fps', default_value='10'),  # 保持帧率不变；若仍不稳定可降至 5
+        DeclareLaunchArgument('color_fps', default_value='15'),  # 保持帧率不变；若仍不稳定可降至 5
         DeclareLaunchArgument('color_format', default_value='MJPG'),  # MJPG 硬件压缩大幅降低 USB 带宽（应对劣化线缆）
         DeclareLaunchArgument('enable_color', default_value='true'),
         DeclareLaunchArgument('color_qos', default_value='default'),
@@ -120,7 +120,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument('depth_width', default_value='1280'),
         DeclareLaunchArgument('depth_height', default_value='800'),
-        DeclareLaunchArgument('depth_fps', default_value='10'),  # 保持帧率不变；若仍不稳定可降至 5
+        DeclareLaunchArgument('depth_fps', default_value='15'),  # 保持帧率不变；若仍不稳定可降至 5
         DeclareLaunchArgument('depth_format', default_value='ANY'),
         DeclareLaunchArgument('enable_depth', default_value='true'),
         DeclareLaunchArgument('depth_qos', default_value='default'),

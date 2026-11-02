@@ -12,10 +12,10 @@ def generate_launch_description():
     )
     
     return LaunchDescription([
-        # 启动能量单元定位节点
+        # 启动能量单元定位节点（C++ / TensorRT）
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(launch_dir, 'eu_locator.launch.py')
+                os.path.join(launch_dir, 'eu_locator_cpp.launch.py')
             ),
             launch_arguments={'enable_respawn': 'true'}.items(),
         ),
@@ -28,10 +28,10 @@ def generate_launch_description():
             launch_arguments={'enable_respawn': 'true'}.items(),
         ),
         
-        # 启动MoveIt
+        # robot state publisher
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(launch_dir, 'moveit.launch.py')
+                os.path.join(launch_dir, 'rsp_jsp.launch.py')
             ),
             launch_arguments={'enable_respawn': 'true'}.items(),
         ),

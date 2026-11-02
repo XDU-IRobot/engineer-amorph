@@ -1,0 +1,41 @@
+{
+  "autorun": false,
+  "shellPath": "/bin/bash",
+  "terminals": [
+    {
+      "name": "rsp+jsp",
+      "color": "terminal.ansiCyan",
+      "cwd": "${workspaceFolder}",
+      "commands": [
+        "source install/setup.bash",
+        "ros2 launch amorph_bringup rsp_jsp.launch.py jsp_gui:=true"
+      ]
+    },
+    {
+      "name": "camera",
+      "color": "terminal.ansiGreen",
+      "cwd": "${workspaceFolder}",
+      "commands": [
+        "source install/setup.bash",
+        "ros2 launch amorph_bringup g336l.launch.py"
+      ]
+    },
+    {
+      "name": "eu_locator",
+      "color": "terminal.ansiYellow",
+      "cwd": "${workspaceFolder}",
+      "commands": [
+        "source install/setup.bash",
+        "ros2 launch amorph_bringup eu_locator_cpp.launch.py"
+      ]
+    },
+    {
+      "name": "foxglove",
+      "color": "terminal.ansiMagenta",
+      "cwd": "${workspaceFolder}",
+      "commands": [
+        "./scripts/foxglove_up.sh"
+      ]
+    }
+  ]
+}

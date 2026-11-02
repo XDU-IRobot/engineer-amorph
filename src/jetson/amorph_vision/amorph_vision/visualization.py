@@ -1,10 +1,10 @@
-# 可视化和点云发布模块
 import struct
 import numpy as np
 import cv2
+from foxglove_msgs.msg import (
+    Color, ImageAnnotations, Point2, PointsAnnotation, TextAnnotation)
 from sensor_msgs.msg import PointCloud2, PointField, CompressedImage
 from std_msgs.msg import Header
-from builtin_interfaces.msg import Time
 
 
 def publish_masked_pointcloud(publisher_pool, mask: np.ndarray, cv_rgb: np.ndarray,
@@ -127,3 +127,112 @@ def publish_image(publisher_pool, image: np.ndarray, quality: int = 80):
     compressed_msg.data = buffer.tobytes()
     
     publisher_pool.publish('annotated_image/compressed', CompressedImage, compressed_msg)
+
+
+def publish_yolo_annotation(publisher_pool, results, header,
+                            topic: str = 'yolo_annotation',
+                            draw_masks: bool = True,
+                            draw_boxes: bool = True,
+                            draw_labels: bool = True,
+                            draw_track_id: bool = True,
+                            track_ids=None,
+                            mask_outline_color=(0.0, 1.0, 0.0, 1.0),
+                            mask_fill_color=(0.0, 1.0, 0.0, 0.25),
+                            box_color=(1.0, 0.5, 0.0, 1.0),
+                            text_color=(1.0, 1.0, 1.0, 1.0),
+                            text_background_color=(0.0, 0.0, 0.0, 0.7),
+                            line_thickness: float = 2.0,
+                            font_size: float = 12.0):
+    """
+    把 YOLO 推理结果发布为 foxglove_msgs/ImageAnnotations
+
+    Foxglove 依靠时间戳把标注叠加到对应帧的图像上，所以 messages 的 timestamp
+    必须与图像头的时间戳一致（不从 header 的 frame_id 读取）。
+
+    Args:
+        publisher_pool: PublisherPool 实例，用于发布消息
+        results: YOLO 模型 __call__ 的返回值（List[ultralytics.engine.results.Results]）
+        header: 对应图像的 ROS2 消息头，用其中的 stamp
+        topic: 发布的话题名
+        draw_masks: 是否用分割轮廓画 mask
+        draw_boxes: 是否画检测框
+        draw_labels: 是否画类别与置信度文本
+        draw_track_id: 是否在文本里显示 track id
+        track_ids: 与检测一一对应的 track id 列表 (按 results/boxes 顺序展开),
+            为 None 时使用 results 里自带的 boxes.id
+        mask_outline_color: mask 轮廓 RGBA
+        mask_fill_color: mask 填充 RGBA，alpha=0 为不填充
+        box_color: 检测框 RGBA
+        text_color: 文本 RGBA
+        text_background_color: 文本背景 RGBA
+        line_thickness: 轮廓与框的线宽，像素
+        font_size: 文本字号，像素
+    """
+    def make_color(values):
+        return Color(r=float(values[0]), g=float(values[1]),
+                     b=float(values[2]), a=float(values[3]))
+
+    def make_polygon(points, outline_color, fill_color):
+        annotation = PointsAnnotation()
+        annotation.timestamp = header.stamp
+        annotation.type = PointsAnnotation.LINE_LOOP
+        annotation.points = [Point2(x=float(x), y=float(y)) for x, y in points]
+        annotation.outline_color = make_color(outline_color)
+        annotation.fill_color = make_color(fill_color)
+        annotation.thickness = line_thickness
+        return annotation
+
+    msg = ImageAnnotations()
+    # 设置后，单个标注自身的 timestamp 会被忽略
+    msg.timestamp = header.stamp
+
+    # track_ids 按检测的扁平顺序消费，因此可以跨多个 Results 正确定位
+    track_id_iter = iter(track_ids) if track_ids is not None else None
+
+    for result in results:
+        boxes = result.boxes
+        if boxes is None or len(boxes) == 0:
+            continue
+
+        names = result.names or {}
+        # masks.xy 是每个目标的轮廓多边形，坐标为像素
+        polygons = result.masks.xy if result.masks is not None else None
+
+        for i in range(len(boxes)):
+            x1, y1, x2, y2 = (float(v) for v in boxes.xyxy[i].tolist())
+
+            track_id = None
+            if track_id_iter is not None:
+                track_id = next(track_id_iter, None)
+            elif boxes.id is not None:
+                track_id = int(boxes.id[i].item())
+
+            if draw_masks and polygons is not None and i < len(polygons):
+                if len(polygons[i]) >= 3:
+                    msg.points.append(make_polygon(
+                        polygons[i], mask_outline_color, mask_fill_color))
+
+            if draw_boxes:
+                msg.points.append(make_polygon(
+                    [(x1, y1), (x2, y1), (x2, y2), (x1, y2)],
+                    box_color, (0.0, 0.0, 0.0, 0.0)))
+
+            if draw_labels:
+                cls_id = int(boxes.cls[i].item())
+                confidence = float(boxes.conf[i].item())
+                label = names.get(cls_id, str(cls_id))
+
+                # 便于在 foxglove 里确认跨帧是否同一目标
+                if draw_track_id and track_id is not None:
+                    label = f'#{track_id} {label}'
+
+                text = TextAnnotation()
+                text.timestamp = header.stamp
+                text.position = Point2(x=x1, y=max(y1 - font_size, 0.0))
+                text.text = f'{label} {confidence:.2f}'
+                text.font_size = font_size
+                text.text_color = make_color(text_color)
+                text.background_color = make_color(text_background_color)
+                msg.texts.append(text)
+
+    publisher_pool.publish(topic, ImageAnnotations, msg)

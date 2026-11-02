@@ -175,6 +175,14 @@
         <inertia ixx="0.0000379" ixy="0.0000001" ixz="-0.0000001" iyy="0.0000261" iyz="0.0000023" izz="0.0000171" />
       </inertial>
     </link>
+    <link name="apriltag_r"/>
+
+    <joint name="apriltag_joint_r" type="fixed">
+      <parent link="l4_r" />
+      <child link="apriltag_r" />
+      <origin xyz="-0.005 0.033 0.155" rpy="0 0 0" />
+    </joint>
+
     <joint name="j5_r" type="revolute">
       <parent link="l4_r" />
       <child link="l5_r" />

@@ -48,4 +48,7 @@ class PoseEstimator:
         source_pts = self.sampler.sample_visible(pose, to_camera=True)
 
         refined = refine_pose(source_pts, target_pts, pose, cyl_radius=0.027)
-        return refined if refined is not None else pose
+        if refined is None:
+            return pose
+        # ICP 只更新位姿字段, 保留 PCA 阶段的掩膜等附加信息供调用方使用
+        return {**pose, **refined}

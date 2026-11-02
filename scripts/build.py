@@ -21,6 +21,12 @@ def main():
         default=None,
         help="Number of parallel build jobs (sets MAKEFLAGS=-j<N>)",
     )
+    parser.add_argument(
+        "--packages-select",
+        nargs="+",
+        default=None,
+        help="Only build the listed packages (passed through to colcon)",
+    )
     parsed = parser.parse_args()
 
     env = os.environ.copy()
@@ -34,6 +40,8 @@ def main():
         "--cmake-args",
         *CMAKE_ARGS,
     ]
+    if parsed.packages_select:
+        args += ["--packages-select", *parsed.packages_select]
     result = subprocess.run(colcon_cmd + args, env=env)
     sys.exit(result.returncode)
 

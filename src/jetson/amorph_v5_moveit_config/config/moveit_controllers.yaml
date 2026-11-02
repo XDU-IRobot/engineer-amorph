@@ -11,6 +11,8 @@ moveit_simple_controller_manager:
 
   arm_l_controller:
     type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
     joints:
       - j1_l
       - j2_l
@@ -20,6 +22,8 @@ moveit_simple_controller_manager:
       - j6_l
   arm_r_controller:
     type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
     joints:
       - j1_r
       - j2_r
@@ -29,9 +33,13 @@ moveit_simple_controller_manager:
       - j6_r
   gripper_l_controller:
     type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
     joints:
       - gripper_l_l
   gripper_r_controller:
     type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
     joints:
       - gripper_l_r

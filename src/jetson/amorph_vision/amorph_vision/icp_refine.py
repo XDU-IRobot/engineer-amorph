@@ -65,13 +65,13 @@ class SurfaceCullingSampler:
         keep = np.linalg.norm(pts_cam, axis=1) <= clip_radius
         result = np.column_stack([pts[keep], self._colors[keep]])
         t2 = time()
-        print(f"[Sampler] transform={t1-t0:.4f}s cull={t2-t1:.4f}s total={t2-t0:.4f}s n={result.shape[0]}")
+        # print(f"[Sampler] transform={t1-t0:.4f}s cull={t2-t1:.4f}s total={t2-t0:.4f}s n={result.shape[0]}")
         return result
 
 
 # ---- 内部辅助 ---------------------------------------------------------
 
-
+_EPS = 1e-12
 
 
 def _huber_weight(r: np.ndarray, k: float) -> np.ndarray:
@@ -80,17 +80,60 @@ def _huber_weight(r: np.ndarray, k: float) -> np.ndarray:
     return np.where(abs_r <= k, 1.0, k / abs_r)
 
 
+def _subsample(points: np.ndarray, max_points: int) -> np.ndarray:
+    """等间隔抽稀到 max_points 个点.
+
+    等间隔而非随机采样: 结果与帧序无关, 不会给位姿引入随机抖动.
+    """
+    if max_points <= 0 or len(points) <= max_points:
+        return points
+    idx = np.linspace(0, len(points) - 1, max_points).astype(np.int64)
+    return points[idx]
+
+
+def _prepare_target(target_pts: np.ndarray, voxel_size: float
+                    ) -> tuple[np.ndarray, np.ndarray]:
+    """体素降采样目标点云并估计法向, 供整个迭代过程复用.
+
+    降采样让最近邻查询和法向估计都明显变快; 用 Open3D 的 C++ 实现.
+    """
+    pcd = o3d.geometry.PointCloud(
+        o3d.utility.Vector3dVector(target_pts[:, :3].astype(np.float64)))
+    if voxel_size > 0:
+        pcd = pcd.voxel_down_sample(voxel_size)
+    pcd.estimate_normals(
+        o3d.geometry.KDTreeSearchParamHybrid(radius=0.02, max_nn=16))
+    return np.asarray(pcd.points), np.asarray(pcd.normals)
+
+
+def _solve_translation(normals: np.ndarray, residual: np.ndarray,
+                       weights: np.ndarray) -> np.ndarray:
+    """加权点对面残差的 3x3 法方程解 (比 lstsq 的 SVD 快两个数量级)."""
+    a = normals * weights[:, None]
+    return np.linalg.solve(a.T @ a + _EPS * np.eye(3), a.T @ (residual * weights))
+
+
 # ---- 降自由度 ICP -----------------------------------------------------
 
 
 class TranslationRefiner:
-    """3-DOF: 固定旋转, 只优化 xyz 平移 (点对面 + Huber)."""
+    """3-DOF: 固定旋转, 只优化 xyz 平移 (点对面 + Huber).
 
-    def __init__(self, max_dist: float = 0.05, max_iter: int = 30,
-                 huber_k: float = 0.01):
+    旋转被冻结在 PCA 结果上, 因此不能用 Open3D 的 registration_icp
+    (那是 6-DOF, 会把旋转误差折算进平移分量). 这里只借它的
+    voxel_down_sample / estimate_normals 两个 C++ 组件, 迭代本身用
+    numpy 向量化, 并靠步长早停把迭代次数从 30 降到 5~8 次.
+    """
+
+    def __init__(self, max_dist: float = 0.05, max_iter: int = 15,
+                 huber_k: float = 0.01, max_points: int = 800,
+                 voxel_size: float = 0.004, tol: float = 1e-5):
         self.max_dist = max_dist
         self.max_iter = max_iter
         self.huber_k = huber_k
+        self.max_points = max_points
+        self.voxel_size = voxel_size
+        self.tol = tol
 
     def refine(self, source_pts: np.ndarray, target_pts: np.ndarray,
                init_pose: dict) -> dict | None:
@@ -98,54 +141,34 @@ class TranslationRefiner:
             return None
 
         t_pca = np.array(init_pose['position'], dtype=np.float64)
-        src = source_pts[:, :3].astype(np.float64)
+        src = _subsample(source_pts[:, :3].astype(np.float64), self.max_points)
 
-        # 下采样 source 点以加速
-        n_src = len(src)
-        if n_src > 3000:
-            rng = np.random.default_rng(42)
-            src = src[rng.choice(n_src, 3000, replace=False)]
-
-        tgt = target_pts[:, :3].astype(np.float64)
-
-        tgt_pcd = o3d.geometry.PointCloud()
-        tgt_pcd.points = o3d.utility.Vector3dVector(tgt)
-
-        t_norm = time()
-        tgt_pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=30))
-        tgt_normals = np.asarray(tgt_pcd.normals)
+        tgt, tgt_normals = _prepare_target(target_pts, self.voxel_size)
+        if len(tgt) < 10:
+            return None
         tgt_tree = cKDTree(tgt)
-        print(f"[T-ICP] setup: normal+kdtree={time()-t_norm:.4f}s src={len(src)}")
 
         delta = np.zeros(3)
         prev_rmse, prev_fit = float("inf"), 0.0
-
-        t_loop = time()
-        for it in range(self.max_iter):
-            src_t = src + delta
-            dist, idx = tgt_tree.query(src_t, k=1)
+        for _ in range(self.max_iter):
+            dist, idx = tgt_tree.query(src + delta, k=1)
             valid = dist < self.max_dist
             if valid.sum() < 10:
                 break
 
             i_v = idx[valid]                             # target 最近邻索引
             n_v = tgt_normals[i_v]                       # 对应法向量 (K,3)
-            tgt_v = tgt[i_v]
-            src_v = src_t[valid]
+            residual = np.sum((tgt[i_v] - (src + delta)[valid]) * n_v, axis=1)
 
-            b = np.sum((tgt_v - src_v) * n_v, axis=1)    # 法向残差 (K,)
-            w = _huber_weight(b, self.huber_k)
-            d_delta, _, _, _ = np.linalg.lstsq(n_v * w[:, None], b * w, rcond=None)
-            delta += d_delta
+            w = _huber_weight(residual, self.huber_k)
+            step = _solve_translation(n_v, residual, w)
+            delta += step
 
-            fit = valid.sum() / len(src)
-            rmse = np.sqrt(np.mean(b ** 2))
-            if it > 0 and abs(prev_rmse - rmse) / max(prev_rmse, 1e-10) < 1e-6 and \
-               abs(prev_fit - fit) / max(prev_fit, 1e-10) < 1e-6:
+            prev_fit = valid.sum() / len(src)
+            prev_rmse = float(np.sqrt(np.mean(residual ** 2)))
+            if np.linalg.norm(step) < self.tol:
                 break
-            prev_rmse, prev_fit = rmse, fit
 
-        print(f"[T-ICP] delta={delta} n_iter={it+1} loop_time={time()-t_loop:.4f}s fitness={prev_fit:.4f} rmse={prev_rmse:.4f}")
         return {
             'position': (t_pca + delta).tolist(),
             'orientation': init_pose['orientation'],
@@ -154,13 +177,20 @@ class TranslationRefiner:
 
 
 class RayOffsetRefiner:
-    """1-DOF: 沿相机光心→PCA 位置射线优化标量偏移 (TranslationRefiner 回退)."""
+    """1-DOF: 沿相机光心→PCA 位置射线优化标量偏移 (TranslationRefiner 回退).
 
-    def __init__(self, max_dist: float = 0.05, max_iter: int = 50,
-                 huber_k: float = 0.01):
+    与 TranslationRefiner 共用降采样/法向预处理与步长早停.
+    """
+
+    def __init__(self, max_dist: float = 0.05, max_iter: int = 15,
+                 huber_k: float = 0.01, max_points: int = 800,
+                 voxel_size: float = 0.004, tol: float = 1e-5):
         self.max_dist = max_dist
         self.max_iter = max_iter
         self.huber_k = huber_k
+        self.max_points = max_points
+        self.voxel_size = voxel_size
+        self.tol = tol
 
     def refine(self, source_pts: np.ndarray, target_pts: np.ndarray,
                init_pose: dict) -> dict | None:
@@ -173,70 +203,53 @@ class RayOffsetRefiner:
             return None
         d = t_pca / r
 
-        src = source_pts[:, :3].astype(np.float64)
+        src = _subsample(source_pts[:, :3].astype(np.float64), self.max_points)
 
-        n_src = len(src)
-        if n_src > 3000:
-            rng = np.random.default_rng(42)
-            src = src[rng.choice(n_src, 3000, replace=False)]
-
-        tgt = target_pts[:, :3].astype(np.float64)
-
-        tgt_pcd = o3d.geometry.PointCloud()
-        tgt_pcd.points = o3d.utility.Vector3dVector(tgt)
-
-        t_norm = time()
-        tgt_pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=30))
-        tgt_normals = np.asarray(tgt_pcd.normals)
+        tgt, tgt_normals = _prepare_target(target_pts, self.voxel_size)
+        if len(tgt) < 10:
+            return None
         tgt_tree = cKDTree(tgt)
-        print(f"[R-ICP] setup: normal+kdtree={time()-t_norm:.4f}s src={len(src)}")
 
         lam = 0.0
         prev_rmse, prev_fit = float("inf"), 0.0
-
-        t_loop = time()
-        for it in range(self.max_iter):
-            src_t = src + lam * d
-            dist, idx = tgt_tree.query(src_t, k=1)
+        for _ in range(self.max_iter):
+            dist, idx = tgt_tree.query(src + lam * d, k=1)
             valid = dist < self.max_dist
             if valid.sum() < 10:
                 break
 
             i_v = idx[valid]
             n_v = tgt_normals[i_v]
-            tgt_v = tgt[i_v]
-            src_v = src_t[valid]
+            residual = np.sum((tgt[i_v] - (src + lam * d)[valid]) * n_v, axis=1)
+            projection = np.sum(d * n_v, axis=1)          # 射线方向在法向的投影
 
-            b = np.sum((tgt_v - src_v) * n_v, axis=1)    # 法向残差 (K,)
-            a = np.sum(d * n_v, axis=1)                   # 射线方向在法向的投影
-
-            w = _huber_weight(b, self.huber_k)
-            num, den = np.sum(w * a * b), np.sum(w * a * a)
+            w = _huber_weight(residual, self.huber_k)
+            den = np.sum(w * projection * projection)
             if abs(den) < 1e-12:
                 break
-            lam += num / den
+            step = np.sum(w * projection * residual) / den
+            lam += step
 
-            fit = valid.sum() / len(src)
-            rmse = np.sqrt(np.mean(b ** 2))
-            if it > 0 and abs(prev_rmse - rmse) / max(prev_rmse, 1e-10) < 1e-4 and \
-               abs(prev_fit - fit) / max(prev_fit, 1e-10) < 1e-4:
+            prev_fit = valid.sum() / len(src)
+            prev_rmse = float(np.sqrt(np.mean(residual ** 2)))
+            if abs(step) * r < self.tol:
                 break
-            prev_rmse, prev_fit = rmse, fit
 
-        print(f"[R-ICP] λ={lam:.4f} offset={lam*r:.4f}m n_iter={it+1} loop_time={time()-t_loop:.4f}s fitness={prev_fit:.4f} rmse={prev_rmse:.4f}")
         return {
             'position': (t_pca + lam * d).tolist(),
             'orientation': init_pose['orientation'],
             'fitness': prev_fit, 'rmse': prev_rmse,
         }
 
+
 def refine_pose(source_pts: np.ndarray, target_pts: np.ndarray,
                 init_pose: dict, cyl_radius: float = 0.027) -> dict:
     """用降自由度 ICP 精化 PCA 位姿的平移分量.
 
-    策略: 先用 3-DOF 平移 ICP 解 xyz; 若 fitness < 阈值则回退到
+    策略: 先用 3-DOF 平移 ICP 解 xyz; 若 fitness 不足则回退到
     1-DOF 射线 ICP (沿相机→PCA 方向优化标量偏移)。
-    两种方法都冻结 PCA 旋转, 只优化平移。
+    两种方法都冻结 PCA 旋转, 只优化平移。旋转必须锁死: 能量单元在
+    可见面上接近对称, 放开旋转后平移分量会去补偿旋转误差。
 
     Parameters
     ----------
@@ -252,20 +265,10 @@ def refine_pose(source_pts: np.ndarray, target_pts: np.ndarray,
     if len(source_pts) < 50 or len(target_pts) < 50:
         return init_pose
 
-    t0 = time()
-    # Step 1: 3-DOF 平移 ICP
-    t_refiner = TranslationRefiner(max_dist=0.05, max_iter=30, huber_k=0.01)
-    result = t_refiner.refine(source_pts, target_pts, init_pose)
-    t1 = time()
-
+    result = TranslationRefiner().refine(source_pts, target_pts, init_pose)
     if result is not None and result['fitness'] > 0.3:
-        print(f"[refine] 3-DOF ok, total={t1-t0:.4f}s")
         return result
 
-    # Step 2: 回退到 1-DOF 射线 ICP
-    print("[refine] 3-DOF ICP 不收敛, 回退到 1-DOF 射线 ICP")
-    r_refiner = RayOffsetRefiner(max_dist=0.05, max_iter=50, huber_k=0.01)
-    result = r_refiner.refine(source_pts, target_pts, init_pose)
-    print(f"[refine] 1-DOF fallback, total={time()-t0:.4f}s")
-
+    # 3-DOF 不收敛时沿视线方向做 1-DOF 回退
+    result = RayOffsetRefiner().refine(source_pts, target_pts, init_pose)
     return result if result is not None else init_pose

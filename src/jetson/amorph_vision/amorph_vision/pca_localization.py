@@ -1,5 +1,5 @@
 """
-第一阶段 PCA粗定位 从YOLO给出的RGBD mask大致（masks）计算目标的3D位姿
+第一阶段 PCA粗定位 从YOLO给出的RGBD mask大致计算目标的3D位姿
 """
 
 from typing import Tuple, Optional, Dict, Any

@@ -1,0 +1,39 @@
+# OMPL planning pipeline 配置
+# 只保留 RRTConnect，并要求每个规划组都能在 planner_configs 里被找到，
+# 否则 OMPL 会报 "Cannot find planning configuration for group 'arm_l'"
+
+planning_plugins:
+  - ompl_interface/OMPLPlanner
+
+# request adapter 的处理顺序即下面的书写顺序
+request_adapters:
+  - default_planning_request_adapters/ResolveConstraintFrames
+  - default_planning_request_adapters/ValidateWorkspaceBounds
+  - default_planning_request_adapters/CheckStartStateBounds
+  - default_planning_request_adapters/CheckStartStateCollision
+
+response_adapters:
+  - default_planning_response_adapters/AddTimeOptimalParameterization
+  - default_planning_response_adapters/ValidateSolution
+  - default_planning_response_adapters/DisplayMotionPath
+
+# 具名 planner 配置，名字必须与 plan request 里的 planner_id 完全一致
+planner_configs:
+  RRTConnectkConfigDefault:
+    type: geometric::RRTConnect
+    range: 0.0  # 0 = 使用 OMPL 默认的扩展步长
+
+arm_l:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs:
+    - RRTConnectkConfigDefault
+  # 投影维度只用于可视化/部分采样器，取前两个关节即可
+  projection_evaluator: joints(j1_l,j2_l)
+  longest_valid_segment_fraction: 0.005
+
+arm_r:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs:
+    - RRTConnectkConfigDefault
+  projection_evaluator: joints(j1_r,j2_r)
+  longest_valid_segment_fraction: 0.005

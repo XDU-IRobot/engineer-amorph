@@ -240,6 +240,14 @@
     <limit lower="-2.6179938779914944" upper="2.6179938779914944" effort="1" velocity="1" />
   </joint>
 
+  <link name="apriltag_l"/>
+
+  <joint name="apriltag_joint_l" type="fixed">
+    <parent link="l4_l" />
+    <child link="apriltag_l" />
+    <origin xyz="-0.005 -0.033 0.155" rpy="0 0 0" />
+  </joint>
+
   <joint name="j5_l" type="revolute">
     <parent link="l4_l" />
     <child link="l5_l" />
