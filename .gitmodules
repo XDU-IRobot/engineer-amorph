@@ -16,3 +16,6 @@
 [submodule "src/jetson/amorph_vision_cpp/libs/pfr"]
 	path = src/jetson/amorph_vision_cpp/libs/pfr
 	url = https://github.com/boostorg/pfr.git
+[submodule "src/stm32/CMSIS-DSP"]
+	path = src/stm32/CMSIS-DSP
+	url = https://github.com/ARM-software/CMSIS-DSP.git
