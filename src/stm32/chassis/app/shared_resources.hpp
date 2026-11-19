@@ -17,7 +17,6 @@
 #include "client/xbox_controller.hpp"
 #include "custom_controller.hpp"
 #include "client/jetson.hpp"
-#include "client/jetson_2point.hpp"
 #include "ui/TaskScheduler.hpp"
 #include "arm/eu_storage.hpp"
 
@@ -82,12 +81,13 @@ struct SharedResources {
   rm::device::DeviceManager<5> device_manager;  ///< 设备管理器，用于监测各个设备的在线状态
   rm::modules::KeyboardHandler<> kh{rm::device::VT03::kCtrl |
                                     rm::device::VT03::kShift};  ///< 键盘处理器，用于处理客户端的键盘输入
-  Jetson vision_jetson{comm_can};
-  Jetson2Point jetson{comm_can};
+  Jetson jetson{comm_can};
 
   EnergyUnitStorage eu_storage{{STORAGE_1_GPIO_Port, STORAGE_1_Pin}, {STORAGE_2_GPIO_Port, STORAGE_2_Pin}};
 
   rm::device::UITaskScheduler ui_ts{28.f};
+
+  // rm::modules::CanSniffer<> cs{mcp_can};
 
   etl::string<512> system_status;  ///< 系统状态摘要字符串
 

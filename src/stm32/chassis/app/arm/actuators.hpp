@@ -66,7 +66,7 @@ class Actuator {
                        calibrators[1].reverse() ? -output.efforts[1] : output.efforts[1],        //
                        pd_config[1].kp,                                                          //
                        pd_config[1].kd);
-      j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]) * std::powf(1.4f, 2),   // 减速比
+      j3.SetMitCommand(calibrators[2].LogicalToReal(output.positions[2]) * std::powf(1.37f, 2),   // 减速比
                        calibrators[2].reverse() ? -output.velocities[2] : output.velocities[2],  //
                        calibrators[2].reverse() ? -output.efforts[2] : output.efforts[2],        //
                        pd_config[2].kp,                                                          //
@@ -134,7 +134,7 @@ class Actuator {
     std::array<float, 6> positions{
         j1.pos(),                       //
         j2.pos(),                       //
-        j3.pos() / std::powf(1.4f, 2),  // 1:1.5减速比
+        j3.pos() / std::powf(1.37f, 2),  // 减速比
         j4.pos(),                       //
         j5.pos(),                       //
         j6_encoder.RealPosition(),      //
@@ -158,7 +158,7 @@ class Actuator {
     std::array<float, 6> velocities{
         j1.vel(),                       //
         j2.vel(),                       //
-        j3.vel() / std::powf(1.4f, 2),  // 1:1.5减速比
+        j3.vel() / std::powf(1.37f, 2),  // 1:1.5减速比
         j4.vel(),                       //
         j5.vel(),                       //
         j6.rpm() * 2.f * M_PIf / 60.f,  //

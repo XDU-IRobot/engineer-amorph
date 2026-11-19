@@ -1,6 +1,7 @@
 #include "cli.hpp"
 
 #define EMBEDDED_CLI_IMPL
+#include "cansniffer_cli.hpp"
 #include "embedded_cli.h"
 
 #include <cstring>
@@ -181,6 +182,12 @@ void Init() {
                          true,           //
                          nullptr,        //
                          program::Reboot});
+  // embeddedCliAddBinding(cli,                                                         //
+  //                       {"cansniffer",                                                //
+  //                        "Sniff CAN bus. Usage: cansniffer <list|id|active|dropped>",  //
+  //                        true,                                                        //
+  //                        nullptr,                                                     //
+  //                        program::CanSnifferCommand});
 
   SharedResources::GetInstance().no_dtcm->cli_serial.AttachRxCallback([](etl::span<const uint8_t> data) {
     if (!cli) {
@@ -195,5 +202,6 @@ void Init() {
 void Process() {
   embeddedCliProcess(cli);
   PushTxBuffer();
+  // program::CanSnifferTick(cli, tx_buffer.available());
 }
 }  // namespace cli

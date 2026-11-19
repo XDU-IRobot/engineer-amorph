@@ -11,26 +11,38 @@ struct Arm {
   // 状态机
   fsm_arm::Arm fsm{resources};
   fsm_arm::state::NoForce state_no_force;
-  fsm_arm::state::Manual state_manual;
   fsm_arm::state::Idle state_idle;
+  fsm_arm::state::Moving state_moving;
+  fsm_arm::state::Fault state_fault;
+  fsm_arm::state::Manual state_manual;
   fsm_arm::state::HostControl state_host_control;
   fsm_arm::state::CustomCtrl state_custom_ctrl;
   fsm_arm::state::Sequencing state_sequencing;
-  fsm_arm::state::Fault state_fault;
   fsm_arm::state::Ident state_ident;
 
  private:
-  // 这个数组需与fsm同生命周期，所以放在这里
-  etl::ifsm_state *state_list_[8]  //
+  // 这个数组需与fsm同生命周期，所以放在这里；下标必须与 fsm_arm::StateId 一一对应
+  etl::ifsm_state *state_list_[9]  //
       {
-          &state_no_force,      //
+          &state_no_force,      //  kNoForce
+          &state_idle,          //  kIdle
+          &state_moving,        //  kMoving
+          &state_fault,         //  kFault
+          &state_manual,        //  kManual
+          &state_host_control,  //  kHostControl
+          &state_custom_ctrl,   //  kCustomCtrl
+          &state_sequencing,    //  kSequencing
+          &state_ident,         //  kIdent
+      };
+
+  // Moving 的子状态列表，首位为默认子状态（ForceModeSwitch{kMoving} 会进入它）
+  etl::ifsm_state *moving_children_[5]  //
+      {
           &state_manual,        //
-          &state_idle,          //
           &state_host_control,  //
           &state_custom_ctrl,   //
           &state_sequencing,    //
-          &state_fault,         //
-          &state_ident,
+          &state_ident,         //
       };
 
  public:
@@ -82,37 +94,19 @@ struct Arm {
 
     // 定义键盘键位
     using RC = rm::device::VT03::KeyboardKey;
-    const auto register_sequence_hotkey = [&](uint16_t modifier) {
-      shared.kh.OnKeyDown(RC::kX, modifier, [&](const rm::modules::KeyEvent &e) {
-        UNUSED(e);
-        if (fsm.get_state_id() != fsm_arm::StateId::kIdle) {  // 非手动模式禁用
-          return;
-        }
-        shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
-        fsm.receive(fsm_arm::event::ActionSequence{arm_sequence::LeftTake2(resources.actuator.GetPositions())});
-      });
-      shared.kh.OnKeyDown(RC::kC, modifier, [&](const rm::modules::KeyEvent &e) {
-        UNUSED(e);
-        if (fsm.get_state_id() != fsm_arm::StateId::kIdle) {  // 非手动模式禁用
-          return;
-        }
-        shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
-        fsm.receive(fsm_arm::event::ActionSequence{arm_sequence::RightTake3(resources.actuator.GetPositions())});
-      });
-    };
     if (resources.config.arm_id == ArmConfig::kLeft) {
       shared.kh.OnKeyDown(RC::kQ, [&](const rm::modules::KeyEvent &e) {
         UNUSED(e);
         resources.gripper_controller.SetNeedsCalibration(true);
       });
-      register_sequence_hotkey(RC::kCtrl);
     } else if (resources.config.arm_id == ArmConfig::kRight) {
       shared.kh.OnKeyDown(RC::kE, [&](const rm::modules::KeyEvent &e) {
         UNUSED(e);
         resources.gripper_controller.SetNeedsCalibration(true);
       });
-      register_sequence_hotkey(RC::kShift);
     }
+    // 建立 HFSM 层级：Moving 为复合状态，首位 Manual 为默认子状态
+    state_moving.set_child_states(moving_children_, std::size(moving_children_));
     fsm.set_states(state_list_, std::size(state_list_));
     fsm.start();
   }
@@ -122,9 +116,19 @@ struct Arm {
    * @note  调用前须已调用 SharedResources::imu.Update()
    */
   void Tick() {
+    const auto start = std::chrono::steady_clock::now();
+
     resources.device_manager.Update();
     resources.actuator.QueryEncoders();
     fsm.receive(fsm_arm::event::ControlLoop{});
     rm::device::DjiMotorBase::SendCommand(*resources.config.can);
+  }
+
+  bool TryExec(const ActionSequence &seq) {
+    if (fsm.get_state_id() != fsm_arm::StateId::kIdle) {
+      return false;
+    }
+    fsm.receive(fsm_arm::event::ActionSequence{seq});
+    return true;
   }
 };

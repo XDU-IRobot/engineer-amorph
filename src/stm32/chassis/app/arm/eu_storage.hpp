@@ -9,8 +9,8 @@ class EnergyUnitStorage {
       : slot_1_(std::move(slot_1)), slot_2_(std::move(slot_2)) {}
 
   void Update() {
-    slot_1_.debounce.add(slot_1_.pin.Read());
-    slot_2_.debounce.add(slot_2_.pin.Read());
+    slot_1_.debounce.add(!slot_1_.pin.Read());
+    slot_2_.debounce.add(!slot_2_.pin.Read());
   }
 
   bool slot_1() const { return slot_1_.debounce.is_set(); }

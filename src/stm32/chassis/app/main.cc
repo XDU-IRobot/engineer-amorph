@@ -61,26 +61,6 @@ void FastIoLoop125hz() {
     chassis->fsm.receive(fsm_chassis::event::ForceModeSwitch{fsm_chassis::StateId::kNoForce});
     pending_mcp2515_restart = true;
   }
-
-  // // 无力时按左（Fn）键设置左臂j3零点
-  // if (shared.vt_rc.online_status() == rm::device::Device::kOk &&  //
-  //     shared.vt_rc.data().left_button &&                          //
-  //     shared.vt_rc.data().switch_position == rm::device::VT03::SwitchPosition::N) {
-  //   if (left_arm->fsm.get_state_id() == fsm_arm::StateId::kNoForce) {
-  //     shared.buzzer_controller.Play<rm::modules::buzzer_melody::TheLick>();
-  //     left_arm->resources.actuator.DmSetZero();
-  //   }
-  // }
-  //
-  // // 无力时按右（换相机）键设置右臂j3零点
-  // if (shared.vt_rc.online_status() == rm::device::Device::kOk &&  //
-  //     shared.vt_rc.data().right_button &&                         //
-  //     shared.vt_rc.data().switch_position == rm::device::VT03::SwitchPosition::N) {
-  //   if (right_arm->fsm.get_state_id() == fsm_arm::StateId::kNoForce) {
-  //     shared.buzzer_controller.Play<rm::modules::buzzer_melody::TheLick>();
-  //     right_arm->resources.actuator.DmSetZero();
-  //   }
-  // }
 }
 
 void SlowIoLoop50hz() {
@@ -108,7 +88,7 @@ void ClientLoop45hz() {
     right_gripper_open = false;
   }
 
-  amorph::schema::RobotFeedBack rf;
+  amorph::schema::RobotTelemetry rf;
   const auto left_q = left_arm->resources.actuator.GetPositions();
   const auto right_q = right_arm->resources.actuator.GetPositions();
   for (int i = 0; i < 6; ++i) {
@@ -117,6 +97,8 @@ void ClientLoop45hz() {
   }
   rf.js.left_gripper_open = left_gripper_open;
   rf.js.right_gripper_open = right_gripper_open;
+  shared.jetson.FeedbackJs(rf.js);
+
   const auto is_dev_online = [](rm::device::Device &dev) -> bool {
     return dev.online_status() == rm::device::Device::kOk;
   };
@@ -140,23 +122,38 @@ void ClientLoop45hz() {
   rf.ss.left_wheel = is_dev_online(chassis->resources.l_wheel);
   rf.ss.right_steer = is_dev_online(chassis->resources.r_steer);
   rf.ss.right_wheel = is_dev_online(chassis->resources.r_wheel);
-  // rf.ss.gimbal_yaw = is_dev_online(gimbal->resources.yaw_motor);
   rf.ss.camera_lift = is_dev_online(gimbal->resources.lift_motor);
   rf.ss.left_j3_temp = left_arm->resources.actuator.j3.coil_temperature();
   rf.ss.right_j3_temp = right_arm->resources.actuator.j3.coil_temperature();
   rf.ss.left_gripper_temp = left_arm->resources.actuator.gripper.coil_temperature();
   rf.ss.right_gripper_temp = right_arm->resources.actuator.gripper.coil_temperature();
-  rf.ss.vehicle_config = orch->fsm.get_state_id();
-  rf.ss.left_arm_fsm_state = left_arm->fsm.get_state_id();
-  rf.ss.right_arm_fsm_state = right_arm->fsm.get_state_id();
-  std::memset(&rf.eud, 0, sizeof(rf.eud));
-  if (is_dev_online(shared.vision_jetson)) {
-    for (int i = 0; i < 8; i++) {
-      rf.eud[i] = shared.vision_jetson.data()[i];
+  switch (orch->fsm.get_state_id()) {
+    case fsm_orch::StateId::kNormal: {
+      rf.ss.vehicle_config = amorph::schema::SystemStatus::kNormal;
+      break;
     }
-  } else {
-    std::memset(&rf.eud, 0, sizeof(rf.eud));
+    case fsm_orch::StateId::kRetracted: {
+      rf.ss.vehicle_config = amorph::schema::SystemStatus::kRetracted;
+      break;
+    }
+    case fsm_orch::StateId::kDisabled:
+    case fsm_orch::StateId::kEnabling:
+    case fsm_orch::StateId::kFault:
+    default: {
+      rf.ss.vehicle_config = amorph::schema::SystemStatus::kNotManaged;
+      break;
+    }
   }
+  // rf.ss.left_arm_fsm_state = left_arm->fsm.get_state_id();
+  // rf.ss.right_arm_fsm_state = right_arm->fsm.get_state_id();
+  std::memset(&rf.eud, 0, sizeof(rf.eud));
+  // if (is_dev_online(shared.vision_jetson)) {
+  //   for (int i = 0; i < 8; i++) {
+  //     rf.eud[i] = shared.vision_jetson.data()[i];
+  //   }
+  // } else {
+  std::memset(&rf.eud, 0, sizeof(rf.eud));
+  // }
   static PacketBuilder::Packet client_packet = PacketBuilder::Build(rf);
   client_packet = PacketBuilder::Build(rf);
   shared.no_dtcm->vt_link_serial.WriteAsync((uint8_t *)&client_packet, sizeof(client_packet), [] {});
@@ -264,6 +261,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     shared.right_can.Process();
     shared.comm_can.Process();
     shared.mcp_can.Process();
+
+    // shared.cs.Update();
 
     // 禁用 EXTI 中断，统一执行以下两项维护操作，防止与 Write() 中的 PRIMASK
     // 临界区以外的残余窗口产生 SPI 竞争：

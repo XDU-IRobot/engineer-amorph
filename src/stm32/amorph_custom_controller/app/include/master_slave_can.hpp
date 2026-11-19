@@ -10,8 +10,7 @@ class MasterSlaveCan : public rm::device::CanDevice {
   constexpr static uint16_t kBaseFrameId = 0x100;
 
  public:
-  explicit MasterSlaveCan(rm::hal::CanInterface &can)
-      : CanDevice{can, kBaseFrameId, kBaseFrameId + 1, kBaseFrameId + 2, kBaseFrameId + 3} {}
+  explicit MasterSlaveCan(rm::hal::CanInterface &can) : CanDevice{can} {}
 
   /// @brief 从机端：填充 CRC 并阻塞发送一帧s
   void ReportToMaster(const SlaveData &data) {
@@ -47,8 +46,12 @@ class MasterSlaveCan : public rm::device::CanDevice {
 
  private:
   void RxCallback(const rm::hal::CanFrame *msg) override {
+    // 只处理本协议占用的4个连续ID，其余报文一律忽略
+    if ((msg->std_id < kBaseFrameId) || (msg->std_id > static_cast<uint16_t>(kBaseFrameId + 3))) {
+      return;
+    }
     ReportStatus(kOk);
-    switch (msg->rx_std_id - kBaseFrameId) {
+    switch (msg->std_id - kBaseFrameId) {
       case 0: {
         std::memcpy(&rx_frag_1, msg->data.data(), sizeof(SlaveDataCan1));
         break;

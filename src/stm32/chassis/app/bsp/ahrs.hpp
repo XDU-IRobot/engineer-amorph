@@ -13,39 +13,23 @@ class Ahrs {
   explicit Ahrs(Installation installation) : installation_{installation} {}
   void Update() {
     onboard_imu_.Update();
+    const Eigen::Vector3f gyro(onboard_imu_.gyro_x(), onboard_imu_.gyro_y(), onboard_imu_.gyro_z());
+    const Eigen::Vector3f accel(onboard_imu_.accel_x(), onboard_imu_.accel_y(), onboard_imu_.accel_z());
+    // 目标坐标系为 ROS REP-105：x 向前、y 向左、z 向上
     switch (installation_) {
       case PYPXNZ: {
-        imu_data_ = {
-            .gx = -onboard_imu_.gyro_y(),
-            .gy = -onboard_imu_.gyro_x(),
-            .gz = onboard_imu_.gyro_z(),
-            .ax = -onboard_imu_.accel_y(),
-            .ay = -onboard_imu_.accel_x(),
-            .az = onboard_imu_.accel_z(),
-        };
+        imu_data_ = {Eigen::Vector3f(-gyro.y(), -gyro.x(), gyro.z()),
+                     Eigen::Vector3f(-accel.y(), -accel.x(), accel.z())};
         break;
       }
       case PYPXPZ: {
-        imu_data_ = {
-          .gx = -onboard_imu_.gyro_y(),
-          .gy = -onboard_imu_.gyro_x(),
-          .gz = -onboard_imu_.gyro_z(),
-          .ax = -onboard_imu_.accel_y(),
-          .ay = -onboard_imu_.accel_x(),
-          .az = -onboard_imu_.accel_z(),
-      };
+        imu_data_ = {Eigen::Vector3f(-gyro.y(), gyro.x(), -gyro.z()),
+                     Eigen::Vector3f(-accel.y(), accel.x(), -accel.z())};
         break;
       }
       case PXPYPZ:
       default: {
-        imu_data_ = {
-            .gx = onboard_imu_.gyro_x(),
-            .gy = onboard_imu_.gyro_y(),
-            .gz = onboard_imu_.gyro_z(),
-            .ax = onboard_imu_.accel_x(),
-            .ay = onboard_imu_.accel_y(),
-            .az = onboard_imu_.accel_z(),
-        };
+        imu_data_ = {gyro, accel};
         break;
       }
     }
@@ -62,7 +46,7 @@ class Ahrs {
   Installation installation_;
 
   rm::modules::ImuData6Dof imu_data_{};
-  rm::modules::EulerAngle pose_euler_{};
+  Eigen::Vector3f pose_euler_{Eigen::Vector3f::Zero()};
 
   rm::modules::MahonyAhrs mahony_{1000.f};
   rm::device::BMI088 onboard_imu_{hspi2, ACC_CS_GPIO_Port, ACC_CS_Pin, GYRO_CS_GPIO_Port, GYRO_CS_Pin};

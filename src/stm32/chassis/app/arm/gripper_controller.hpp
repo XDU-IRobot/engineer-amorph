@@ -16,15 +16,15 @@ class GripperController {
   // constexpr static float kOpenMoveSpeed = 2.f * M_PIf * 100.f;   ///< 夹爪开闭时驱动电机的速度，单位 rad/s
   // constexpr static float kCalibSpeed = 2.f * M_PIf * 30.f;       ///< 校准时驱动电机的速度，单位 rad/s
   //
-  constexpr static float kCloseMoveSpeed = 1.f;     ///< 夹爪开闭时驱动电机的速度，单位 rad/s
+  constexpr static float kCloseMoveSpeed = 0.8f;     ///< 夹爪开闭时驱动电机的速度，单位 rad/s
   constexpr static float kOpenMoveSpeed = 0.8f;      ///< 夹爪开闭时驱动电机的速度，单位 rad/s
-  constexpr static float kCalibSpeed = -0.6f;         ///< 校准时驱动电机的速度，单位 rad/s
+  constexpr static float kCalibSpeed = -1.f;         ///< 校准时驱动电机的速度，单位 rad/s
   //
   // constexpr static float kCloseMoveSpeed = 120.f;     ///< 夹爪开闭时驱动电机的速度，单位 rad/s
   // constexpr static float kOpenMoveSpeed = 120.f;      ///< 夹爪开闭时驱动电机的速度，单位 rad/s
   // constexpr static float kCalibSpeed = -100.f;        ///< 校准时驱动电机的速度，单位 rad/s
   constexpr static float kClosedEncoder = 65.f;      ///< 夹爪完全闭合时编码器的读数
-  constexpr static float kOpenEncoder = 0.f;         ///< 夹爪完全打开时编码器的读数
+  constexpr static float kOpenEncoder = 10.f;         ///< 夹爪完全打开时编码器的读数
   constexpr static uint32_t kCalibTimeoutMs = 2000;  ///< 校准超时时间，单位 ms
   constexpr static int kStallThresholdLoops = 20;    ///< 连续堵转多少次认为校准完成
 

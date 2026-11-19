@@ -26,9 +26,9 @@ class WS2812Led {
       // wait for SPI to be ready
     }
     HAL_SPI_Transmit(hspi_, txbuf, 24, 0xffff);
-    for (int i = 0; i < 100; i++) {
-      HAL_SPI_Transmit(hspi_, &res, 1, 0xffff);
-    }
+    // for (int i = 0; i < 100; i++) {
+    //   HAL_SPI_Transmit(hspi_, &res, 1, 0xffff);
+    // }
   }
 
  private:

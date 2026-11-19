@@ -33,17 +33,17 @@ struct Globals {
 namespace {
 void MainLoop1khz() {
   globals->imu.Update();
-  globals->ahrs.Update(rm::modules::ImuData6Dof{.gx = globals->imu.gyro_x() - 0.001316666867584f,
-                                                .gy = globals->imu.gyro_y() + 0.0007636880887672f,
-                                                .gz = globals->imu.gyro_z() - 0.0010046509085223f,
-                                                .ax = globals->imu.accel_x(),
-                                                .ay = globals->imu.accel_y(),
-                                                .az = globals->imu.accel_z()});
+  globals->ahrs.Update(rm::modules::ImuData6Dof{
+      Eigen::Vector3f(globals->imu.gyro_x() - 0.001316666867584f, globals->imu.gyro_y() + 0.0007636880887672f,
+                      globals->imu.gyro_z() - 0.0010046509085223f),
+      Eigen::Vector3f(globals->imu.accel_x(), globals->imu.accel_y(), globals->imu.accel_z())});
 
+  // euler_angle() 的 xyz 依次是 roll pitch yaw，单位为弧度
+  const Eigen::Vector3f &euler = globals->ahrs.euler_angle();
   schema::EulerAngle pack;
-  pack.pitch = rm::modules::F32ToF16(globals->ahrs.euler_angle().pitch);
-  pack.roll = rm::modules::F32ToF16(globals->ahrs.euler_angle().roll);
-  pack.yaw = rm::modules::F32ToF16(globals->ahrs.euler_angle().yaw);
+  pack.roll = rm::modules::F32ToF16(euler.x());
+  pack.pitch = rm::modules::F32ToF16(euler.y());
+  pack.yaw = rm::modules::F32ToF16(euler.z());
   globals->can2.Write(schema::EulerAngle::kFrameId, (uint8_t *)&pack, sizeof(pack));
 
   static size_t prescaler = 0;

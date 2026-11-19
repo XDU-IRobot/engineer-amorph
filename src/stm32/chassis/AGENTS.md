@@ -10,6 +10,58 @@
 
 ---
 
+## Guidelines
+
+## overall
+
+代码风格严格以Google C++ Style Guide为基础。在此之上：
+
+- 80列限制改为120列
+
+- 对定义在.cc源文件里的类，成员函数直接内联定义在类定义里；若有必要把类定义放在.h头文件里，成员函数的实现仍然放在.cc源文件里。
+
+- 对类、函数、命名空间、成员等的注释采用doxygen规范，对行内的简单解释可直接//后接文本，自行灵活决定
+
+已配置了clang-format规则，在仓库根目录下。
+
+- 由于项目性质为个人竞赛作品，所以更看重开发效率、代码可读性而非交付结果的流程上的规范性。严格遵循最小功能原则，仅实现要求实现的功能，不要擅自添加各种过度的防御性判断、正常调试时基本不会动的可调参数，久而久之这些垃圾代码会积重难返。
+
+- 让注释保持简洁可读。不要写大段的注释，非必要不要用等号拼分割线、不要用箭头、emoji等等非ASCII字符，在有必要说明的地方简明扼要地注一两行解释，或在行内写一句话，过多的废话严重影响代码的可读性。
+
+- 若需要用到某些数学上很复杂的算法，首先考虑有没有第三方库有现成的实现，非必要不要手搓。
+
+以上两条的反面例子：
+
+```cmake
+# 第三方依赖：OpenMP + TensorRT + TensorRT-YOLO + 自定义插件。
+#
+# 本文件对外只暴露一个接口目标 `${PROJECT_NAME}_libs`，外层直接链接它即可：
+#
+#     add_subdirectory(libs)
+#     target_link_libraries(<target> ${PROJECT_NAME}_libs)
+#
+# 不使用 libs/TensorRT-YOLO 自带的顶层 CMakeLists，原因：
+#   - 它强制要求 -DTRT_PATH，且拼死 ${TRT_PATH}/include 与 ${TRT_PATH}/lib，
+#     不接受 Debian multiarch / JetPack 的散装布局；
+#   - 带自己的 install 规则，会把 trtyolo.so 装进 ament 前缀；
+#   - 会 FORCE 覆盖 CMAKE_CUDA_ARCHITECTURES。
+# 因此这里直接编译它的源码。
+
+find_package(CUDAToolkit REQUIRED)
+
+# ------------------------------------------------------------------------------
+# TensorRT 探测
+#
+# 支持两种安装形态，路径全部来自缓存变量或本文件，不改动系统目录：
+#   1) 标准布局：-DTRT_PATH=/opt/tensorrt，其下有 include/ 与 lib/
+#   2) Debian/Ubuntu multiarch 或 JetPack 布局：头在 /usr/include/<triplet>，
+#      库在 /usr/lib/<triplet>（本机即 /usr/include/x86_64-linux-gnu）
+# ------------------------------------------------------------------------------
+set(TRT_PATH "" CACHE PATH "TensorRT 根目录（含 include/ 与 lib/）；留空则自动探测系统安装")
+```
+
+- agentic coding时，必须使用IDE或MCP Server提供的tool，以保持修改可追溯，严禁直接操作终端修改文件，若tool call反复出现问题，导致无法推进，告知问题并停止操作，不要擅自决定fallback到操作终端。
+
 ## 快速定位
 
 | 需要了解的内容                              | 文件                                                                                         |
@@ -23,7 +75,7 @@
 | 底盘子系统 — 参数配置                        | [app/include/chassis/config.hpp](app/include/chassis/config.hpp)                             |
 | 机械臂子系统 — 6-DOF 轨迹控制器              | [app/include/arm/arm_controller.hpp](app/include/arm/arm_controller.hpp)                     |
 | 机械臂子系统 — 正/逆运动学                  | [app/include/arm/kinematics.hpp](app/include/arm/kinematics.hpp)                             |
-| 机械臂子系统 — 9 状态 FSM                    | [app/include/arm/fsm.hpp](app/include/arm/fsm.hpp)                                           |
+| 机械臂子系统 — 4 大状态 HFSM                | [app/include/arm/fsm.hpp](app/include/arm/fsm.hpp)                                           |
 | 机械臂子系统 — 参数配置                      | [app/include/arm/config.hpp](app/include/arm/config.hpp)                                     |
 | 机械臂 — 夹爪控制器                          | [app/include/arm/gripper_controller.hpp](app/include/arm/gripper_controller.hpp)             |
 | 云台子系统 — 5 状态 FSM                      | [app/include/gimbal/fsm.hpp](app/include/gimbal/fsm.hpp)                                     |
@@ -72,17 +124,7 @@
 
 ### 1. 执行模型：定时器驱动的多频任务调度
 
-**无 RTOS，纯中断驱动。** TIM13 硬件定时器产生周期性中断，`TimerTaskScheduler` 按频率分发任务：
-
-| 任务               | 频率   | 职责                                                       |
-| ------------------ | ------ | ---------------------------------------------------------- |
-| `AhrsLoop1khz`     | 1000Hz | IMU 读取 + Mahony AHRS 姿态解算                            |
-| `ChassisLoop500hz` | 500Hz  | 底盘电机反馈读取 → FSM 状态机 → 运动学 + PID → CAN 输出   |
-| `RightArmLoop300hz`| 300Hz  | 机械臂轨迹规划 + 动力学补偿 + 关节 PD → CAN 输出           |
-| `GimbalLoop250hz`  | 250Hz  | 云台 FSM → IMU/编码器 PID → CAN/串口输出                   |
-| `FastIoLoop125hz`  | 125Hz  | 遥控器更新、设备管理器更新、总线电压                       |
-| `SlowIoLoop50hz`   | 50Hz   | LED 图案控制、蜂鸣器旋律                                   |
-| `LoggingLoop1hz`   | 1Hz    | 所有设备在线状态通过 USB CDC 输出                          |
+**无 RTOS，纯中断驱动。** TIM13 硬件定时器产生周期性中断，`TimerTaskScheduler` 按频率分发任务。
 
 **主循环**（`for(;;)`）：持续处理 4 路 CAN 的定频发送 + MCP2515 Bus-Off 恢复。
 
@@ -104,7 +146,7 @@
 Subsystem (e.g., Arm)
   ├── Config    (ArmConfig::MakeRight()) — 编译期+运行时可配置参数
   ├── Resources (ArmResources)           — 聚合电机、控制器、设备管理器
-  ├── FSM       (fsm_arm::Arm + 9 state structs) — ETL 状态机
+  ├── FSM       (fsm_arm::Arm + 9 state structs) — ETL HFSM 状态机
   └── Top-level (Arm struct)             — 持有以上三者，提供 Init() / Tick()
 ```
 
@@ -128,6 +170,33 @@ Subsystem (e.g., Arm)
 2. 在顶层 struct 中声明状态实例
 3. 将新状态指针加入 `state_list_[]`
 4. 在 `Init()` 中注册触发转换的回调（通常是遥控器开关）
+
+#### 4.1 机械臂分层状态机（HFSM）
+
+机械臂使用 `etl::hfsm`，其他子系统仍为扁平的 `etl::fsm`：
+
+```
+Arm (etl::hfsm)
+├── NoForce   (0)  顶层：强制无力
+├── Idle      (1)  顶层：空闲，可执行轨迹
+├── Moving    (2)  顶层复合状态：统一使能电机 + 规划器重置 + 集中处理 ForceModeSwitch
+│   ├── Manual      (默认子状态)
+│   ├── HostControl
+│   ├── CustomCtrl
+│   ├── Sequencing
+│   └── Ident
+└── Fault     (3)  顶层：故障
+```
+
+关键约定：
+
+- **`StateId` 顺序必须与 `state_list_` 下标严格一致**；`kNoForce` 必须为 0（`etl::hfsm::start()` 从 `state_list[0]` 开始，UI 也按 0 判断无力）。
+- **子状态注册**：在 `Arm::Init()` 中调用 `state_moving.set_child_states(children, size)`，且必须在 `fsm.start()` 之前；`add_child_state()` 会断言 `p_parent == nullptr`，因此 `set_child_states` 不可重复调用。
+- **默认子状态**：子状态列表首位即默认子状态（当前为 `Manual`）。`ForceModeSwitch{kMoving}` 会进入该默认子状态。
+- **事件冒泡**：子状态消息模板中未声明的事件会自动传给父状态处理；因此 `ForceModeSwitch` 只在 `Moving` 中声明，五个子状态不再重复 `ACCEPT_MODE_SWITCH()`。
+- **`Pass_To_Parent`**：子状态处理完自有逻辑后若希望父状态继续处理同一事件，返回 `Pass_To_Parent`（当前未使用，预留给需要“子状态先拦截、父状态再决策”的场景）。
+- **规划器对齐**：`Moving::on_enter` 与 `Idle::on_enter` 中直接调用 `controller.ResetAt(actuator.GetPositions())`。电机失能（NoForce/Fault）时编码器仍持续反馈，因此在 `on_enter` 中读到的位置始终有效，不需要额外的“下次控制周期再重置”标志。
+- **祖先 `on_enter` 仅在跨越复合状态边界时触发**：`Moving` 内部兄弟切换（如 `Manual → Sequencing`）不会重跑 `Moving::on_enter`，此时规划器一直处于跟踪状态，无需重置（这是期望行为）。
 
 ### 5. 设备管理器 & 在线状态
 

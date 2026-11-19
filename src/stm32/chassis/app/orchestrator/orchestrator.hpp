@@ -13,7 +13,7 @@ struct Orchestrator {
 
  private:
   // 这个数组需与fsm同生命周期，所以放在这里
-  etl::ifsm_state *state_list_[6]{
+  etl::ifsm_state *state_list_[5]{
       &fsm_state_disabled,   //
       &fsm_state_enabling,   //
       &fsm_state_normal,     //

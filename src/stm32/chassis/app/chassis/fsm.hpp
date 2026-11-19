@@ -178,7 +178,7 @@ struct Debug : etl::fsm_state<Chassis, Debug, StateId::kDebug,  //
                                 e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
                                 e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
                                 e.f_steer_current, e.l_steer_current, e.r_steer_current,  //
-                                shared.ahrs.imu_data().gz,                                //
+                                shared.ahrs.imu_data().gyro.z(),                          //
                                 move_gently);
     const auto &control = resources.controller.output();
     resources.f_steer.SetCurrent(-control.front_steer);
@@ -225,7 +225,7 @@ struct Normal : etl::fsm_state<Chassis, Normal, StateId::kNormal,  //
                                 e.f_wheel_vel, e.l_wheel_vel, e.r_wheel_vel,              //
                                 e.f_wheel_current, e.l_wheel_current, e.r_wheel_current,  //
                                 e.f_steer_current, e.l_steer_current, e.r_steer_current,  //
-                                shared.ahrs.imu_data().gz,                                //
+                                shared.ahrs.imu_data().gyro.z(),                          //
                                 velocity_cmd_.move_gently);
     const auto &control = resources.controller.output();
     resources.f_steer.SetCurrent(-control.front_steer);

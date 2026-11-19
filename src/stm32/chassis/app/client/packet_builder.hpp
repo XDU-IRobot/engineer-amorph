@@ -16,14 +16,14 @@ class PacketBuilder {
 
     // payload
     // uint8_t data[300]{};
-    amorph::schema::RobotFeedBack data;
-    uint8_t padding[300 - sizeof(amorph::schema::RobotFeedBack)]{0};
+    amorph::schema::RobotTelemetry data;
+    uint8_t padding[300 - sizeof(amorph::schema::RobotTelemetry)]{0};
 
     // tail
     uint16_t tail_crc16;
   };
 
-  static Packet Build(const amorph::schema::RobotFeedBack &rf) {
+  static Packet Build(const amorph::schema::RobotTelemetry &rf) {
     static uint8_t seq = 0;
 
     Packet ret;

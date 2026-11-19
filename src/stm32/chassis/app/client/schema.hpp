@@ -35,15 +35,25 @@ struct __attribute__((packed)) SystemStatus {
   bool left_wheel : 1;
   bool right_steer : 1;
   bool right_wheel : 1;
-  bool gimbal_yaw : 1;
   bool camera_lift : 1;
   uint8_t left_j3_temp;
   uint8_t left_gripper_temp;
   uint8_t right_j3_temp;
   uint8_t right_gripper_temp;
-  uint8_t vehicle_config;
-  uint8_t left_arm_fsm_state;
-  uint8_t right_arm_fsm_state;
+  enum VehicleConfig : uint8_t {
+    kNotManaged = 0u,
+    kNormal,
+    kRetracted,
+    kFault
+  };
+  VehicleConfig vehicle_config;
+  enum ArmState : uint8_t {
+    kNoforce = 0u,
+    kIdle,
+    kMoving,
+  };
+  ArmState left_arm_fsm_state;
+  ArmState right_arm_fsm_state;
 };
 
 struct __attribute__((packed)) EnergyUnitDetection {
@@ -53,12 +63,83 @@ struct __attribute__((packed)) EnergyUnitDetection {
 };
 
 /// @brief STM32反馈给客户端的数据。车->客户端 300B/50hz
-struct __attribute__((packed)) RobotFeedBack {
+struct __attribute__((packed)) RobotTelemetry {
   JointState js;
   SystemStatus ss;
   EnergyUnitDetection eud[8];
 };
-static_assert(sizeof(RobotFeedBack) <= 300);
+static_assert(sizeof(RobotTelemetry) <= 300);
+
+//********************************************* */
+//********************************************* */
+//********************************************* */
+
+struct __attribute__((packed)) SingleCcCmd {
+  float q[6];
+  bool btn_a : 1;
+  bool btn_b : 1;
+  bool btn_c : 1;
+  bool btn_d : 1;
+  bool btn_e : 1;
+  bool btn_f : 1;
+  bool btn_g : 1;
+  bool btn_h : 1;
+};
+
+struct __attribute__((packed)) CcCmd {
+  SingleCcCmd left;
+  SingleCcCmd right;
+};
+
+struct __attribute__((packed)) JoyRaw {
+  float left_x;
+  float left_y;
+  float right_x;
+  float right_y;
+  float lt;
+  float rt;
+  bool button_a : 1;
+  bool button_b : 1;
+  bool button_x : 1;
+  bool button_y : 1;
+  bool button_lb : 1;
+  bool button_rb : 1;
+  bool button_view : 1;
+  bool button_menu : 1;
+  bool button_share : 1;
+  bool button_xbox : 1;
+  bool button_ls : 1;
+  bool button_rs : 1;
+  bool dpad_up : 1;
+  bool dpad_down : 1;
+  bool dpad_left : 1;
+  bool dpad_right : 1;
+};
+
+struct __attribute__((packed)) ImuRaw {
+  float qw;
+  float qx;
+  float qy;
+  float qz;
+};
+
+struct __attribute__((packed)) ManualCmd {
+  bool joy_ok : 1;
+  bool imu_ok : 1;
+  JoyRaw joy;
+  ImuRaw imu;
+};
+
+struct __attribute__((packed)) SingleHostCmd {
+  bool take_control;
+  bool gripper_open;
+  float q[6];
+};
+
+struct __attribute__((packed)) HostCmd {
+  SingleHostCmd left;
+  SingleHostCmd right;
+};
 
 //********************************************* */
 //********************************************* */

@@ -2,9 +2,8 @@
 #pragma once
 
 #include <librm.hpp>
-#include <etl/fsm.h>
+#include <etl/hfsm.h>
 
-#include "kinematics.hpp"
 #include "resources.hpp"
 #include "shared_resources.hpp"
 #include "custom_controller.hpp"
@@ -26,16 +25,22 @@ struct EventId {
   };
 };
 
+/// @brief 状态 ID，顺序必须与 Arm::state_list_ 的下标严格一致
 struct StateId {
   enum : etl::fsm_state_id_t {
-    kNoForce,      ///< 强制无力
+    // 顶层状态
+    kNoForce,  ///< 强制无力
+    kIdle,     ///< 空闲，可执行轨迹
+    kMoving,   ///< 运动状态（HFSM 复合状态），内部包含 Manual/HostControl/CustomCtrl/Sequencing/Ident
+    kFault,    ///< 故障状态
+
+    // Moving 的子状态
     kManual,       ///< 遥控器手动模式，调试/检录的时候用
-    kIdle,         ///< 空闲，可执行轨迹
     kHostControl,  ///< 正在被上位机控制
     kCustomCtrl,   ///< 自定义控制器操作
     kSequencing,   ///< 正在执行动作序列
-    kFault,        ///< 故障状态
     kIdent,        ///< 用于参数辨识，执行固定激励轨迹
+
     NUMBER_OF_STATES,
   };
 };
@@ -86,12 +91,12 @@ struct ActionSequence : etl::message<EventId::kActionSequence> {
 };
 }  // namespace event
 
-class Arm : public etl::fsm {
+/// @brief 机械臂分层状态机
+/// @note  顶层为 NoForce/Idle/Moving/Fault；Moving 是复合状态，
+///        其子状态在 Arm::Init() 中通过 set_child_states() 注册
+class Arm : public etl::hfsm {
  public:
-  explicit Arm(ArmResources &r) : fsm(r.config.fsm_msg_router_id), resources_(&r) {}
-
-  bool planner_need_reset_{
-      true};  ///< 从故障中恢复或刚上电的时候，规划器不知道当前关节位置/丢失跟踪了一段时间，需要在下一个ControlLoop到来的时候强制把规划器的当前位置重置为当前关节位置
+  explicit Arm(ArmResources &r) : hfsm(r.config.fsm_msg_router_id), resources_(&r) {}
 
   ArmResources &resources() const { return *resources_; }
 
@@ -128,9 +133,9 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
     auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    get_fsm_context().planner_need_reset_ = true;
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<1>>();
     resources.actuator.SetEnable(false);
+    resources.actuator.ClearError();
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
@@ -139,7 +144,7 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
 
     resources.controller.ResetAt(resources.actuator.GetPositions());
     resources.controller.Update(resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
-                                {shared.ahrs.imu_data().ax, shared.ahrs.imu_data().ay, shared.ahrs.imu_data().az},
+                                {shared.ahrs.imu_data().accel.x(), shared.ahrs.imu_data().accel.y(), shared.ahrs.imu_data().accel.z()},
                                 0.002f);
     resources.actuator.ApplyOutput(ArmController::Output::Zero(), false);
     resources.actuator.SetEnable(false, 1);
@@ -149,40 +154,46 @@ struct NoForce : etl::fsm_state<Arm, NoForce, StateId::kNoForce,  //
 };
 
 /*******************************************/
+/// @brief 运动复合状态（HFSM 父状态）
+/// @note  子状态 Manual/HostControl/CustomCtrl/Sequencing/Ident 在 Arm::Init() 中通过
+///        set_child_states() 注册，列表中首位 Manual 为默认子状态。
+///        子状态未声明处理的事件会自动冒泡到此父状态处理。
+struct Moving : etl::fsm_state<Arm, Moving, StateId::kMoving,  //
+                               event::ForceModeSwitch> {
+  ACCEPT_MODE_SWITCH();
+  IGNORE_UNINTEREST_EVENT();
+  ENTER {
+    auto &resources = get_fsm_context().resources();
+
+    // 进入 Moving 时统一把规划器对齐到当前实测位置并使能电机。
+    // 电机失能时编码器仍持续反馈，因此从 NoForce/Fault 恢复时这里读到的是有效位置。
+    resources.controller.ResetAt(resources.actuator.GetPositions());
+    resources.actuator.SetEnable(true);
+    return No_State_Change;
+  }
+};
+
+/*******************************************/
 struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
-                               event::ForceModeSwitch,         //
                                event::ControlLoop,             //
                                event::NextJoint,               //
                                event::ActionSequence> {
-  ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
     ctrl_joint_idx_ = 0;
-    // 进入Manual时强制重置规划器，防止位置跳变
-    get_fsm_context().planner_need_reset_ = true;
-    // 注意: target_positions_ 的初始化移动到第一个 ControlLoop 中进行，
-    // 因为此时 planner_need_reset_ 为 true，controller.output() 不是最新位置
-    target_positions_initialized_ = false;
+    // 规划器重置与电机使能已由父状态 Moving 统一处理，
+    // 此处直接以重置后的实测位置初始化目标，避免首帧位置跳变
+    target_positions_ = resources.controller.current_positions();
     shared.buzzer_controller.Play<buzzer_melody::EnterManualMode>();
-    resources.actuator.SetEnable(true);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
     auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(resources.actuator.GetPositions());
-      get_fsm_context().planner_need_reset_ = false;
-    }
-    // 确保在 ResetAt 之后再初始化 target_positions_，避免位置跳变
-    if (!target_positions_initialized_) {
-      target_positions_ = resources.controller.current_positions();
-      target_positions_initialized_ = true;
-    }
     const auto &joint_limits = resources.controller.joint_limits();
     target_positions_[ctrl_joint_idx_] =
         std::clamp(target_positions_[ctrl_joint_idx_] + (shared.rc.right_y() * 0.001f),  //
@@ -192,7 +203,7 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
     resources.controller.GoTo(target_positions_);
 
     resources.controller.Update(resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
-                                {shared.ahrs.imu_data().ax, shared.ahrs.imu_data().ay, shared.ahrs.imu_data().az},
+                                {shared.ahrs.imu_data().accel.x(), shared.ahrs.imu_data().accel.y(), shared.ahrs.imu_data().accel.z()},
                                 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
     resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
@@ -228,7 +239,6 @@ struct Manual : etl::fsm_state<Arm, Manual, StateId::kManual,  //
  private:
   std::array<float, 6> target_positions_{};
   int ctrl_joint_idx_{0};
-  bool target_positions_initialized_{false};
 };
 
 /*******************************************/
@@ -244,7 +254,8 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,       //
     auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    get_fsm_context().planner_need_reset_ = true;  // 进入Idle时强制重置规划器，防止位置跳变
+    // 进入 Idle 时把规划器对齐到实测位置，防止上一次运动的目标残留导致位置跳变
+    resources.controller.ResetAt(resources.actuator.GetPositions());
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
     resources.actuator.SetEnable(true);
     return No_State_Change;
@@ -255,13 +266,9 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,       //
     // if (resources.controller.status() == ArmController::kFault) {
     //   return StateId::kFault;
     // }
-    if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(resources.actuator.GetPositions());
-      get_fsm_context().planner_need_reset_ = false;
-    }
 
     resources.controller.Update(resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
-                                {shared.ahrs.imu_data().ax, shared.ahrs.imu_data().ay, shared.ahrs.imu_data().az},
+                                {shared.ahrs.imu_data().accel.x(), shared.ahrs.imu_data().accel.y(), shared.ahrs.imu_data().accel.z()},
                                 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
     resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
@@ -298,16 +305,12 @@ struct Idle : etl::fsm_state<Arm, Idle, StateId::kIdle,       //
 /*******************************************/
 struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
                                     event::ControlLoop,                       //
-                                    event::ForceModeSwitch,                   //
                                     event::SingleHostCommand> {
-  ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     auto &shared = SharedResources::GetInstance();
-    auto &resources = get_fsm_context().resources();
 
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Success>();
-    resources.actuator.SetEnable(true);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
@@ -324,12 +327,8 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
         break;
       }
     }
-    if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(resources.actuator.GetPositions());
-      get_fsm_context().planner_need_reset_ = false;
-    }
     resources.controller.Update(resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
-                                {shared.ahrs.imu_data().ax, shared.ahrs.imu_data().ay, shared.ahrs.imu_data().az},
+                                {shared.ahrs.imu_data().accel.x(), shared.ahrs.imu_data().accel.y(), shared.ahrs.imu_data().accel.z()},
                                 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
     resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
@@ -359,7 +358,6 @@ struct HostControl : etl::fsm_state<Arm, HostControl, StateId::kHostControl,  //
 /*******************************************/
 struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
                                    event::ControlLoop,                     //
-                                   event::ForceModeSwitch,                 //
                                    event::SingleCustomCtrlCommand> {
   CustomCtrl() {
     btn_a_svw_.OnValueChange([this](const bool &old_value, const bool &new_value) {
@@ -368,15 +366,11 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
       }
     });
   }
-  ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     auto &shared = SharedResources::GetInstance();
-    auto &resources = get_fsm_context().resources();
 
-    get_fsm_context().planner_need_reset_ = true;  // 强制重置规划器，防止位置跳变
     shared.buzzer_controller.Play<buzzer_melody::HiBeeps<1>>();
-    resources.actuator.SetEnable(true);
     invert_j6_ = false;
     return No_State_Change;
   }
@@ -387,12 +381,8 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     // if (resources.controller.status() == ArmController::kFault) {
     //   return StateId::kFault;
     // }
-    if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(resources.actuator.GetPositions());
-      get_fsm_context().planner_need_reset_ = false;
-    }
     resources.controller.Update(resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
-                                {shared.ahrs.imu_data().ax, shared.ahrs.imu_data().ay, shared.ahrs.imu_data().az},
+                                {shared.ahrs.imu_data().accel.x(), shared.ahrs.imu_data().accel.y(), shared.ahrs.imu_data().accel.z()},
                                 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
     resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),
@@ -414,7 +404,7 @@ struct CustomCtrl : etl::fsm_state<Arm, CustomCtrl, StateId::kCustomCtrl,  //
     // p[2] = -(180_deg).rad() + std::atan2f(84.5f, 415.f) + (20_deg).rad();
     std::array<float, 6> target_p;
     target_p[0] = e.q[0];
-    target_p[1] = std::min(e.q[1], (180_deg).rad() - std::atan2f(84.5f, 415.f) - (15_deg).rad());
+    target_p[1] = std::min(e.q[1], (180_deg).rad() - std::atan2f(84.5f, 415.f) - (35_deg).rad());
     target_p[2] = std::max(e.q[2], -(180_deg).rad() + std::atan2f(84.5f, 415.f) + (20_deg).rad());
     target_p[3] = e.q[3];
     target_p[4] = e.q[4];
@@ -439,15 +429,12 @@ struct Sequencing : etl::fsm_state<Arm, Sequencing, StateId::kSequencing,  //
                                    event::ControlLoop,                     //
                                    event::FaultClear,                      //
                                    event::ActionSequence> {
-  // ACCEPT_MODE_SWITCH();
+  // 仅允许切到 NoForce；其余模式切换事件由父状态 Moving 统一处理后忽略
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     auto &shared = SharedResources::GetInstance();
-    auto &resources = get_fsm_context().resources();
 
-    get_fsm_context().planner_need_reset_ = true;  // 强制重置规划器
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
-    resources.actuator.SetEnable(true);
     return No_State_Change;
   }
   REACT(event::ForceModeSwitch) {
@@ -460,11 +447,6 @@ struct Sequencing : etl::fsm_state<Arm, Sequencing, StateId::kSequencing,  //
     auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(resources.actuator.GetPositions());
-      get_fsm_context().planner_need_reset_ = false;
-    }
-
     // Tick sequencer，推进动作序列
     constexpr float kDt = 0.002f;
     constexpr uint32_t kDtMs = 2;
@@ -472,7 +454,7 @@ struct Sequencing : etl::fsm_state<Arm, Sequencing, StateId::kSequencing,  //
 
     // 更新 ArmController 并输出
     resources.controller.Update(resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
-                                {shared.ahrs.imu_data().ax, shared.ahrs.imu_data().ay, shared.ahrs.imu_data().az}, kDt);
+                                {shared.ahrs.imu_data().accel.x(), shared.ahrs.imu_data().accel.y(), shared.ahrs.imu_data().accel.z()}, kDt);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
 
     // 更新夹爪
@@ -513,7 +495,6 @@ struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
     auto &shared = SharedResources::GetInstance();
     auto &resources = get_fsm_context().resources();
 
-    get_fsm_context().planner_need_reset_ = true;
     resources.actuator.SetEnable(false);
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Error>();
     return No_State_Change;
@@ -542,17 +523,12 @@ struct Fault : etl::fsm_state<Arm, Fault, StateId::kFault,  //
 
 /*******************************************/
 struct Ident : etl::fsm_state<Arm, Ident, StateId::kIdent,  //
-                              event::ForceModeSwitch,       //
                               event::ControlLoop> {
-  ACCEPT_MODE_SWITCH();
   IGNORE_UNINTEREST_EVENT();
   ENTER {
     auto &shared = SharedResources::GetInstance();
-    auto &resources = get_fsm_context().resources();
 
-    get_fsm_context().planner_need_reset_ = true;  // 进入Idle时强制重置规划器，防止位置跳变
     shared.buzzer_controller.Play<rm::modules::buzzer_melody::Beeps<2>>();
-    resources.actuator.SetEnable(true);
     return No_State_Change;
   }
   REACT(event::ControlLoop) {
@@ -561,10 +537,6 @@ struct Ident : etl::fsm_state<Arm, Ident, StateId::kIdent,  //
     // if (resources.controller.status() == ArmController::kFault) {
     //   return StateId::kFault;
     // }
-    if (get_fsm_context().planner_need_reset_) {
-      resources.controller.ResetAt(resources.actuator.GetPositions());
-      get_fsm_context().planner_need_reset_ = false;
-    }
 
     for (int i = 0; i < 3; ++i) {
       target_[i] = tg_[i].evaluate(HAL_GetTick() / 1000.f).q;
@@ -576,7 +548,7 @@ struct Ident : etl::fsm_state<Arm, Ident, StateId::kIdent,  //
 
     resources.controller.GoTo(current_pos);
     resources.controller.Update(resources.actuator.GetPositions(), resources.actuator.GetVelocities(),
-                                {shared.ahrs.imu_data().ax, shared.ahrs.imu_data().ay, shared.ahrs.imu_data().az},
+                                {shared.ahrs.imu_data().accel.x(), shared.ahrs.imu_data().accel.y(), shared.ahrs.imu_data().accel.z()},
                                 0.002f);
     resources.actuator.ApplyOutput(resources.controller.output(), true);
     resources.gripper_controller.Update(resources.actuator.GetGripperPosition(),

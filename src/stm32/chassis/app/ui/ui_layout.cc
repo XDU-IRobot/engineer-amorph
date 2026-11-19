@@ -245,20 +245,20 @@ void SlowUpdate() {
   }
 
   if (shared.jetson.online_status() == rm::device::Device::kOk) {
-    if (shared.jetson.data().range_l_valid) {
-      edit.figure6.fillFloat("dl", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::Pink, 5, 750,
-                             200, 30, shared.jetson.data().range_l * 1000.f);
-    } else {
-      edit.figure6.fillFloat("dl", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::White, 5, 750,
-                             200, 30, shared.jetson.data().range_l * 1000.f);
-    }
-    if (shared.jetson.data().range_r_valid) {
-      edit.figure7.fillFloat("dr", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::Pink, 5, 1070,
-                             200, 30, shared.jetson.data().range_r * 1000.f);
-    } else {
-      edit.figure7.fillFloat("dr", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::White, 5,
-                             1070, 200, 30, shared.jetson.data().range_r * 1000.f);
-    }
+    // if (shared.jetson.data().range_l_valid) {
+    //   edit.figure6.fillFloat("dl", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::Pink, 5, 750,
+    //                          200, 30, shared.jetson.data().range_l * 1000.f);
+    // } else {
+    //   edit.figure6.fillFloat("dl", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::White, 5, 750,
+    //                          200, 30, shared.jetson.data().range_l * 1000.f);
+    // }
+    // if (shared.jetson.data().range_r_valid) {
+    //   edit.figure7.fillFloat("dr", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::Pink, 5, 1070,
+    //                          200, 30, shared.jetson.data().range_r * 1000.f);
+    // } else {
+    //   edit.figure7.fillFloat("dr", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::White, 5,
+    //                          1070, 200, 30, shared.jetson.data().range_r * 1000.f);
+    // }
   } else {
     edit.figure6.fillFloat("dl", rm::device::UIFigure::Operation::Edit, 0, rm::device::UIFigure::Color::Black, 5, 750,
                            200, 30, 0.f);
